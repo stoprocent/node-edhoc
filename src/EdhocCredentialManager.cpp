@@ -1,0 +1,121 @@
+#include <iostream>
+#include <future>
+#include <exception>
+#include <stdexcept>
+
+#include "EdhocCredentialManager.h"
+#include "UserContext.h"
+#include "Utils.h"
+
+static const uint8_t CRED_R[] = {
+	0x30, 0x81, 0xee, 0x30, 0x81, 0xa1, 0xa0, 0x03, 0x02, 0x01, 0x02, 0x02,
+	0x04, 0x62, 0x31, 0x9e, 0xc4, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70,
+	0x30, 0x1d, 0x31, 0x1b, 0x30, 0x19, 0x06, 0x03, 0x55, 0x04, 0x03, 0x0c,
+	0x12, 0x45, 0x44, 0x48, 0x4f, 0x43, 0x20, 0x52, 0x6f, 0x6f, 0x74, 0x20,
+	0x45, 0x64, 0x32, 0x35, 0x35, 0x31, 0x39, 0x30, 0x1e, 0x17, 0x0d, 0x32,
+	0x32, 0x30, 0x33, 0x31, 0x36, 0x30, 0x38, 0x32, 0x34, 0x33, 0x36, 0x5a,
+	0x17, 0x0d, 0x32, 0x39, 0x31, 0x32, 0x33, 0x31, 0x32, 0x33, 0x30, 0x30,
+	0x30, 0x30, 0x5a, 0x30, 0x22, 0x31, 0x20, 0x30, 0x1e, 0x06, 0x03, 0x55,
+	0x04, 0x03, 0x0c, 0x17, 0x45, 0x44, 0x48, 0x4f, 0x43, 0x20, 0x52, 0x65,
+	0x73, 0x70, 0x6f, 0x6e, 0x64, 0x65, 0x72, 0x20, 0x45, 0x64, 0x32, 0x35,
+	0x35, 0x31, 0x39, 0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70,
+	0x03, 0x21, 0x00, 0xa1, 0xdb, 0x47, 0xb9, 0x51, 0x84, 0x85, 0x4a, 0xd1,
+	0x2a, 0x0c, 0x1a, 0x35, 0x4e, 0x41, 0x8a, 0xac, 0xe3, 0x3a, 0xa0, 0xf2,
+	0xc6, 0x62, 0xc0, 0x0b, 0x3a, 0xc5, 0x5d, 0xe9, 0x2f, 0x93, 0x59, 0x30,
+	0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x41, 0x00, 0xb7, 0x23, 0xbc,
+	0x01, 0xea, 0xb0, 0x92, 0x8e, 0x8b, 0x2b, 0x6c, 0x98, 0xde, 0x19, 0xcc,
+	0x38, 0x23, 0xd4, 0x6e, 0x7d, 0x69, 0x87, 0xb0, 0x32, 0x47, 0x8f, 0xec,
+	0xfa, 0xf1, 0x45, 0x37, 0xa1, 0xaf, 0x14, 0xcc, 0x8b, 0xe8, 0x29, 0xc6,
+	0xb7, 0x30, 0x44, 0x10, 0x18, 0x37, 0xeb, 0x4a, 0xbc, 0x94, 0x95, 0x65,
+	0xd8, 0x6d, 0xce, 0x51, 0xcf, 0xae, 0x52, 0xab, 0x82, 0xc1, 0x52, 0xcb,
+	0x02,
+};
+
+static const uint8_t PK_I[] = {
+	0xEF, 0xEC, 0xD6, 0x9B, 0xB9, 0xDD, 0xC1, 0x4C, 0xC8, 0xA6, 0x21, 0x97, 
+    0x0D, 0x5E, 0x15, 0x48, 0x74, 0xBD, 0xC1, 0x16, 0x3D, 0x40, 0x23, 0x5C, 
+    0x9F, 0x19, 0xF5, 0x5E, 0x87, 0x78, 0xCA, 0xF4
+};
+
+EdhocCredentialManager::EdhocCredentialManager(Napi::Env env, Napi::Function fetchCallback, Napi::Function verifyCallback)
+    : fetchFuncRef(Napi::Persistent(fetchCallback)), verifyFuncRef(Napi::Persistent(verifyCallback)) {
+    
+    this->fetchTsfn = Napi::ThreadSafeFunction::New(fetchCallback.Env(), fetchCallback, "Fetch Credentials", 0, 1);
+    this->verifyTsfn = Napi::ThreadSafeFunction::New(verifyCallback.Env(), verifyCallback, "Verify Credentials", 0, 1);
+
+    this->credentials.fetch = FetchCredentials;
+    this->credentials.verify = VerifyCredentials;
+}
+
+EdhocCredentialManager::~EdhocCredentialManager() {
+    this->fetchFuncRef.Unref();
+    this->fetchFuncRef.Reset();
+    this->verifyFuncRef.Unref();
+    this->verifyFuncRef.Reset();
+    this->fetchTsfn.Release();
+    this->verifyTsfn.Release();
+}
+
+// Implementations
+int EdhocCredentialManager::FetchCredentials(void *user_context, struct edhoc_auth_creds *credentials) {
+    UserContext* context = static_cast<UserContext*>(user_context);
+    EdhocCredentialManager* manager = context->GetCredentialManager();
+    return manager->CallFetchCredentials(credentials);
+}
+
+int EdhocCredentialManager::VerifyCredentials(void *user_context, struct edhoc_auth_creds *credentials, const uint8_t **public_key_reference, size_t *public_key_length) {
+    UserContext* context = static_cast<UserContext*>(user_context);
+    EdhocCredentialManager* manager = context->GetCredentialManager();
+    return manager->CallVerifyCredentials(credentials, public_key_reference, public_key_length);
+}
+
+static struct edhoc_auth_creds own_credentials;
+
+int EdhocCredentialManager::CallFetchCredentials(struct edhoc_auth_creds *credentials) {
+    std::promise<int> promise;
+    std::future<int> future = promise.get_future();
+
+    this->fetchTsfn.BlockingCall([&promise, &credentials](Napi::Env env, Napi::Function jsCallback) {
+        Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, {}, [&promise, &credentials](Napi::Env env, Napi::Value result) {
+            credentials->priv_key_id[0] = 0x01;
+            credentials->priv_key_id[1] = 0x02;
+            credentials->priv_key_id[2] = 0x03;
+            credentials->priv_key_id[3] = 0x04;
+
+            credentials->label = EDHOC_COSE_HEADER_X509_CHAIN;	
+            credentials->x509_chain.cert = CRED_R;
+            credentials->x509_chain.cert_len = ARRAY_SIZE(CRED_R);
+
+            promise.set_value(EDHOC_SUCCESS);
+        });
+    });
+
+    future.wait();
+    return future.get();
+}
+
+int EdhocCredentialManager::CallVerifyCredentials(struct edhoc_auth_creds *credentials, const uint8_t **public_key_reference, size_t *public_key_length) {
+    std::promise<int> promise;
+    std::future<int> future = promise.get_future();
+
+    this->verifyTsfn.BlockingCall([&promise, &credentials, &public_key_reference, &public_key_length](Napi::Env env, Napi::Function jsCallback) {
+        Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, {}, [&promise, &credentials, &public_key_reference, &public_key_length](Napi::Env env, Napi::Value result) {
+            credentials->priv_key_id[0] = 0x01;
+            credentials->priv_key_id[1] = 0x02;
+            credentials->priv_key_id[2] = 0x03;
+            credentials->priv_key_id[3] = 0x04;
+
+            credentials->label = EDHOC_COSE_HEADER_X509_CHAIN;	
+            credentials->x509_chain.cert = CRED_R;
+            credentials->x509_chain.cert_len = ARRAY_SIZE(CRED_R);
+
+            *public_key_reference = PK_I;
+            *public_key_length = ARRAY_SIZE(PK_I);
+
+            promise.set_value(EDHOC_SUCCESS);
+        });
+    });
+
+    future.wait();
+    return future.get();
+}
