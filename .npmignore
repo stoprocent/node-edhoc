@@ -1,0 +1,17 @@
+.DS_Store
+.eslintrc.js
+.releaserc
+.github
+.clang-format
+*.md
+*.gyp
+eslint.config.*
+build
+docs
+src
+include
+external
+npm-debug.log
+tsconfig.json
+lib
+example
