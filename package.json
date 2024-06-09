@@ -13,6 +13,7 @@
   "license": "MIT",
   "dependencies": {
     "bindings": "~1.2.1",
+    "elliptic": "^6.5.5",
     "futoin-hkdf": "^1.5.3",
     "node-addon-api": "^4.3.0",
     "node-gyp-build": "^4.6.1"

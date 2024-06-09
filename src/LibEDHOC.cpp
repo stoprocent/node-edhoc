@@ -7,15 +7,28 @@
 #include "ThreadSafeDeferred.h"
 
 static const struct edhoc_cipher_suite edhoc_cipher_suite_0 = {
-    .value = 0,
-    .aead_key_length = 16,
-    .aead_tag_length = 8,
-    .aead_iv_length = 13,
-    .hash_length = 32,
-    .mac_length = 32,
-    .ecc_key_length = 32,
-    .ecc_sign_length = 64,
-};
+		.value = 2,
+		.aead_key_length = 16,
+		.aead_tag_length = 8,
+		.aead_iv_length = 13,
+		.hash_length = 32,
+		.mac_length = 8,
+		.ecc_key_length = 32,
+		.ecc_sign_length = 64,
+	};
+
+void my_logger(void *user_context, const char *name, const uint8_t *buffer, size_t buffer_length) {
+    printf("%s:\n", name);
+    for (size_t i = 0; i < buffer_length; i++) {
+        printf("%02X ", buffer[i]);
+        if ((i + 1) % 16 == 0) {
+            printf("\n"); // Break line every 16 bytes
+        }
+    }
+    if (buffer_length % 16 != 0) {
+        printf("\n"); // Ensure ending with a new line if not exactly multiple of 16
+    }
+}
 
 using namespace Napi;
 
@@ -35,6 +48,8 @@ taskQueue(std::make_unique<TaskQueue>()) {
     
     // Method
     this->SetMethod(info, info[1]);
+
+    this->_context.logger = my_logger;
 
     // Suites
     ret = edhoc_set_cipher_suites(&this->_context, &edhoc_cipher_suite_0, 1);

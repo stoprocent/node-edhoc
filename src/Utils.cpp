@@ -20,12 +20,7 @@ void Utils::InvokeJSFunctionWithPromiseHandling(Napi::Env env, Napi::Function js
         auto thenCallback = Napi::Function::New(env, [callbackLambda](const Napi::CallbackInfo& info) {
             Napi::Env env = info.Env();
             Napi::Value result = info[0];
-            try {
-                callbackLambda(env, result);
-            } catch (const Napi::Error& e) {
-                throw e;
-            }
-            return env.Undefined();
+            callbackLambda(env, result);
         });
         
         // Define the callback to be called when the promise is rejected
@@ -36,8 +31,12 @@ void Utils::InvokeJSFunctionWithPromiseHandling(Napi::Env env, Napi::Function js
         });
 
         // Use the 'then' method of the promise to set the callbacks
-        promise.Get("then").As<Napi::Function>().Call(promise, { thenCallback });
-        promise.Get("catch").As<Napi::Function>().Call(promise, { catchCallback });
+        try {
+            promise.Get("then").As<Napi::Function>().Call(promise, { thenCallback });
+            promise.Get("catch").As<Napi::Function>().Call(promise, { catchCallback });
+        } catch (const Napi::Error& e) {
+            throw e;
+        }
     } else {
         try {
             callbackLambda(env, result);

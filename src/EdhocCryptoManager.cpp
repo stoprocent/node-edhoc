@@ -323,7 +323,30 @@ int EdhocCryptoManager::CallSign(const void *key_id, const uint8_t *input, size_
 }
 
 int EdhocCryptoManager::CallVerify(const void *key_id, const uint8_t *input, size_t input_length, const uint8_t *signature, size_t signature_length) {
-    // Implementation of CallVerify
+std::promise<int> promise;
+    std::future<int> future = promise.get_future();
+
+    this->verifyTsfn.BlockingCall([&promise, &key_id, &input, input_length, &signature, signature_length](Napi::Env env, Napi::Function jsCallback) {
+        try {
+            std::vector<napi_value> arguments = {
+                Napi::Buffer<uint8_t>::Copy(env, static_cast<const uint8_t*>(key_id), EDHOC_KID_LEN),
+                Napi::Buffer<uint8_t>::Copy(env, input, input_length),
+                Napi::Buffer<uint8_t>::Copy(env, signature, signature_length),
+            };
+            Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise](Napi::Env env, Napi::Value result) {
+                if (!result.IsBoolean()) {
+                    throw Napi::TypeError::New(env, "Expected boolean value as a result from verify function");
+                }
+                promise.set_value( result.As<Napi::Boolean>().Value() ? EDHOC_SUCCESS : EDHOC_ERROR_CRYPTO_FAILURE );
+            });
+        } catch (const Napi::Error &e) {
+            e.ThrowAsJavaScriptException();
+            promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
+        }
+    });
+    
+    future.wait();
+    return future.get();
 }
 
 int EdhocCryptoManager::CallExtract(const void *key_id, const uint8_t *salt, size_t salt_len, uint8_t *pseudo_random_key, size_t pseudo_random_key_size, size_t *pseudo_random_key_length) {
