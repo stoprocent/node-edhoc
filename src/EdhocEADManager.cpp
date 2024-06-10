@@ -9,10 +9,8 @@
 
 EdhocEADManager::EdhocEADManager(Napi::Env env, Napi::Function composeCallback, Napi::Function processCallback)
 : composeFuncRef(Napi::Persistent(composeCallback)), processFuncRef(Napi::Persistent(processCallback)) {
-
     this->composeTsfn = Napi::ThreadSafeFunction::New(composeCallback.Env(), composeCallback, "Compose EAD", 0, 1);
     this->processTsfn = Napi::ThreadSafeFunction::New(processCallback.Env(), processCallback, "Process EAD", 0, 1);
-
     this->ead.compose = ComposeEAD;
     this->ead.process = ProcessEAD;
 }
@@ -121,14 +119,11 @@ int EdhocEADManager::CallProcessEAD(enum edhoc_message message, const struct edh
 
             for (size_t i = 0; i < ead_token_size; ++i) {
                 Napi::Array tokenArray = Napi::Array::New(env, 2);
-                
                 tokenArray.Set(uint32_t(0), Napi::Number::New(env, ead_token[i].label));
                 tokenArray.Set(uint32_t(1), Napi::Buffer<uint8_t>::Copy(env, ead_token[i].value, ead_token[i].value_len));
-                
                 jsEadTokensArray.Set(i, tokenArray);
             }
             Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, { jsEadTokensArray }, [&promise](Napi::Env env, Napi::Value result) {
-                // Do nothing
                 promise.set_value(EDHOC_SUCCESS); 
             });
         } catch (const Napi::Error &e) {

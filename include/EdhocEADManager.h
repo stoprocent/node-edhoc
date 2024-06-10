@@ -30,7 +30,7 @@ public:
     // These methods handle the asynchronous interaction between C++ and Node.js.
     int CallComposeEAD(enum edhoc_message message, struct edhoc_ead_token *ead_token, size_t ead_token_size, size_t *ead_token_len);
     int CallProcessEAD(enum edhoc_message message, const struct edhoc_ead_token *ead_token, size_t ead_token_size);
-
+ 
     // Helper functions to store and clear EAD buffers by EDHOC message type.
     void StoreEADBuffer(enum edhoc_message message, Napi::Buffer<uint8_t> buffer);
     void ClearEADBuffersByMessage(enum edhoc_message message);

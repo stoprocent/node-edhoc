@@ -43,6 +43,18 @@ public:
     // Method to process the second message in the EDHOC protocol
     Napi::Value ProcessMessage2(const Napi::CallbackInfo &info);
 
+    // Method to compose the third message in the EDHOC protocol
+    Napi::Value ComposeMessage3(const Napi::CallbackInfo &info);
+
+    // Method to process the third message in the EDHOC protocol
+    Napi::Value ProcessMessage3(const Napi::CallbackInfo &info);
+
+    // Method to compose the fourth message in the EDHOC protocol
+    Napi::Value ComposeMessage4(const Napi::CallbackInfo &info);
+
+    // Method to process the fourth message in the EDHOC protocol
+    Napi::Value ProcessMessage4(const Napi::CallbackInfo &info);
+
     // Static method to initialize the class within the N-API framework and expose it to JavaScript
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
 
@@ -60,6 +72,12 @@ private:
 
     // Enum to specify the method (e.g., symmetric/asymmetric) used in EDHOC
     enum edhoc_method _method;
+
+    // Method to compose EDHOC messages
+    Napi::Value ComposeMessage(const Napi::CallbackInfo &info, enum edhoc_message message);
+    
+    // Method to process the EDHOC messages
+    Napi::Value ProcessMessage(const Napi::CallbackInfo &info, enum edhoc_message message);
 };
 
 #endif // LIB_EDHOC_H

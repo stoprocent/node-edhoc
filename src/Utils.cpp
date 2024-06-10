@@ -1,8 +1,9 @@
-#include "Utils.h"
 #include <cstring>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+
+#include "Utils.h"
 
 void Utils::InvokeJSFunctionWithPromiseHandling(Napi::Env env, Napi::Function jsCallback, const std::vector<napi_value>& args, std::function<void(Napi::Env, Napi::Value)> callbackLambda) {
     Napi::Value result;
@@ -16,21 +17,18 @@ void Utils::InvokeJSFunctionWithPromiseHandling(Napi::Env env, Napi::Function js
     if (result.IsPromise()) {
         Napi::Promise promise = result.As<Napi::Promise>();
 
-        // Define the callback to be called when the promise resolves
         auto thenCallback = Napi::Function::New(env, [callbackLambda](const Napi::CallbackInfo& info) {
             Napi::Env env = info.Env();
             Napi::Value result = info[0];
             callbackLambda(env, result);
         });
         
-        // Define the callback to be called when the promise is rejected
         auto catchCallback = Napi::Function::New(env, [](const Napi::CallbackInfo& info) {
             Napi::Env env = info.Env();
             Napi::Error error = info[0].As<Napi::Error>();
             throw error;
         });
 
-        // Use the 'then' method of the promise to set the callbacks
         try {
             promise.Get("then").As<Napi::Function>().Call(promise, { thenCallback });
             promise.Get("catch").As<Napi::Function>().Call(promise, { catchCallback });
@@ -45,7 +43,6 @@ void Utils::InvokeJSFunctionWithPromiseHandling(Napi::Env env, Napi::Function js
         }
     }
 }
-
 
 std::vector<Napi::Function> Utils::ExtractFunctionsFromObject(Napi::Env env, Napi::Value obj, const std::vector<std::string>& keys) {
     std::vector<Napi::Function> functions;

@@ -37,7 +37,6 @@ EdhocCryptoManager::~EdhocCryptoManager() {
     if (hashTsfn != nullptr) hashTsfn.Release(), hashTsfn = nullptr;
 }
 
-// Static methods to serve as C-style callbacks for cryptographic operations.
 int EdhocCryptoManager::GenerateKey(void *user_context, enum edhoc_key_type key_type, const uint8_t *raw_key, size_t raw_key_length, void *key_id) {
     UserContext* userContext = static_cast<UserContext*>(user_context);
     EdhocCryptoManager* cryptoManager = userContext->GetCryptoManager();
@@ -121,7 +120,6 @@ int EdhocCryptoManager::CallGenerateKey(enum edhoc_key_type key_type, const uint
             Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise, &key_id_ptr](Napi::Env env, Napi::Value result) {
                 uint8_t* key_id = static_cast<uint8_t*>(key_id_ptr); 
                 if (result.IsTypedArray()) {
-                    // Handle the case when result is a Uint8Array
                     Napi::Uint8Array resultArray = result.As<Napi::Uint8Array>();
                     if (resultArray.ElementLength() > EDHOC_KID_LEN) {
                         throw Napi::TypeError::New(env, "Returned Uint8Array length exceeds buffer length.");
@@ -129,9 +127,8 @@ int EdhocCryptoManager::CallGenerateKey(enum edhoc_key_type key_type, const uint
                     memcpy(key_id, resultArray.Data(), resultArray.ElementLength());
                     promise.set_value(EDHOC_SUCCESS);
                 } else if (result.IsNumber()) {
-                    // Handle the case when result is a Number
-                    uint32_t num = result.As<Napi::Number>().Uint32Value();
-                    uint8_t tempBuffer[4];  // Maximum bytes needed for uint32_t
+                    uint32_t num = result.As<Napi::Number>().Int64Value();
+                    uint8_t tempBuffer[EDHOC_KID_LEN];
                     size_t encodedLength = 0;
                     Utils::EncodeUint64ToBuffer(num, tempBuffer, &encodedLength);
 
@@ -139,7 +136,7 @@ int EdhocCryptoManager::CallGenerateKey(enum edhoc_key_type key_type, const uint
                         throw Napi::TypeError::New(env, "Encoded uint32 exceeds buffer length.");
                     }
                     memcpy(key_id, tempBuffer, encodedLength);
-                    memset(key_id + encodedLength, 0, EDHOC_KID_LEN - encodedLength); // Fill the rest with zeros
+                    memset(key_id + encodedLength, 0, EDHOC_KID_LEN - encodedLength);
                     promise.set_value(EDHOC_SUCCESS);
                 } else {
                     throw Napi::TypeError::New(env, "Function must return a Uint8Array or a Number.");
@@ -192,43 +189,41 @@ int EdhocCryptoManager::CallMakeKeyPair(const void *key_id, uint8_t *private_key
                 Napi::Number::New(env, static_cast<size_t>(public_key_size))
             };
             Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise, &key_id, &private_key, private_key_size, &private_key_length, &public_key, public_key_size, &public_key_length](Napi::Env env, Napi::Value result) {
-                // Verify that result is an array
                 if (!result.IsArray()) {
                     throw Napi::TypeError::New(env, "Expected an array");
                 }
 
                 Napi::Array resultArray = result.As<Napi::Array>();
-
-                // Ensure the array has at least two elements
+                
                 if (resultArray.Length() < 2) {
                     throw Napi::TypeError::New(env, "Array must contain at least two elements");
                 }
 
-                // Validate private key buffer
                 Napi::Value privateKeyValue = resultArray.Get((uint32_t)0);
                 if (!privateKeyValue.IsBuffer()) {
                     throw Napi::TypeError::New(env, "First element must be a Buffer");
                 }
+                
                 Napi::Buffer<uint8_t> privateKeyBuffer = privateKeyValue.As<Napi::Buffer<uint8_t>>();
                 
-                // Copy the private key buffer to the private_key array
                 if (privateKeyBuffer.Length() > private_key_size) {
                     throw Napi::TypeError::New(env, "Returned private key length exceeds buffer length.");
                 }
+
                 memcpy(private_key, privateKeyBuffer.Data(), privateKeyBuffer.Length());
                 *private_key_length = privateKeyBuffer.Length();
 
-                // Validate public key buffer
                 Napi::Value publicKeyValue = resultArray.Get((uint32_t)1);
                 if (!publicKeyValue.IsBuffer()) {
                     throw Napi::TypeError::New(env, "Second element must be a Buffer");
                 }
+
                 Napi::Buffer<uint8_t> publicKeyBuffer = publicKeyValue.As<Napi::Buffer<uint8_t>>();
 
-                // Copy the public key buffer to the public_key array
                 if (publicKeyBuffer.Length() > public_key_size) {
                     throw Napi::TypeError::New(env, "Returned public key length exceeds buffer length.");
                 }
+
                 memcpy(public_key, publicKeyBuffer.Data(), publicKeyBuffer.Length());
                 *public_key_length = publicKeyBuffer.Length();
 
@@ -262,6 +257,7 @@ int EdhocCryptoManager::CallKeyAgreement(const void *key_id, const uint8_t *peer
                 }
 
                 Napi::Buffer<uint8_t> sharedSecretBuffer = result.As<Napi::Buffer<uint8_t>>();
+
                 if (sharedSecretBuffer.Length() > shared_secret_size) {
                     throw Napi::TypeError::New(env, "Returned shared secret length exceeds buffer length.");
                 }
@@ -295,13 +291,13 @@ int EdhocCryptoManager::CallSign(const void *key_id, const uint8_t *input, size_
                 Napi::Number::New(env, static_cast<size_t>(signature_size))
             };
             Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise, &key_id, &signature, signature_size, &signature_length](Napi::Env env, Napi::Value result) {
-                // Validate the result is a buffer
                 if (!result.IsBuffer()) {
                     Napi::TypeError::New(env, "Expected the result to be a Buffer").ThrowAsJavaScriptException();
                     return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
                 }
+
                 Napi::Buffer<uint8_t> signatureBuffer = result.As<Napi::Buffer<uint8_t>>();
-                
+
                 if (signatureBuffer.Length() > signature_size) {
                     Napi::TypeError::New(env, "Returned signature length exceeds buffer length.").ThrowAsJavaScriptException();
                     return promise.set_value(EDHOC_ERROR_BUFFER_TOO_SMALL);

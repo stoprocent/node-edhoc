@@ -118,22 +118,40 @@ void LibEDHOC::SetMethod(const Napi::CallbackInfo &info, const Napi::Value &valu
     }
 }
 
-Napi::Value LibEDHOC::ComposeMessage1(const Napi::CallbackInfo& info) {
+Napi::Value LibEDHOC::ComposeMessage(const Napi::CallbackInfo& info, enum edhoc_message messageNumber) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
     auto deferred = new ThreadSafeDeferred(env);
 
-    this->taskQueue->EnqueueTask([context = &this->_context, deferred]() mutable {
-        uint8_t message[EDHOC_MAX_MESSAGE_SIZE] = { 0 };
-        size_t message_length = 0;
+    this->taskQueue->EnqueueTask([context = &this->_context, deferred, messageNumber]() mutable {
+        uint8_t composedMessage[EDHOC_MAX_MESSAGE_SIZE] = { 0 };
+        size_t composedMessage_length = 0;
         try {
-            int result = edhoc_message_1_compose(context, message, sizeof(message), &message_length);
-            if (result != EDHOC_SUCCESS) {
-                std::string error = "Failed to compose EDHOC Message 1. Error code: " + std::to_string(result);
-                deferred->Reject(error);
+            int ret = 0;
+            switch (messageNumber) {
+                case EDHOC_MSG_1:
+                    ret = edhoc_message_1_compose(context, composedMessage, sizeof(composedMessage), &composedMessage_length);
+                    break;
+                case EDHOC_MSG_2:
+                    ret = edhoc_message_2_compose(context, composedMessage, sizeof(composedMessage), &composedMessage_length);
+                    break;
+                case EDHOC_MSG_3:
+                    ret = edhoc_message_3_compose(context, composedMessage, sizeof(composedMessage), &composedMessage_length);
+                    break;
+                case EDHOC_MSG_4:
+                    ret = edhoc_message_4_compose(context, composedMessage, sizeof(composedMessage), &composedMessage_length);
+                    break;
+                default:
+                    deferred->Reject("Invalid message number");
+                    return;
+            }
+
+            if (ret != EDHOC_SUCCESS) {
+                std::string errorMessage = "Failed to compose EDHOC Message " + std::to_string(messageNumber) + ". Error code: " + std::to_string(ret);
+                deferred->Reject(errorMessage);
             } else {
-                deferred->Resolve(THREADSAFE_DEFERRED_RESOLVER(Napi::Buffer<uint8_t>::Copy(env, message, message_length)));
+                deferred->Resolve(THREADSAFE_DEFERRED_RESOLVER(Napi::Buffer<uint8_t>::Copy(env, composedMessage, composedMessage_length)));
             }
         }
         catch (const Napi::Error &e) {
@@ -143,131 +161,106 @@ Napi::Value LibEDHOC::ComposeMessage1(const Napi::CallbackInfo& info) {
             deferred->Reject(e.what());
         }   
     });
-    
+
     return deferred->Promise();
+}
+
+Napi::Value LibEDHOC::ProcessMessage(const Napi::CallbackInfo &info, enum edhoc_message messageNumber) {
+    Napi::Env env = info.Env();
+    Napi::HandleScope scope(env);
+
+    // Check the number of arguments passed.
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Expected at least one argument")
+            .ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    // Check the type of the first argument
+    if (!info[0].IsBuffer()) {
+        Napi::TypeError::New(env, "Expected first argument to be a Buffer")
+            .ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    // Extract the buffer and its length
+    Napi::Buffer<uint8_t> inputBuffer = info[0].As<Napi::Buffer<uint8_t>>();
+    uint8_t* message = inputBuffer.Data();
+    size_t message_length = inputBuffer.Length();
+
+    auto deferred = new ThreadSafeDeferred(env);
+
+    this->taskQueue->EnqueueTask([context = &this->_context, deferred, message, message_length, messageNumber]() mutable {
+        try {
+            int ret = 0;
+            switch (messageNumber) {
+                case EDHOC_MSG_1:
+                    ret = edhoc_message_1_process(context, message, message_length);
+                    break;
+                case EDHOC_MSG_2:
+                    ret = edhoc_message_2_process(context, message, message_length);
+                    break;
+                case EDHOC_MSG_3:
+                    ret = edhoc_message_3_process(context, message, message_length);
+                    break;
+                case EDHOC_MSG_4:
+                    ret = edhoc_message_4_process(context, message, message_length);
+                    break;
+                default:
+                    deferred->Reject("Invalid message number");
+                    return;
+            }
+
+            if (ret != EDHOC_SUCCESS) {
+                std::string errorMessage = "Failed to process EDHOC Message " + std::to_string(messageNumber) + ". Error code: " + std::to_string(ret);
+                deferred->Reject(errorMessage);
+            } else {
+                deferred->Resolve(THREADSAFE_DEFERRED_RESOLVER(Utils::CreateJsValueFromEdhocCid(env, context->EDHOC_PRIVATE(peer_cid))));
+            }
+        }
+        catch (const Napi::Error &e) {
+            deferred->Resolve(THREADSAFE_DEFERRED_RESOLVER(e.Value()));
+        }
+        catch (const std::exception &e) {
+            deferred->Reject(e.what());
+        }   
+    });
+
+    return deferred->Promise();
+}
+
+Napi::Value LibEDHOC::ComposeMessage1(const Napi::CallbackInfo& info) {
+    return ComposeMessage(info, EDHOC_MSG_1);
 }
 
 Napi::Value LibEDHOC::ProcessMessage1(const Napi::CallbackInfo &info) {
-    Napi::Env env = info.Env();
-    Napi::HandleScope scope(env);
-
-    // Check the number of arguments passed.
-    if (info.Length() < 1) {
-        Napi::TypeError::New(env, "Expected at least one argument")
-            .ThrowAsJavaScriptException();
-        return env.Null();
-    }
-
-    // Check the type of the first argument
-    if (!info[0].IsBuffer()) {
-        Napi::TypeError::New(env, "Expected first argument to be a Buffer")
-            .ThrowAsJavaScriptException();
-        return env.Null();
-    }
-
-    // Extract the buffer and its length
-    Napi::Buffer<uint8_t> inputBuffer = info[0].As<Napi::Buffer<uint8_t>>();
-    uint8_t* message = inputBuffer.Data();
-    size_t message_length = inputBuffer.Length();
-
-    auto deferred = new ThreadSafeDeferred(env);
-    
-    this->taskQueue->EnqueueTask([context = &this->_context, deferred, message, message_length]() mutable {
-        try {
-            int ret = edhoc_message_1_process(context, message, message_length);
-
-            if (ret != EDHOC_SUCCESS) {
-                std::string errorMessage = "Failed to process EDHOC Message 1. Error code: " + std::to_string(ret);
-                deferred->Reject(errorMessage);
-            } else {
-                deferred->Resolve(THREADSAFE_DEFERRED_RESOLVER(Utils::CreateJsValueFromEdhocCid(env, context->EDHOC_PRIVATE(peer_cid))));
-            }
-        }
-        catch (const Napi::Error &e) {
-            deferred->Resolve(THREADSAFE_DEFERRED_RESOLVER(e.Value()));
-        }
-        catch (const std::exception &e) {
-            deferred->Reject(e.what());
-        }   
-    });
-
-    return deferred->Promise();
+    return ProcessMessage(info, EDHOC_MSG_1);
 }
 
 Napi::Value LibEDHOC::ComposeMessage2(const Napi::CallbackInfo &info) {
-    Napi::Env env = info.Env();
-    Napi::HandleScope scope(env);
-
-    auto deferred = new ThreadSafeDeferred(env);
-
-    this->taskQueue->EnqueueTask([context = &this->_context, deferred]() mutable {
-        uint8_t message[EDHOC_MAX_MESSAGE_SIZE] = { 0 };
-        size_t message_length = 0;
-        try {
-            int ret = edhoc_message_2_compose(context, message, ARRAY_SIZE(message), &message_length);
-            if (ret != EDHOC_SUCCESS) {
-                deferred->Reject("Failed to compose EDHOC Message 2. Error code: " + std::to_string(ret));
-            } else {
-                deferred->Resolve(THREADSAFE_DEFERRED_RESOLVER(Napi::Buffer<uint8_t>::Copy(env, message, message_length)));
-            }
-        }
-        catch (const Napi::Error &e) {
-            deferred->Resolve(THREADSAFE_DEFERRED_RESOLVER(e.Value()));
-        }
-        catch (const std::exception &e) {
-            deferred->Reject(e.what());
-        }   
-    });
-
-    return deferred->Promise();
+    return ComposeMessage(info, EDHOC_MSG_2);
 }
 
 Napi::Value LibEDHOC::ProcessMessage2(const Napi::CallbackInfo &info) {
-    Napi::Env env = info.Env();
-    Napi::HandleScope scope(env);
-
-    // Check the number of arguments passed.
-    if (info.Length() < 1) {
-        Napi::TypeError::New(env, "Expected at least one argument")
-            .ThrowAsJavaScriptException();
-        return env.Null();
-    }
-
-    // Check the type of the first argument
-    if (!info[0].IsBuffer()) {
-        Napi::TypeError::New(env, "Expected first argument to be a Buffer")
-            .ThrowAsJavaScriptException();
-        return env.Null();
-    }
-
-    // Extract the buffer and its length
-    Napi::Buffer<uint8_t> inputBuffer = info[0].As<Napi::Buffer<uint8_t>>();
-    uint8_t* message = inputBuffer.Data();
-    size_t message_length = inputBuffer.Length();
-
-    auto deferred = new ThreadSafeDeferred(env);
-
-    this->taskQueue->EnqueueTask([context = &this->_context, deferred, message, message_length]() mutable {
-        try {
-            int ret = edhoc_message_2_process(context, message, message_length);
-
-            if (ret != EDHOC_SUCCESS) {
-                std::string errorMessage = "Failed to process EDHOC Message 1. Error code: " + std::to_string(ret);
-                deferred->Reject(errorMessage);
-            } else {
-                deferred->Resolve(THREADSAFE_DEFERRED_RESOLVER(Utils::CreateJsValueFromEdhocCid(env, context->EDHOC_PRIVATE(peer_cid))));
-            }
-        }
-        catch (const Napi::Error &e) {
-            deferred->Resolve(THREADSAFE_DEFERRED_RESOLVER(e.Value()));
-        }
-        catch (const std::exception &e) {
-            deferred->Reject(e.what());
-        }   
-    });
-
-    return deferred->Promise();
+    return ProcessMessage(info, EDHOC_MSG_2);
 }
+
+Napi::Value LibEDHOC::ComposeMessage3(const Napi::CallbackInfo &info) {
+    return ComposeMessage(info, EDHOC_MSG_3);
+}
+
+Napi::Value LibEDHOC::ProcessMessage3(const Napi::CallbackInfo &info) {
+    return ProcessMessage(info, EDHOC_MSG_3);
+}
+
+Napi::Value LibEDHOC::ComposeMessage4(const Napi::CallbackInfo &info) {
+    return ComposeMessage(info, EDHOC_MSG_4);
+}
+
+Napi::Value LibEDHOC::ProcessMessage4(const Napi::CallbackInfo &info) {
+    return ProcessMessage(info, EDHOC_MSG_4);
+}
+
 
 Napi::Object LibEDHOC::Init(Napi::Env env, Napi::Object exports) {
     Napi::HandleScope scope(env);
@@ -278,6 +271,10 @@ Napi::Object LibEDHOC::Init(Napi::Env env, Napi::Object exports) {
         InstanceMethod("processMessage1", &LibEDHOC::ProcessMessage1),
         InstanceMethod("composeMessage2", &LibEDHOC::ComposeMessage2),
         InstanceMethod("processMessage2", &LibEDHOC::ProcessMessage2),
+        InstanceMethod("composeMessage3", &LibEDHOC::ComposeMessage3),
+        InstanceMethod("processMessage3", &LibEDHOC::ProcessMessage3),
+        InstanceMethod("composeMessage4", &LibEDHOC::ComposeMessage4),
+        InstanceMethod("processMessage4", &LibEDHOC::ProcessMessage4),
     });
 
     Napi::FunctionReference* constructor = new Napi::FunctionReference();
