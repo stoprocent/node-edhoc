@@ -1,6 +1,7 @@
 #ifndef USER_CONTEXT_H
 #define USER_CONTEXT_H
 
+#include <napi.h>
 #include <memory>
 #include "EdhocCryptoManager.h" // Include the header for EDHOC Crypto Manager  
 #include "EdhocEADManager.h"  // Include the header for EDHOC External Authorization Data Manager
@@ -17,7 +18,11 @@ public:
         : cryptoManager_(cryptoManager), eadManager_(eadManager), credentialManager_(credentialManager) {}
 
     // Virtual destructor to ensure proper cleanup of derived classes when deleting instances via base-class pointers
-    virtual ~UserContext() {}
+    virtual ~UserContext() {
+        if (logger != nullptr) {
+            logger.Release();
+        }
+    }
 
     // Pure virtual function to get a pointer to the EDHOC Crypto Manager
     // This function must be implemented by any class that inherits from UserContext
@@ -37,8 +42,9 @@ public:
         return credentialManager_.get();
     }
 
+    Napi::ThreadSafeFunction logger;
+
 protected:
-    
     // Protected members to store the shared pointers to the managers
     std::shared_ptr<EdhocCryptoManager> cryptoManager_;
     std::shared_ptr<EdhocEADManager> eadManager_;

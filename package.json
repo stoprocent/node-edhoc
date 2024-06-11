@@ -4,9 +4,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "install": "node-gyp-build",
-    "debug": "node-gyp build --debug",
-    "prebuildify": "prebuildify --napi --target 14.0.0 --force --strip --verbose"
+    "install": "npx node-gyp-build",
+    "debug": "npx node-gyp build --debug",
+    "prebuildify": "prebuildify --napi --target 16.0.0 --force --strip --verbose"
   },
   "private": false,
   "gypfile": true,

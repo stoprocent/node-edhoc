@@ -7,28 +7,15 @@
 #include "ThreadSafeDeferred.h"
 
 static const struct edhoc_cipher_suite edhoc_cipher_suite_0 = {
-		.value = 2,
-		.aead_key_length = 16,
-		.aead_tag_length = 8,
-		.aead_iv_length = 13,
-		.hash_length = 32,
-		.mac_length = 8,
-		.ecc_key_length = 32,
-		.ecc_sign_length = 64,
-	};
-
-void my_logger(void *user_context, const char *name, const uint8_t *buffer, size_t buffer_length) {
-    printf("%s:\n", name);
-    for (size_t i = 0; i < buffer_length; i++) {
-        printf("%02X ", buffer[i]);
-        if ((i + 1) % 16 == 0) {
-            printf("\n"); // Break line every 16 bytes
-        }
-    }
-    if (buffer_length % 16 != 0) {
-        printf("\n"); // Ensure ending with a new line if not exactly multiple of 16
-    }
-}
+    .value = 2,
+    .aead_key_length = 16,
+    .aead_tag_length = 8,
+    .aead_iv_length = 13,
+    .hash_length = 32,
+    .mac_length = 8,
+    .ecc_key_length = 32,
+    .ecc_sign_length = 64,
+};
 
 using namespace Napi;
 
@@ -49,13 +36,11 @@ taskQueue(std::make_unique<TaskQueue>()) {
     // Method
     this->SetMethod(info, info[1]);
 
-    this->_context.logger = my_logger;
-
     // Suites
     ret = edhoc_set_cipher_suites(&this->_context, &edhoc_cipher_suite_0, 1);
 
     // Crypto Manager
-    EdhocCryptoManagerWrapper* managerWrapper = Napi::ObjectWrap<EdhocCryptoManagerWrapper>::Unwrap(info[4].As<Napi::Object>());
+    EdhocCryptoManagerWrapper* managerWrapper = Napi::ObjectWrap<EdhocCryptoManagerWrapper>::Unwrap(info[3].As<Napi::Object>());
     std::shared_ptr<EdhocCryptoManager> cryptoManager = managerWrapper->GetInternalManager();
 
     // Keys
@@ -72,11 +57,11 @@ taskQueue(std::make_unique<TaskQueue>()) {
     ret = edhoc_bind_credentials(&this->_context, credentialManager.get()->credentials);
 
     // EAD
-    std::vector<std::string> ead_keys = {"compose", "process"};
-    auto ead = Utils::ExtractFunctionsFromObject(env, info[3], ead_keys);
-
-    std::shared_ptr<EdhocEADManager> eadManager = std::make_shared<EdhocEADManager>(env, ead[0], ead[1]);
+    std::shared_ptr<EdhocEADManager> eadManager = std::make_shared<EdhocEADManager>();
     ret = edhoc_bind_ead(&this->_context, eadManager.get()->ead);
+
+    // Logger
+    this->_context.logger = LibEDHOC::Logger;
 
     // User Context
     this->userContext = std::make_shared<UserContext>(cryptoManager, eadManager, credentialManager);
@@ -105,6 +90,10 @@ void LibEDHOC::SetCID(const Napi::CallbackInfo &info, const Napi::Value &value) 
     }
 }
 
+Napi::Value LibEDHOC::GetPeerCID(const Napi::CallbackInfo &info) {
+    return Utils::CreateJsValueFromEdhocCid(info.Env(), this->_context.EDHOC_PRIVATE(peer_cid));
+}
+
 Napi::Value LibEDHOC::GetMethod(const Napi::CallbackInfo &info) {
     return Napi::Number::New(info.Env(), static_cast<int>(this->_method));
 }
@@ -118,13 +107,74 @@ void LibEDHOC::SetMethod(const Napi::CallbackInfo &info, const Napi::Value &valu
     }
 }
 
+Napi::Value LibEDHOC::GetLogger(const Napi::CallbackInfo &info) {
+    return this->logger.Value();
+}
+
+void LibEDHOC::SetLogger(const Napi::CallbackInfo &info, const Napi::Value &value) {
+    if (!info[0].IsFunction()) {
+        Napi::TypeError::New(info.Env(), "Expected a function")
+            .ThrowAsJavaScriptException();
+    }
+    Napi::Function jsCallback = info[0].As<Napi::Function>();
+    this->logger = Napi::Persistent(jsCallback);
+    this->userContext->logger = Napi::ThreadSafeFunction::New(info.Env(), jsCallback, "Logger", 0, 1);
+}
+
+void LibEDHOC::Logger(void *user_context, const char *name, const uint8_t *buffer, size_t buffer_length) {
+    UserContext* context = static_cast<UserContext*>(user_context);
+    if (context->logger == nullptr) {
+        return;
+    }
+    context->logger.NonBlockingCall([name, buffer, buffer_length](Napi::Env env, Napi::Function jsCallback) {
+        jsCallback.Call({
+            Napi::String::New(env, name), 
+            Napi::Buffer<uint8_t>::Copy(env, buffer, buffer_length)
+        });
+    });
+}
+
 Napi::Value LibEDHOC::ComposeMessage(const Napi::CallbackInfo& info, enum edhoc_message messageNumber) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
     auto deferred = new ThreadSafeDeferred(env);
 
-    this->taskQueue->EnqueueTask([context = &this->_context, deferred, messageNumber]() mutable {
+    // Parse input array
+    if (!info[0].IsArray()) {
+        Napi::TypeError::New(env, "Expected an array as input")
+            .ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    Napi::Array inputArray = info[0].As<Napi::Array>();
+    size_t arrayLength = inputArray.Length();
+
+    for (size_t i = 0; i < arrayLength; i++) {
+        Napi::Value element = inputArray.Get(i);
+        if (!element.IsObject()) {
+            Napi::TypeError::New(env, "Expected an object as element in the input array")
+                .ThrowAsJavaScriptException();
+            return env.Null();
+        }
+
+        Napi::Object obj = element.As<Napi::Object>();
+        Napi::Value labelValue = obj.Get("label");
+        Napi::Value bufferValue = obj.Get("value");
+
+        if (!labelValue.IsNumber() || !bufferValue.IsBuffer()) {
+            Napi::TypeError::New(env, "Expected 'label' to be a number and 'value' to be a buffer in the input array")
+                .ThrowAsJavaScriptException();
+            return env.Null();
+        }
+
+        int label = labelValue.As<Napi::Number>().Int32Value();
+        Napi::Buffer<uint8_t> buffer = bufferValue.As<Napi::Buffer<uint8_t>>();
+
+        this->userContext->GetEADManager()->StoreEADBuffer(messageNumber, label, std::vector<uint8_t>(buffer.Data(), buffer.Data() + buffer.Length()));
+    }
+
+    this->taskQueue->EnqueueTask([context = &this->_context, userContext = this->userContext, deferred, messageNumber]() mutable {
         uint8_t composedMessage[EDHOC_MAX_MESSAGE_SIZE] = { 0 };
         size_t composedMessage_length = 0;
         try {
@@ -151,6 +201,7 @@ Napi::Value LibEDHOC::ComposeMessage(const Napi::CallbackInfo& info, enum edhoc_
                 std::string errorMessage = "Failed to compose EDHOC Message " + std::to_string(messageNumber) + ". Error code: " + std::to_string(ret);
                 deferred->Reject(errorMessage);
             } else {
+                userContext->GetEADManager()->ClearEADBuffersByMessage(messageNumber);
                 deferred->Resolve(THREADSAFE_DEFERRED_RESOLVER(Napi::Buffer<uint8_t>::Copy(env, composedMessage, composedMessage_length)));
             }
         }
@@ -190,7 +241,8 @@ Napi::Value LibEDHOC::ProcessMessage(const Napi::CallbackInfo &info, enum edhoc_
 
     auto deferred = new ThreadSafeDeferred(env);
 
-    this->taskQueue->EnqueueTask([context = &this->_context, deferred, message, message_length, messageNumber]() mutable {
+    this->taskQueue->EnqueueTask([context = &this->_context, userContext = 
+    this->userContext, deferred, message, message_length, messageNumber]() mutable {
         try {
             int ret = 0;
             switch (messageNumber) {
@@ -215,7 +267,21 @@ Napi::Value LibEDHOC::ProcessMessage(const Napi::CallbackInfo &info, enum edhoc_
                 std::string errorMessage = "Failed to process EDHOC Message " + std::to_string(messageNumber) + ". Error code: " + std::to_string(ret);
                 deferred->Reject(errorMessage);
             } else {
-                deferred->Resolve(THREADSAFE_DEFERRED_RESOLVER(Utils::CreateJsValueFromEdhocCid(env, context->EDHOC_PRIVATE(peer_cid))));
+                auto buffers = userContext->GetEADManager()->GetEADBuffersByMessage(messageNumber);
+                deferred->Resolve([userContext, buffers, messageNumber] (const Napi::Env env) {
+                    Napi::Array result = Napi::Array::New(env, buffers.size());
+                    size_t i = 0;
+                    for (auto const& map : buffers) {
+                        Napi::Object obj = Napi::Object::New(env);
+                        for (auto const& [label, buffer] : map) {
+                            obj.Set("label", Napi::Number::New(env, label));
+                            obj.Set("value", Napi::Buffer<uint8_t>::Copy(env, buffer.data(), buffer.size()));
+                        }
+                        result.Set(i++, obj);
+                    }
+                    userContext->GetEADManager()->ClearEADBuffersByMessage(messageNumber);
+                    return result;
+                });
             }
         }
         catch (const Napi::Error &e) {
@@ -266,7 +332,9 @@ Napi::Object LibEDHOC::Init(Napi::Env env, Napi::Object exports) {
     Napi::HandleScope scope(env);
     Napi::Function func = DefineClass(env, "LibEDHOC", {
         InstanceAccessor("connectionID", &LibEDHOC::GetCID, &LibEDHOC::SetCID),
+        InstanceAccessor<&LibEDHOC::GetPeerCID>("peerConnectionID"),
         InstanceAccessor("method", &LibEDHOC::GetMethod, &LibEDHOC::SetMethod),
+        InstanceAccessor("logger", &LibEDHOC::GetLogger, &LibEDHOC::SetLogger),
         InstanceMethod("composeMessage1", &LibEDHOC::ComposeMessage1),
         InstanceMethod("processMessage1", &LibEDHOC::ProcessMessage1),
         InstanceMethod("composeMessage2", &LibEDHOC::ComposeMessage2),

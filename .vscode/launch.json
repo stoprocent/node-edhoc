@@ -27,7 +27,7 @@
         "request": "launch",
         "name": "Debug",
         "preLaunchTask": "npm: debug",
-        "program": "node",
+        "program": "/opt/homebrew/Cellar/node/22.2.0/bin/node",
         "args": [
            "./lib/test.js"
         ]

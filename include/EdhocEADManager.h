@@ -15,12 +15,20 @@ public:
     // EDHOC EAD operations structure used to hold callback pointers for EAD composing and processing.
     struct edhoc_ead ead;
 
-    // Constructor to initialize the manager with JavaScript callbacks for EAD composing and processing.
-    // These callbacks allow the EAD operations to interact with Node.js code.
-    EdhocEADManager(Napi::Env env, Napi::Function composeCallback, Napi::Function processCallback);
+    EdhocEADManager();
 
     // Destructor to clean up resources, specifically the ThreadSafeFunction objects.
     ~EdhocEADManager();
+
+    // Helper functions to store and clear EAD buffers by EDHOC message type.
+    void StoreEADBuffer(enum edhoc_message message, int label, std::vector<uint8_t> ead);
+    std::vector<std::map<int, std::vector<uint8_t>>> GetEADBuffersByMessage(enum edhoc_message message);
+    void ClearEADBuffersByMessage(enum edhoc_message message);
+
+private:
+    
+    // Map to store EAD buffers by EDHOC message type.
+    std::map<enum edhoc_message, std::vector<std::map<int, std::vector<uint8_t>>>> EadBuffers_;
 
     // Static methods that serve as C-style callbacks for the EDHOC library to call for composing and processing EAD.
     static int ComposeEAD(void *user_context, enum edhoc_message message, struct edhoc_ead_token *ead_token, size_t ead_token_size, size_t *ead_token_len);
@@ -31,21 +39,6 @@ public:
     int CallComposeEAD(enum edhoc_message message, struct edhoc_ead_token *ead_token, size_t ead_token_size, size_t *ead_token_len);
     int CallProcessEAD(enum edhoc_message message, const struct edhoc_ead_token *ead_token, size_t ead_token_size);
  
-    // Helper functions to store and clear EAD buffers by EDHOC message type.
-    void StoreEADBuffer(enum edhoc_message message, Napi::Buffer<uint8_t> buffer);
-    void ClearEADBuffersByMessage(enum edhoc_message message);
-
-private:
-
-    // Map to store EAD buffers by EDHOC message type.
-    std::map<enum edhoc_message, std::vector<Napi::Buffer<uint8_t>>> messageEADBuffers;
-
-    Napi::ThreadSafeFunction composeTsfn;
-    Napi::ThreadSafeFunction processTsfn;
-
-    // Napi::FunctionReference objects to hold the JavaScript callbacks for composing and processing EAD.
-    Napi::FunctionReference composeFuncRef;
-    Napi::FunctionReference processFuncRef;
 };
 
 #endif // EDHOC_EAD_MANAGER_H

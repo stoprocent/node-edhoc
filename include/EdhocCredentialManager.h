@@ -30,7 +30,9 @@ public:
     int CallVerifyCredentials(struct edhoc_auth_creds *credentials, const uint8_t **public_key_reference, size_t *public_key_length);
 
 private:
-    
+    // Map to store credential buffers by credential label.
+    std::vector<Napi::Buffer<uint8_t>> credentialBuffers;
+
     Napi::ThreadSafeFunction fetchTsfn;
     Napi::ThreadSafeFunction verifyTsfn;
 

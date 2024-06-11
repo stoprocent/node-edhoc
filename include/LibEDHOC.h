@@ -24,12 +24,21 @@ public:
 
     // Sets the Connection ID in the EDHOC context from a N-API value
     void SetCID(const Napi::CallbackInfo &info, const Napi::Value &value);
+    
+    // Retrieves the Peer Connection ID from the EDHOC context as a N-API value
+    Napi::Value GetPeerCID(const Napi::CallbackInfo &info);
 
     // Retrieves the Method (e.g., authentication method) from the EDHOC context as a N-API value
     Napi::Value GetMethod(const Napi::CallbackInfo &info);
 
     // Sets the Method in the EDHOC context from a N-API value
     void SetMethod(const Napi::CallbackInfo &info, const Napi::Value &value);
+
+    // Retrieves the Logger function from the EDHOC context as a N-API value
+    Napi::Value GetLogger(const Napi::CallbackInfo &info);
+
+    // Sets the Logger function in the EDHOC context from a N-API value
+    void SetLogger(const Napi::CallbackInfo &info, const Napi::Value &value);
 
     // Method to compose first message in the EDHOC protocol
     Napi::Value ComposeMessage1(const Napi::CallbackInfo &info);
@@ -72,6 +81,12 @@ private:
 
     // Enum to specify the method (e.g., symmetric/asymmetric) used in EDHOC
     enum edhoc_method _method;
+
+    // N-API reference to the logger function
+    Napi::FunctionReference logger;
+
+    // Static method to log messages from the EDHOC library
+    static void Logger(void *user_context, const char *name, const uint8_t *buffer, size_t buffer_length);
 
     // Method to compose EDHOC messages
     Napi::Value ComposeMessage(const Napi::CallbackInfo &info, enum edhoc_message message);
