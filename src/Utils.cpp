@@ -68,7 +68,7 @@ std::vector<Napi::Function> Utils::ExtractFunctionsFromObject(Napi::Env env, Nap
     return functions;
 }
 
-void Utils::EncodeUint64ToBuffer(uint64_t value, uint8_t *buffer, size_t *length) {
+void Utils::EncodeInt64ToBuffer(int64_t value, uint8_t *buffer, size_t *length) {
     size_t idx = 0;
     if (value == 0) {
         buffer[idx++] = 0;
@@ -90,7 +90,7 @@ struct edhoc_connection_id Utils::ConvertJsValueToEdhocCid(Napi::Value value) {
             cid = { .encode_type = EDHOC_CID_TYPE_ONE_BYTE_INTEGER, .int_value = (int8_t)numeric };
         } else {
             size_t length = 0;
-            Utils::EncodeUint64ToBuffer(numeric, cid.bstr_value, &length);
+            Utils::EncodeInt64ToBuffer(numeric, cid.bstr_value, &length);
             cid.encode_type = EDHOC_CID_TYPE_BYTE_STRING;
             cid.bstr_length = length;
         }

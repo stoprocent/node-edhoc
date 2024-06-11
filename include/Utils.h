@@ -77,7 +77,7 @@ public:
      * @param buffer Pointer to the buffer where the encoded bytes will be stored.
      * @param length Pointer to a size_t variable where the length of the encoded data will be stored.
      */
-    static void EncodeUint64ToBuffer(uint64_t value, uint8_t *buffer, size_t *length);
+    static void EncodeInt64ToBuffer(int64_t value, uint8_t *buffer, size_t *length);
 
 };
 

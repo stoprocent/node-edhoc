@@ -130,7 +130,7 @@ int EdhocCryptoManager::CallGenerateKey(enum edhoc_key_type key_type, const uint
                     uint32_t num = result.As<Napi::Number>().Int64Value();
                     uint8_t tempBuffer[EDHOC_KID_LEN];
                     size_t encodedLength = 0;
-                    Utils::EncodeUint64ToBuffer(num, tempBuffer, &encodedLength);
+                    Utils::EncodeInt64ToBuffer(num, tempBuffer, &encodedLength);
 
                     if (encodedLength > EDHOC_KID_LEN) {
                         throw Napi::TypeError::New(env, "Encoded uint32 exceeds buffer length.");
@@ -371,9 +371,8 @@ int EdhocCryptoManager::CallExtract(const void *key_id, const uint8_t *salt, siz
                     promise.set_value(EDHOC_ERROR_BUFFER_TOO_SMALL);
                 }
 
-                // Copy the pseudo random key buffer to the pseudo random key array
                 memcpy(pseudo_random_key, randomKeyBuffer.Data(), randomKeyBuffer.Length());
-                *pseudo_random_key_length = randomKeyBuffer.Length();  // Set the output hash length
+                *pseudo_random_key_length = randomKeyBuffer.Length();
 
                 promise.set_value(EDHOC_SUCCESS);
             });
@@ -423,7 +422,41 @@ int EdhocCryptoManager::CallExpand(const void *key_id, const uint8_t *info, size
 }
 
 int EdhocCryptoManager::CallEncrypt(const void *key_id, const uint8_t *nonce, size_t nonce_length, const uint8_t *additional_data, size_t additional_data_length, const uint8_t *plaintext, size_t plaintext_length, uint8_t *ciphertext, size_t ciphertext_size, size_t *ciphertext_length) {
-    // Implementation of CallEncrypt
+    std::promise<int> promise;
+    std::future<int> future = promise.get_future();
+
+    this->encryptTsfn.BlockingCall([&promise, &key_id, &nonce, nonce_length, &additional_data, additional_data_length, &plaintext, plaintext_length, &ciphertext, ciphertext_size, &ciphertext_length](Napi::Env env, Napi::Function jsCallback) {
+        try {
+            std::vector<napi_value> arguments = {
+                Napi::Buffer<uint8_t>::Copy(env, static_cast<const uint8_t*>(key_id), EDHOC_KID_LEN),
+                Napi::Buffer<uint8_t>::Copy(env, nonce, nonce_length),
+                Napi::Buffer<uint8_t>::Copy(env, additional_data, additional_data_length),
+                Napi::Buffer<uint8_t>::Copy(env, plaintext, plaintext_length),
+                Napi::Number::New(env, static_cast<size_t>(ciphertext_size))
+            };
+            Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise, &key_id, &ciphertext, ciphertext_size, &ciphertext_length](Napi::Env env, Napi::Value result) {
+                if (!result.IsBuffer()) {
+                    throw Napi::TypeError::New(env, "Expected the result to be a Buffer");
+                }
+                
+                Napi::Buffer<uint8_t> ciphertextBuffer = result.As<Napi::Buffer<uint8_t>>();
+                if (ciphertextBuffer.Length() > ciphertext_size) {
+                    throw Napi::TypeError::New(env, "Returned ciphertext length exceeds buffer length.");
+                }
+
+                memcpy(ciphertext, ciphertextBuffer.Data(), ciphertextBuffer.Length());
+                *ciphertext_length = ciphertextBuffer.Length();
+
+                promise.set_value(EDHOC_SUCCESS);
+            });
+        } catch (const Napi::Error &e) {
+            e.ThrowAsJavaScriptException();
+            promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
+        }
+    });
+        
+    future.wait();
+    return future.get();
 }
 
 int EdhocCryptoManager::CallDecrypt(const void *key_id, const uint8_t *nonce, size_t nonce_length, const uint8_t *additional_data, size_t additional_data_length, const uint8_t *ciphertext, size_t ciphertext_length, uint8_t *plaintext, size_t plaintext_size, size_t *plaintext_length) {
