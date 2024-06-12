@@ -470,7 +470,41 @@ int EdhocCryptoManager::CallEncrypt(const void *key_id, const uint8_t *nonce, si
 }
 
 int EdhocCryptoManager::CallDecrypt(const void *key_id, const uint8_t *nonce, size_t nonce_length, const uint8_t *additional_data, size_t additional_data_length, const uint8_t *ciphertext, size_t ciphertext_length, uint8_t *plaintext, size_t plaintext_size, size_t *plaintext_length) {
-    // Implementation of CallDecrypt
+    std::promise<int> promise;
+    std::future<int> future = promise.get_future();
+
+    this->decryptTsfn.BlockingCall([&promise, &key_id, &nonce, nonce_length, &additional_data, additional_data_length, &ciphertext, &ciphertext_length, &plaintext, plaintext_size, plaintext_length](Napi::Env env, Napi::Function jsCallback) {
+        try {
+            std::vector<napi_value> arguments = {
+                Napi::Buffer<uint8_t>::Copy(env, static_cast<const uint8_t*>(key_id), EDHOC_KID_LEN),
+                Napi::Buffer<uint8_t>::Copy(env, nonce, nonce_length),
+                Napi::Buffer<uint8_t>::Copy(env, additional_data, additional_data_length),
+                Napi::Buffer<uint8_t>::Copy(env, ciphertext, ciphertext_length),
+                Napi::Number::New(env, static_cast<size_t>(plaintext_size))
+            };
+            Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise, &key_id, &plaintext, plaintext_size, plaintext_length](Napi::Env env, Napi::Value result) {
+                if (!result.IsBuffer()) {
+                    throw Napi::TypeError::New(env, "Expected the result to be a Buffer");
+                }
+                
+                Napi::Buffer<uint8_t> plaintextBuffer = result.As<Napi::Buffer<uint8_t>>();
+                if (plaintextBuffer.Length() > plaintext_size) {
+                    throw Napi::TypeError::New(env, "Returned plaintext length exceeds buffer length.");
+                }
+
+                memcpy(plaintext, plaintextBuffer.Data(), plaintextBuffer.Length());
+                *plaintext_length = plaintextBuffer.Length();
+
+                promise.set_value(EDHOC_SUCCESS);
+            });
+        } catch (const Napi::Error &e) {
+            e.ThrowAsJavaScriptException();
+            promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
+        }
+    });
+        
+    future.wait();
+    return future.get();
 }
 
 int EdhocCryptoManager::CallHash(const uint8_t *input, size_t input_length, uint8_t *hash, size_t hash_size, size_t *hash_length) {

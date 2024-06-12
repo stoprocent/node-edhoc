@@ -23,7 +23,7 @@ void EdhocEADManager::StoreEADBuffer(enum edhoc_message message, int label, std:
     vecOfMaps.push_back(std::move(newMap));
 }
 
-std::vector<std::map<int, std::vector<uint8_t>>> EdhocEADManager::GetEADBuffersByMessage(enum edhoc_message message) {
+const std::vector<std::map<int, std::vector<uint8_t>>>& EdhocEADManager::GetEADBuffersByMessage(enum edhoc_message message) {
     return EadBuffers_[message];
 }
 
@@ -44,7 +44,7 @@ int EdhocEADManager::ProcessEAD(void *user_context, enum edhoc_message message, 
 }
 
 int EdhocEADManager::CallComposeEAD(enum edhoc_message message, struct edhoc_ead_token *ead_token, size_t ead_token_size, size_t *ead_token_len) {
-    std::vector<std::map<int, std::vector<uint8_t>>> eadBuffers = GetEADBuffersByMessage(message);
+    const std::vector<std::map<int, std::vector<uint8_t>>>& eadBuffers = GetEADBuffersByMessage(message);
 
     size_t count = 0;
 
@@ -60,9 +60,7 @@ int EdhocEADManager::CallComposeEAD(enum edhoc_message message, struct edhoc_ead
         }
     }
 
-    if (ead_token_len != nullptr) {
-        *ead_token_len = count;
-    }
+    *ead_token_len = count;
 
     return EDHOC_SUCCESS;
 }

@@ -64,6 +64,9 @@ public:
     // Method to process the fourth message in the EDHOC protocol
     Napi::Value ProcessMessage4(const Napi::CallbackInfo &info);
 
+    // Method to export the EDHOC library functions to JavaScript
+    Napi::Value ExportOSCORE(const Napi::CallbackInfo &info);
+
     // Static method to initialize the class within the N-API framework and expose it to JavaScript
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
 

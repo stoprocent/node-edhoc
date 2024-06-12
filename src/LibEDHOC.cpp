@@ -331,6 +331,53 @@ Napi::Value LibEDHOC::ProcessMessage4(const Napi::CallbackInfo &info) {
     return ProcessMessage(info, EDHOC_MSG_4);
 }
 
+Napi::Value LibEDHOC::ExportOSCORE(const Napi::CallbackInfo &info) {
+    Napi::Env env = info.Env();
+    Napi::HandleScope scope(env);
+
+    auto deferred = new ThreadSafeDeferred(env);
+
+    this->taskQueue->EnqueueTask([context = &this->_context, deferred]() mutable {
+        // Prepare buffers for master_secret, master_salt, sender_id, recipient_id
+        uint8_t master_secret[16], master_salt[8], sender_id[7], recipient_id[7];
+        size_t master_secret_length = sizeof(master_secret);
+        size_t master_salt_length = sizeof(master_salt);
+        size_t sender_id_length, recipient_id_length;
+
+        // Call the native function
+        int ret = edhoc_export_oscore_session(
+            context,
+            master_secret, master_secret_length,
+            master_salt, master_salt_length,
+            sender_id, sizeof(sender_id), &sender_id_length,
+            recipient_id, sizeof(recipient_id), &recipient_id_length
+        );
+
+        if (ret != EDHOC_SUCCESS) {
+            std::string errorMessage = "Failed to export OSCORE session. Error code: " + std::to_string(ret);
+            deferred->Reject(errorMessage);
+        } else {
+            deferred->Resolve([master_secret, master_secret_length, master_salt, master_salt_length, sender_id, sender_id_length, recipient_id, recipient_id_length] (const Napi::Env env) {
+                // Convert the outputs to JavaScript types
+                auto masterSecret = Napi::Buffer<uint8_t>::Copy(env, master_secret, master_secret_length);
+                auto masterSalt = Napi::Buffer<uint8_t>::Copy(env, master_salt, master_salt_length);
+                auto senderId = Napi::Buffer<uint8_t>::Copy(env, sender_id, sender_id_length);
+                auto recipientId = Napi::Buffer<uint8_t>::Copy(env, recipient_id, recipient_id_length);
+
+                // Create a return object
+                Napi::Object resultObj = Napi::Object::New(env);
+                resultObj.Set("masterSecret", masterSecret);
+                resultObj.Set("masterSalt", masterSalt);
+                resultObj.Set("senderId", senderId);
+                resultObj.Set("recipientId", recipientId);
+
+                return resultObj;             
+            });
+        }
+    });
+
+    return deferred->Promise();
+}
 
 Napi::Object LibEDHOC::Init(Napi::Env env, Napi::Object exports) {
     Napi::HandleScope scope(env);
@@ -347,6 +394,7 @@ Napi::Object LibEDHOC::Init(Napi::Env env, Napi::Object exports) {
         InstanceMethod("processMessage3", &LibEDHOC::ProcessMessage3),
         InstanceMethod("composeMessage4", &LibEDHOC::ComposeMessage4),
         InstanceMethod("processMessage4", &LibEDHOC::ProcessMessage4),
+        InstanceMethod("exportOSCORE", &LibEDHOC::ExportOSCORE),
     });
 
     Napi::FunctionReference* constructor = new Napi::FunctionReference();

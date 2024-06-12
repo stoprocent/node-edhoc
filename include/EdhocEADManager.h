@@ -22,7 +22,7 @@ public:
 
     // Helper functions to store and clear EAD buffers by EDHOC message type.
     void StoreEADBuffer(enum edhoc_message message, int label, std::vector<uint8_t> ead);
-    std::vector<std::map<int, std::vector<uint8_t>>> GetEADBuffersByMessage(enum edhoc_message message);
+    const std::vector<std::map<int, std::vector<uint8_t>>>& GetEADBuffersByMessage(enum edhoc_message message);
     void ClearEADBuffersByMessage(enum edhoc_message message);
 
 private:
