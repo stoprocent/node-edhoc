@@ -10,12 +10,14 @@ extern "C" {
 // Define the EdhocCredentialManager class for managing EDHOC authentication credentials.
 class EdhocCredentialManager {
 public:
+    friend class EdhocCredentialManagerWrapper;
+
     // EDHOC authentication credentials structure that stores pointers to credential fetching and verifying functions.
     struct edhoc_credentials credentials;
 
     // Constructor to initialize the manager with JavaScript callbacks for credential fetching and verifying.
     // These callbacks are passed by the JavaScript side and used to integrate EDHOC credential management with Node.js.
-    EdhocCredentialManager(Napi::Env env, Napi::Function fetchCallback, Napi::Function verifyCallback);
+    EdhocCredentialManager();
 
     // Destructor to clean up resources, specifically the ThreadSafeFunction objects.
     ~EdhocCredentialManager();
@@ -26,8 +28,8 @@ public:
 
     // Methods to invoke the JavaScript callbacks for fetching and verifying credentials via the N-API ThreadSafeFunction mechanism.
     // These methods facilitate the asynchronous interaction between C++ and Node.js.
-    int CallFetchCredentials(struct edhoc_auth_creds *credentials);
-    int CallVerifyCredentials(struct edhoc_auth_creds *credentials, const uint8_t **public_key_reference, size_t *public_key_length);
+    int CallFetchCredentials(Napi::Value edhoc, struct edhoc_auth_creds *credentials);
+    int CallVerifyCredentials(Napi::Value edhoc, struct edhoc_auth_creds *credentials, const uint8_t **public_key_reference, size_t *public_key_length);
 
 private:
     // Map to store credential buffers by credential label.

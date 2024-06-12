@@ -11,6 +11,11 @@
 // that need to provide specific user-context functionalities in EDHOC protocol interactions.
 class UserContext {
 public:
+
+    Napi::ThreadSafeFunction logger;
+    
+    void *edhoc;
+
     // Constructor taking shared pointers to the managers
     UserContext(std::shared_ptr<EdhocCryptoManager> cryptoManager, 
                 std::shared_ptr<EdhocEADManager> eadManager, 
@@ -18,31 +23,26 @@ public:
         : cryptoManager_(cryptoManager), eadManager_(eadManager), credentialManager_(credentialManager) {}
 
     // Virtual destructor to ensure proper cleanup of derived classes when deleting instances via base-class pointers
-    virtual ~UserContext() {
+    ~UserContext() {
         if (logger != nullptr) {
             logger.Release();
         }
     }
 
     // Pure virtual function to get a pointer to the EDHOC Crypto Manager
-    // This function must be implemented by any class that inherits from UserContext
-    virtual EdhocCryptoManager* GetCryptoManager() {
+    EdhocCryptoManager* GetCryptoManager() {
         return cryptoManager_.get();
     }
 
     // Pure virtual function to get a pointer to the EDHOC External Authorization Data (EAD) Manager
-    // This function must be implemented by any class that inherits from UserContext
-    virtual EdhocEADManager* GetEADManager() {
+    EdhocEADManager* GetEADManager() {
         return eadManager_.get();
     }
 
     // Pure virtual function to get a pointer to the EDHOC Credential Manager
-    // This function must be implemented by any class that inherits from UserContext
-    virtual EdhocCredentialManager* GetCredentialManager() {
+    EdhocCredentialManager* GetCredentialManager() {
         return credentialManager_.get();
     }
-
-    Napi::ThreadSafeFunction logger;
 
 protected:
     // Protected members to store the shared pointers to the managers

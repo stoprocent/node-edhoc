@@ -8,7 +8,17 @@
 #include "Utils.h"
 
 EdhocCryptoManager::EdhocCryptoManager() {
-    // Constructor implementation
+    this->keys.generate_key = &EdhocCryptoManager::GenerateKey;
+    this->keys.destroy_key = &EdhocCryptoManager::DestroyKey;
+    this->crypto.make_key_pair = &EdhocCryptoManager::MakeKeyPair;
+    this->crypto.key_agreement = &EdhocCryptoManager::KeyAgreement;
+    this->crypto.signature = &EdhocCryptoManager::Sign;
+    this->crypto.verify = &EdhocCryptoManager::Verify;
+    this->crypto.extract = &EdhocCryptoManager::Extract;
+    this->crypto.expand = &EdhocCryptoManager::Expand;
+    this->crypto.encrypt = &EdhocCryptoManager::Encrypt;
+    this->crypto.decrypt = &EdhocCryptoManager::Decrypt;
+    this->crypto.hash = &EdhocCryptoManager::Hash;
 }
 
 EdhocCryptoManager::~EdhocCryptoManager() {
@@ -479,12 +489,10 @@ int EdhocCryptoManager::CallHash(const uint8_t *input, size_t input_length, uint
                 }
                 Napi::Buffer<uint8_t> hashBuffer = result.As<Napi::Buffer<uint8_t>>();
                 
-                // Ensure the received hash buffer doesn't exceed the allocated hash buffer size
                 if (hashBuffer.Length() > hash_size) {
                     throw Napi::TypeError::New(env, "Returned hash length exceeds buffer length.");
                 }
 
-                // Copy the hash buffer to the hash array
                 memcpy(hash, hashBuffer.Data(), hashBuffer.Length());
                 *hash_length = hashBuffer.Length();  // Set the output hash length
 

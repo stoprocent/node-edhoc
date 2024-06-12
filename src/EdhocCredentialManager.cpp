@@ -48,46 +48,43 @@ static const uint8_t PK_I[] = {
     0x9F, 0x19, 0xF5, 0x5E, 0x87, 0x78, 0xCA, 0xF4
 };
 
-EdhocCredentialManager::EdhocCredentialManager(Napi::Env env, Napi::Function fetchCallback, Napi::Function verifyCallback)
-    : fetchFuncRef(Napi::Persistent(fetchCallback)), verifyFuncRef(Napi::Persistent(verifyCallback)) {
-    
-    this->fetchTsfn = Napi::ThreadSafeFunction::New(fetchCallback.Env(), fetchCallback, "Fetch Credentials", 0, 1);
-    this->verifyTsfn = Napi::ThreadSafeFunction::New(verifyCallback.Env(), verifyCallback, "Verify Credentials", 0, 1);
-
+EdhocCredentialManager::EdhocCredentialManager() {
     this->credentials.fetch = FetchCredentials;
     this->credentials.verify = VerifyCredentials;
 }
 
 EdhocCredentialManager::~EdhocCredentialManager() {
-    this->fetchFuncRef.Unref();
-    this->fetchFuncRef.Reset();
-    this->verifyFuncRef.Unref();
-    this->verifyFuncRef.Reset();
-    this->fetchTsfn.Release();
-    this->verifyTsfn.Release();
+    if (!this->fetchFuncRef.IsEmpty())
+        this->fetchFuncRef.Reset();
+    
+    if (this->fetchTsfn != nullptr)
+        this->fetchTsfn.Release();
+
+    if (!this->verifyFuncRef.IsEmpty())
+        this->verifyFuncRef.Reset();
+
+    if (this->verifyTsfn != nullptr)
+        this->verifyTsfn.Release();
 }
 
-// Implementations
 int EdhocCredentialManager::FetchCredentials(void *user_context, struct edhoc_auth_creds *credentials) {
     UserContext* context = static_cast<UserContext*>(user_context);
     EdhocCredentialManager* manager = context->GetCredentialManager();
-    return manager->CallFetchCredentials(credentials);
+    return manager->CallFetchCredentials(context->edhoc, credentials);
 }
 
 int EdhocCredentialManager::VerifyCredentials(void *user_context, struct edhoc_auth_creds *credentials, const uint8_t **public_key_reference, size_t *public_key_length) {
     UserContext* context = static_cast<UserContext*>(user_context);
     EdhocCredentialManager* manager = context->GetCredentialManager();
-    return manager->CallVerifyCredentials(credentials, public_key_reference, public_key_length);
+    return manager->CallVerifyCredentials(context->edhoc, credentials, public_key_reference, public_key_length);
 }
 
-static struct edhoc_auth_creds own_credentials;
-
-int EdhocCredentialManager::CallFetchCredentials(struct edhoc_auth_creds *credentials) {
+int EdhocCredentialManager::CallFetchCredentials(Napi::Value edhoc, struct edhoc_auth_creds *credentials) {
     std::promise<int> promise;
     std::future<int> future = promise.get_future();
 
-    this->fetchTsfn.BlockingCall([&promise, &credentials](Napi::Env env, Napi::Function jsCallback) {
-        Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, {}, [&promise, &credentials](Napi::Env env, Napi::Value result) {
+    this->fetchTsfn.BlockingCall([&promise, &credentials, &edhoc](Napi::Env env, Napi::Function jsCallback) {
+        Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, { edhoc.As<Napi::Object>() }, [&promise, &credentials](Napi::Env env, Napi::Value result) {
             credentials->priv_key_id[0] = 0x01;
             credentials->priv_key_id[1] = 0x02;
             credentials->priv_key_id[2] = 0x03;
@@ -105,12 +102,12 @@ int EdhocCredentialManager::CallFetchCredentials(struct edhoc_auth_creds *creden
     return future.get();
 }
 
-int EdhocCredentialManager::CallVerifyCredentials(struct edhoc_auth_creds *credentials, const uint8_t **public_key_reference, size_t *public_key_length) {
+int EdhocCredentialManager::CallVerifyCredentials(Napi::Value edhoc, struct edhoc_auth_creds *credentials, const uint8_t **public_key_reference, size_t *public_key_length) {
     std::promise<int> promise;
     std::future<int> future = promise.get_future();
 
-    this->verifyTsfn.BlockingCall([&promise, &credentials, &public_key_reference, &public_key_length](Napi::Env env, Napi::Function jsCallback) {
-        Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, {}, [&promise, &credentials, &public_key_reference, &public_key_length](Napi::Env env, Napi::Value result) {
+    this->verifyTsfn.BlockingCall([&promise, &credentials, &public_key_reference, &public_key_length, &edhoc](Napi::Env env, Napi::Function jsCallback) {
+        Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, { edhoc.As<Napi::Object>() }, [&promise, &credentials, &public_key_reference, &public_key_length](Napi::Env env, Napi::Value result) {
             // credentials->priv_key_id[0] = 0x01;
             // credentials->priv_key_id[1] = 0x02;
             // credentials->priv_key_id[2] = 0x03;

@@ -2,9 +2,10 @@
 #include <thread>
 
 #include "LibEDHOC.h"
-#include "EdhocCryptoManagerWrapper.h"
 #include "Utils.h"
 #include "ThreadSafeDeferred.h"
+#include "EdhocCryptoManagerWrapper.h"
+#include "EdhocCredentialManagerWrapper.h"
 
 static const struct edhoc_cipher_suite edhoc_cipher_suite_0 = {
     .value = 2,
@@ -36,12 +37,14 @@ taskQueue(std::make_unique<TaskQueue>()) {
     // Method
     this->SetMethod(info, info[1]);
 
+    info.This().As<Napi::Object>().Set("taskQueue", Napi::External<TaskQueue>::New(env, taskQueue.get()));
+
     // Suites
     ret = edhoc_set_cipher_suites(&this->_context, &edhoc_cipher_suite_0, 1);
 
     // Crypto Manager
-    EdhocCryptoManagerWrapper* managerWrapper = Napi::ObjectWrap<EdhocCryptoManagerWrapper>::Unwrap(info[3].As<Napi::Object>());
-    std::shared_ptr<EdhocCryptoManager> cryptoManager = managerWrapper->GetInternalManager();
+    EdhocCryptoManagerWrapper* cryptoWrapper = Napi::ObjectWrap<EdhocCryptoManagerWrapper>::Unwrap(info[3].As<Napi::Object>());
+    std::shared_ptr<EdhocCryptoManager> cryptoManager = cryptoWrapper->GetInternalManager();
 
     // Keys
 	ret = edhoc_bind_keys(&this->_context, cryptoManager.get()->keys);
@@ -50,10 +53,9 @@ taskQueue(std::make_unique<TaskQueue>()) {
 	ret = edhoc_bind_crypto(&this->_context, cryptoManager.get()->crypto);
 
     // Credentials
-    std::vector<std::string> cred_keys = {"fetch", "verify"};
-    auto credentials = Utils::ExtractFunctionsFromObject(env, info[2], cred_keys);
+    EdhocCredentialManagerWrapper* credentialWrapper = Napi::ObjectWrap<EdhocCredentialManagerWrapper>::Unwrap(info[2].As<Napi::Object>());
+    std::shared_ptr<EdhocCredentialManager> credentialManager = credentialWrapper->GetInternalManager();
 
-    std::shared_ptr<EdhocCredentialManager> credentialManager = std::make_shared<EdhocCredentialManager>(env, credentials[0], credentials[1]);
     ret = edhoc_bind_credentials(&this->_context, credentialManager.get()->credentials);
 
     // EAD
@@ -137,6 +139,8 @@ void LibEDHOC::Logger(void *user_context, const char *name, const uint8_t *buffe
 Napi::Value LibEDHOC::ComposeMessage(const Napi::CallbackInfo& info, enum edhoc_message messageNumber) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
+
+    this->userContext->edhoc = this;
 
     auto deferred = new ThreadSafeDeferred(env);
 

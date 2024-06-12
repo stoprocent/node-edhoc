@@ -2,107 +2,132 @@
 
 EdhocCryptoManagerWrapper::EdhocCryptoManagerWrapper(const Napi::CallbackInfo& info) : Napi::ObjectWrap<EdhocCryptoManagerWrapper>(info) {
     this->manager = std::make_shared<EdhocCryptoManager>();
-    this->manager->keys.generate_key = &EdhocCryptoManager::GenerateKey;
-    this->manager->keys.destroy_key = &EdhocCryptoManager::DestroyKey;
-    this->manager->crypto.make_key_pair = &EdhocCryptoManager::MakeKeyPair;
-    this->manager->crypto.key_agreement = &EdhocCryptoManager::KeyAgreement;
-    this->manager->crypto.signature = &EdhocCryptoManager::Sign;
-    this->manager->crypto.verify = &EdhocCryptoManager::Verify;
-    this->manager->crypto.extract = &EdhocCryptoManager::Extract;
-    this->manager->crypto.expand = &EdhocCryptoManager::Expand;
-    this->manager->crypto.encrypt = &EdhocCryptoManager::Encrypt;
-    this->manager->crypto.decrypt = &EdhocCryptoManager::Decrypt;
-    this->manager->crypto.hash = &EdhocCryptoManager::Hash;
 }
 
-EdhocCryptoManagerWrapper::~EdhocCryptoManagerWrapper() {
-    
-}
+EdhocCryptoManagerWrapper::~EdhocCryptoManagerWrapper() {}
 
 const std::shared_ptr<EdhocCryptoManager> EdhocCryptoManagerWrapper::GetInternalManager() {
     return this->manager;
 }
 
-Napi::Value EdhocCryptoManagerWrapper::SetFunctionAndTsfn(
-    const Napi::CallbackInfo& info,
-    const std::string& tsfnName,
-    Napi::FunctionReference& functionRef,
-    Napi::ThreadSafeFunction& tsfn) {
-    
-    Napi::Env env = info.Env();
+void EdhocCryptoManagerWrapper::SetFunctionAndTsfn(const Napi::Value &value, const std::string& tsfnName, Napi::FunctionReference& functionRef, Napi::ThreadSafeFunction& tsfn) {
+    Napi::Env env = value.Env();
     Napi::HandleScope scope(env);
 
-    if (!info[0].IsFunction()) {
-        Napi::TypeError::New(env, "Function expected").ThrowAsJavaScriptException();
-        return env.Undefined();
+    if (!value.IsFunction()) {
+        Napi::TypeError::New(env, "Function expected")
+            .ThrowAsJavaScriptException();
     }
-
-    Napi::Function jsCallback = info[0].As<Napi::Function>();
-    functionRef = Napi::Persistent(jsCallback);
-    tsfn = Napi::ThreadSafeFunction::New(env, jsCallback, tsfnName, 0, 1);
-
-    return env.Undefined();
+    else {
+        Napi::Function jsFunction = value.As<Napi::Function>();
+        functionRef = Napi::Persistent(jsFunction);
+        tsfn = Napi::ThreadSafeFunction::New(env, jsFunction, tsfnName, 0, 1);
+    }
 }
 
-Napi::Value EdhocCryptoManagerWrapper::SetGenerateKey(const Napi::CallbackInfo& info) {
-    return SetFunctionAndTsfn(info, "GenerateKey", this->manager->generateKeyFuncRef, this->manager->generateTsfn);
+void EdhocCryptoManagerWrapper::SetGenerateKey(const Napi::CallbackInfo& info, const Napi::Value &value) {
+    SetFunctionAndTsfn(value, "GenerateKey", this->manager->generateKeyFuncRef, this->manager->generateTsfn);
 }
 
-Napi::Value EdhocCryptoManagerWrapper::SetDestroyKey(const Napi::CallbackInfo& info) {
-    return SetFunctionAndTsfn(info, "DestroyKey", this->manager->destroyKeyFuncRef, this->manager->destroyTsfn);
+void EdhocCryptoManagerWrapper::SetDestroyKey(const Napi::CallbackInfo& info, const Napi::Value &value) {
+    SetFunctionAndTsfn(value, "DestroyKey", this->manager->destroyKeyFuncRef, this->manager->destroyTsfn);
 }
 
-Napi::Value EdhocCryptoManagerWrapper::SetMakeKeyPair(const Napi::CallbackInfo& info) {
-    return SetFunctionAndTsfn(info, "MakeKeyPair", this->manager->makeKeyPairFuncRef, this->manager->makeKeyPairTsfn);
+void EdhocCryptoManagerWrapper::SetMakeKeyPair(const Napi::CallbackInfo& info, const Napi::Value &value) {
+    return SetFunctionAndTsfn(value, "MakeKeyPair", this->manager->makeKeyPairFuncRef, this->manager->makeKeyPairTsfn);
 }
 
-Napi::Value EdhocCryptoManagerWrapper::SetKeyAgreement(const Napi::CallbackInfo& info) {
-    return SetFunctionAndTsfn(info, "KeyAgreement", this->manager->keyAgreementFuncRef, this->manager->keyAgreementTsfn);
+void EdhocCryptoManagerWrapper::SetKeyAgreement(const Napi::CallbackInfo& info, const Napi::Value &value) {
+    return SetFunctionAndTsfn(value, "KeyAgreement", this->manager->keyAgreementFuncRef, this->manager->keyAgreementTsfn);
 }
 
-Napi::Value EdhocCryptoManagerWrapper::SetSign(const Napi::CallbackInfo& info) {
-    return SetFunctionAndTsfn(info, "Sign", this->manager->signFuncRef, this->manager->signTsfn);
+void EdhocCryptoManagerWrapper::SetSign(const Napi::CallbackInfo& info, const Napi::Value &value) {
+    SetFunctionAndTsfn(value, "Sign", this->manager->signFuncRef, this->manager->signTsfn);
 }
 
-Napi::Value EdhocCryptoManagerWrapper::SetVerify(const Napi::CallbackInfo& info) {
-    return SetFunctionAndTsfn(info, "Verify", this->manager->verifyFuncRef, this->manager->verifyTsfn);
+void EdhocCryptoManagerWrapper::SetVerify(const Napi::CallbackInfo& info, const Napi::Value &value) {
+    SetFunctionAndTsfn(value, "Verify", this->manager->verifyFuncRef, this->manager->verifyTsfn);
 }
 
-Napi::Value EdhocCryptoManagerWrapper::SetExtract(const Napi::CallbackInfo& info) {
-    return SetFunctionAndTsfn(info, "Extract", this->manager->extractFuncRef, this->manager->extractTsfn);
+void EdhocCryptoManagerWrapper::SetExtract(const Napi::CallbackInfo& info, const Napi::Value &value) {
+    SetFunctionAndTsfn(value, "Extract", this->manager->extractFuncRef, this->manager->extractTsfn);
 }
 
-Napi::Value EdhocCryptoManagerWrapper::SetExpand(const Napi::CallbackInfo& info) {
-    return SetFunctionAndTsfn(info, "Expand", this->manager->expandFuncRef, this->manager->expandTsfn);
+void EdhocCryptoManagerWrapper::SetExpand(const Napi::CallbackInfo& info, const Napi::Value &value) {
+    SetFunctionAndTsfn(value, "Expand", this->manager->expandFuncRef, this->manager->expandTsfn);
 }
 
-Napi::Value EdhocCryptoManagerWrapper::SetEncrypt(const Napi::CallbackInfo& info) {
-    return SetFunctionAndTsfn(info, "Encrypt", this->manager->encryptFuncRef, this->manager->encryptTsfn);
+void EdhocCryptoManagerWrapper::SetEncrypt(const Napi::CallbackInfo& info, const Napi::Value &value) {
+    SetFunctionAndTsfn(value, "Encrypt", this->manager->encryptFuncRef, this->manager->encryptTsfn);
 }
 
-Napi::Value EdhocCryptoManagerWrapper::SetDecrypt(const Napi::CallbackInfo& info) {
-    return SetFunctionAndTsfn(info, "Decrypt", this->manager->decryptFuncRef, this->manager->decryptTsfn);
+void EdhocCryptoManagerWrapper::SetDecrypt(const Napi::CallbackInfo& info, const Napi::Value &value) {
+    SetFunctionAndTsfn(value, "Decrypt", this->manager->decryptFuncRef, this->manager->decryptTsfn);
 }
 
-Napi::Value EdhocCryptoManagerWrapper::SetHash(const Napi::CallbackInfo& info) {
-    return SetFunctionAndTsfn(info, "Hash", this->manager->hashFuncRef, this->manager->hashTsfn);
+void EdhocCryptoManagerWrapper::SetHash(const Napi::CallbackInfo& info, const Napi::Value &value) {
+    SetFunctionAndTsfn(value, "Hash", this->manager->hashFuncRef, this->manager->hashTsfn);
+}
+
+Napi::Value EdhocCryptoManagerWrapper::GetGenerateKey(const Napi::CallbackInfo& info) {
+    return this->manager->generateKeyFuncRef.Value();
+}
+
+Napi::Value EdhocCryptoManagerWrapper::GetDestroyKey(const Napi::CallbackInfo& info) {
+    return this->manager->destroyKeyFuncRef.Value();
+}
+
+Napi::Value EdhocCryptoManagerWrapper::GetMakeKeyPair(const Napi::CallbackInfo& info) {
+    return this->manager->makeKeyPairFuncRef.Value();
+}
+
+Napi::Value EdhocCryptoManagerWrapper::GetKeyAgreement(const Napi::CallbackInfo& info) {
+    return this->manager->keyAgreementFuncRef.Value();
+}
+
+Napi::Value EdhocCryptoManagerWrapper::GetSign(const Napi::CallbackInfo& info) {
+    return this->manager->signFuncRef.Value();
+}
+
+Napi::Value EdhocCryptoManagerWrapper::GetVerify(const Napi::CallbackInfo& info) {
+    return this->manager->verifyFuncRef.Value();
+}
+
+Napi::Value EdhocCryptoManagerWrapper::GetExtract(const Napi::CallbackInfo& info) {
+    return this->manager->extractFuncRef.Value();
+}
+
+Napi::Value EdhocCryptoManagerWrapper::GetExpand(const Napi::CallbackInfo& info) {
+    return this->manager->expandFuncRef.Value();
+}
+
+Napi::Value EdhocCryptoManagerWrapper::GetEncrypt(const Napi::CallbackInfo& info) {
+    return this->manager->encryptFuncRef.Value();
+}
+
+Napi::Value EdhocCryptoManagerWrapper::GetDecrypt(const Napi::CallbackInfo& info) {
+    return this->manager->decryptFuncRef.Value();
+}
+
+Napi::Value EdhocCryptoManagerWrapper::GetHash(const Napi::CallbackInfo& info) {
+    return this->manager->hashFuncRef.Value();
 }
 
 Napi::Object EdhocCryptoManagerWrapper::Init(Napi::Env env, Napi::Object exports) {
     Napi::HandleScope scope(env);
 
     Napi::Function func = DefineClass(env, "EdhocCryptoManager", {
-        InstanceMethod("setGenerateKey", &EdhocCryptoManagerWrapper::SetGenerateKey),
-        InstanceMethod("setDestroyKey", &EdhocCryptoManagerWrapper::SetDestroyKey),
-        InstanceMethod("setMakeKeyPair", &EdhocCryptoManagerWrapper::SetMakeKeyPair),
-        InstanceMethod("setKeyAgreement", &EdhocCryptoManagerWrapper::SetKeyAgreement),
-        InstanceMethod("setSign", &EdhocCryptoManagerWrapper::SetSign),
-        InstanceMethod("setVerify", &EdhocCryptoManagerWrapper::SetVerify),
-        InstanceMethod("setExtract", &EdhocCryptoManagerWrapper::SetExtract),
-        InstanceMethod("setExpand", &EdhocCryptoManagerWrapper::SetExpand),
-        InstanceMethod("setEncrypt", &EdhocCryptoManagerWrapper::SetEncrypt),
-        InstanceMethod("setDecrypt", &EdhocCryptoManagerWrapper::SetDecrypt),
-        InstanceMethod("setHash", &EdhocCryptoManagerWrapper::SetHash)
+        InstanceAccessor("generateKey", &EdhocCryptoManagerWrapper::GetGenerateKey, &EdhocCryptoManagerWrapper::SetGenerateKey),
+        InstanceAccessor("destroyKey", &EdhocCryptoManagerWrapper::GetDestroyKey, &EdhocCryptoManagerWrapper::SetDestroyKey),
+        InstanceAccessor("makeKeyPair", &EdhocCryptoManagerWrapper::GetMakeKeyPair, &EdhocCryptoManagerWrapper::SetMakeKeyPair),
+        InstanceAccessor("keyAgreement", &EdhocCryptoManagerWrapper::GetKeyAgreement, &EdhocCryptoManagerWrapper::SetKeyAgreement),
+        InstanceAccessor("sign", &EdhocCryptoManagerWrapper::GetSign, &EdhocCryptoManagerWrapper::SetSign),
+        InstanceAccessor("verify", &EdhocCryptoManagerWrapper::GetVerify, &EdhocCryptoManagerWrapper::SetVerify),
+        InstanceAccessor("extract", &EdhocCryptoManagerWrapper::GetExtract, &EdhocCryptoManagerWrapper::SetExtract),
+        InstanceAccessor("expand", &EdhocCryptoManagerWrapper::GetExpand, &EdhocCryptoManagerWrapper::SetExpand),
+        InstanceAccessor("encrypt", &EdhocCryptoManagerWrapper::GetEncrypt, &EdhocCryptoManagerWrapper::SetEncrypt),
+        InstanceAccessor("decrypt", &EdhocCryptoManagerWrapper::GetDecrypt, &EdhocCryptoManagerWrapper::SetDecrypt),
+        InstanceAccessor("hash", &EdhocCryptoManagerWrapper::GetHash, &EdhocCryptoManagerWrapper::SetHash)
     });
 
     Napi::FunctionReference* constructor = new Napi::FunctionReference();

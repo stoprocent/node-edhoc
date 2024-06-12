@@ -44,30 +44,6 @@ void Utils::InvokeJSFunctionWithPromiseHandling(Napi::Env env, Napi::Function js
     }
 }
 
-std::vector<Napi::Function> Utils::ExtractFunctionsFromObject(Napi::Env env, Napi::Value obj, const std::vector<std::string>& keys) {
-    std::vector<Napi::Function> functions;
-    if (!obj.IsObject()) {
-        Napi::TypeError::New(env, "Object expected").ThrowAsJavaScriptException();
-        return functions;
-    }
-    Napi::Object object = obj.As<Napi::Object>();
-    for (const auto& key : keys) {
-        if (object.HasOwnProperty(key)) {
-            Napi::Value value = object.Get(key);
-            if (value.IsFunction()) {
-                functions.push_back(value.As<Napi::Function>());
-            } else {
-                Napi::TypeError::New(env, key + " must be a function").ThrowAsJavaScriptException();
-                return functions;
-            }
-        } else {
-            Napi::Error::New(env, "Key " + key + " not found").ThrowAsJavaScriptException();
-            return functions;
-        }
-    }
-    return functions;
-}
-
 void Utils::EncodeInt64ToBuffer(int64_t value, uint8_t *buffer, size_t *length) {
     size_t idx = 0;
     if (value == 0) {

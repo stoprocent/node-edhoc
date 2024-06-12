@@ -24,17 +24,6 @@ public:
     static void InvokeJSFunctionWithPromiseHandling(Napi::Env env, Napi::Function jsCallback, const std::vector<napi_value>& args, std::function<void(Napi::Env, Napi::Value)> callbackLambda);
 
     /**
-     * Extracts functions from a given JavaScript object based on specified keys.
-     * Throws a JavaScript exception if any key is missing or not a function.
-     * 
-     * @param env The N-API environment handle.
-     * @param obj The N-API value, expected to be an object containing functions.
-     * @param keys A vector of strings specifying the keys of the functions to extract.
-     * @return A vector of N-API Function objects corresponding to the keys.
-     */
-    static std::vector<Napi::Function> ExtractFunctionsFromObject(Napi::Env env, Napi::Value obj, const std::vector<std::string>& keys);
-
-    /**
      * Converts a JavaScript value to an EDHOC connection ID structure.
      * The input can be a number or a buffer.
      * Throws a JavaScript exception if the input is not a number or a buffer.
