@@ -67,6 +67,8 @@
         "condition_variable": "cpp",
         "deque": "cpp",
         "queue": "cpp",
-        "edhoc_context.h": "c"
+        "edhoc_context.h": "c",
+        "authentication_credentials_2.h": "c",
+        "test_vector_2.h": "c"
     }
 }

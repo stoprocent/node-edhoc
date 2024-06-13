@@ -50,80 +50,81 @@ EdhocCryptoManager::~EdhocCryptoManager() {
 int EdhocCryptoManager::GenerateKey(void *user_context, enum edhoc_key_type key_type, const uint8_t *raw_key, size_t raw_key_length, void *key_id) {
     UserContext* userContext = static_cast<UserContext*>(user_context);
     EdhocCryptoManager* cryptoManager = userContext->GetCryptoManager();
-    return cryptoManager->CallGenerateKey(key_type, raw_key, raw_key_length, key_id);
+    return cryptoManager->CallGenerateKey(user_context, key_type, raw_key, raw_key_length, key_id);
 }
 
 int EdhocCryptoManager::DestroyKey(void *user_context, void *key_id) {
     UserContext* userContext = static_cast<UserContext*>(user_context);
     EdhocCryptoManager* cryptoManager = userContext->GetCryptoManager();
-    return cryptoManager->CallDestroyKey(key_id);
+    return cryptoManager->CallDestroyKey(user_context, key_id);
 }
 
 int EdhocCryptoManager::MakeKeyPair(void *user_context, const void *key_id, uint8_t *private_key, size_t private_key_size, size_t *private_key_length, uint8_t *public_key, size_t public_key_size, size_t *public_key_length) {
     UserContext* userContext = static_cast<UserContext*>(user_context);
     EdhocCryptoManager* cryptoManager = userContext->GetCryptoManager();
-    return cryptoManager->CallMakeKeyPair(key_id, private_key, private_key_size, private_key_length, public_key, public_key_size, public_key_length);
+    return cryptoManager->CallMakeKeyPair(user_context, key_id, private_key, private_key_size, private_key_length, public_key, public_key_size, public_key_length);
 }
 
 int EdhocCryptoManager::KeyAgreement(void *user_context, const void *key_id, const uint8_t *peer_public_key, size_t peer_public_key_length, uint8_t *shared_secret, size_t shared_secret_size, size_t *shared_secret_length) {
     UserContext* userContext = static_cast<UserContext*>(user_context);
     EdhocCryptoManager* cryptoManager = userContext->GetCryptoManager();
-    return cryptoManager->CallKeyAgreement(key_id, peer_public_key, peer_public_key_length, shared_secret, shared_secret_size, shared_secret_length);
+    return cryptoManager->CallKeyAgreement(user_context, key_id, peer_public_key, peer_public_key_length, shared_secret, shared_secret_size, shared_secret_length);
 }
 
 int EdhocCryptoManager::Sign(void *user_context, const void *key_id, const uint8_t *input, size_t input_length, uint8_t *signature, size_t signature_size, size_t *signature_length) {
     UserContext* userContext = static_cast<UserContext*>(user_context);
     EdhocCryptoManager* cryptoManager = userContext->GetCryptoManager();
-    return cryptoManager->CallSign(key_id, input, input_length, signature, signature_size, signature_length);
+    return cryptoManager->CallSign(user_context, key_id, input, input_length, signature, signature_size, signature_length);
 }
 
 int EdhocCryptoManager::Verify(void *user_context, const void *key_id, const uint8_t *input, size_t input_length, const uint8_t *signature, size_t signature_length) {
     UserContext* userContext = static_cast<UserContext*>(user_context);
     EdhocCryptoManager* cryptoManager = userContext->GetCryptoManager();
-    return cryptoManager->CallVerify(key_id, input, input_length, signature, signature_length);
+    return cryptoManager->CallVerify(user_context, key_id, input, input_length, signature, signature_length);
 }
 
 int EdhocCryptoManager::Extract(void *user_context, const void *key_id, const uint8_t *salt, size_t salt_len, uint8_t *pseudo_random_key, size_t pseudo_random_key_size, size_t *pseudo_random_key_length) {
     UserContext* userContext = static_cast<UserContext*>(user_context);
     EdhocCryptoManager* cryptoManager = userContext->GetCryptoManager();
-    return cryptoManager->CallExtract(key_id, salt, salt_len, pseudo_random_key, pseudo_random_key_size, pseudo_random_key_length);
+    return cryptoManager->CallExtract(user_context, key_id, salt, salt_len, pseudo_random_key, pseudo_random_key_size, pseudo_random_key_length);
 }
 
 
 int EdhocCryptoManager::Expand(void *user_context, const void *key_id, const uint8_t *info, size_t info_length, uint8_t *output_keying_material, size_t output_keying_material_length) {
     UserContext* userContext = static_cast<UserContext*>(user_context);
     EdhocCryptoManager* cryptoManager = userContext->GetCryptoManager();
-    return cryptoManager->CallExpand(key_id, info, info_length, output_keying_material, output_keying_material_length);
+    return cryptoManager->CallExpand(user_context, key_id, info, info_length, output_keying_material, output_keying_material_length);
 }
 
 
 int EdhocCryptoManager::Encrypt(void *user_context, const void *key_id, const uint8_t *nonce, size_t nonce_length, const uint8_t *additional_data, size_t additional_data_length, const uint8_t *plaintext, size_t plaintext_length, uint8_t *ciphertext, size_t ciphertext_size, size_t *ciphertext_length) {
     UserContext* userContext = static_cast<UserContext*>(user_context);
     EdhocCryptoManager* cryptoManager = userContext->GetCryptoManager();
-    return cryptoManager->CallEncrypt(key_id, nonce, nonce_length, additional_data, additional_data_length, plaintext, plaintext_length, ciphertext, ciphertext_size, ciphertext_length);
+    return cryptoManager->CallEncrypt(user_context, key_id, nonce, nonce_length, additional_data, additional_data_length, plaintext, plaintext_length, ciphertext, ciphertext_size, ciphertext_length);
 }
 
 
 int EdhocCryptoManager::Decrypt(void *user_context, const void *key_id, const uint8_t *nonce, size_t nonce_length, const uint8_t *additional_data, size_t additional_data_length, const uint8_t *ciphertext, size_t ciphertext_length, uint8_t *plaintext, size_t plaintext_size, size_t *plaintext_length) {
     UserContext* userContext = static_cast<UserContext*>(user_context);
     EdhocCryptoManager* cryptoManager = userContext->GetCryptoManager();
-    return cryptoManager->CallDecrypt(key_id, nonce, nonce_length, additional_data, additional_data_length, ciphertext, ciphertext_length, plaintext, plaintext_size, plaintext_length);
+    return cryptoManager->CallDecrypt(user_context, key_id, nonce, nonce_length, additional_data, additional_data_length, ciphertext, ciphertext_length, plaintext, plaintext_size, plaintext_length);
 }
 
 
 int EdhocCryptoManager::Hash(void *user_context, const uint8_t *input, size_t input_length, uint8_t *hash, size_t hash_size, size_t *hash_length) {
     UserContext* userContext = static_cast<UserContext*>(user_context);
     EdhocCryptoManager* cryptoManager = userContext->GetCryptoManager();
-    return cryptoManager->CallHash(input, input_length, hash, hash_size, hash_length);
+    return cryptoManager->CallHash(user_context, input, input_length, hash, hash_size, hash_length);
 }
 
-int EdhocCryptoManager::CallGenerateKey(enum edhoc_key_type key_type, const uint8_t *raw_key, size_t raw_key_length, void *key_id_ptr) {
+int EdhocCryptoManager::CallGenerateKey(const void *user_context, enum edhoc_key_type key_type, const uint8_t *raw_key, size_t raw_key_length, void *key_id_ptr) {
     std::promise<int> promise;
     std::future<int> future = promise.get_future();
 
-    this->generateTsfn.BlockingCall([&promise, key_type, &raw_key, raw_key_length, &key_id_ptr](Napi::Env env, Napi::Function jsCallback) {
+    this->generateTsfn.BlockingCall([&user_context, &promise, key_type, &raw_key, raw_key_length, &key_id_ptr](Napi::Env env, Napi::Function jsCallback) {
         try {
             std::vector<napi_value> arguments = {
+                static_cast<const UserContext*>(user_context)->parent.Value(),
                 Napi::Number::New(env, static_cast<int>(key_type)),
                 Napi::Buffer<uint8_t>::New(env, const_cast<uint8_t*>(raw_key), raw_key_length)
             };
@@ -162,13 +163,14 @@ int EdhocCryptoManager::CallGenerateKey(enum edhoc_key_type key_type, const uint
     return future.get();
 }
 
-int EdhocCryptoManager::CallDestroyKey(void *key_id) {
+int EdhocCryptoManager::CallDestroyKey(const void *user_context, void *key_id) {
     std::promise<int> promise;
     std::future<int> future = promise.get_future();
 
-    this->destroyTsfn.BlockingCall([&promise, &key_id](Napi::Env env, Napi::Function jsCallback) {
+    this->destroyTsfn.BlockingCall([&user_context, &promise, &key_id](Napi::Env env, Napi::Function jsCallback) {
         try {
             std::vector<napi_value> arguments = {
+                static_cast<const UserContext*>(user_context)->parent.Value(),
                 Napi::Buffer<uint8_t>::Copy(env, static_cast<uint8_t*>(key_id), EDHOC_KID_LEN)
             };
             Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise](Napi::Env env, Napi::Value result) {
@@ -187,13 +189,14 @@ int EdhocCryptoManager::CallDestroyKey(void *key_id) {
     return future.get();
 }
 
-int EdhocCryptoManager::CallMakeKeyPair(const void *key_id, uint8_t *private_key, size_t private_key_size, size_t *private_key_length, uint8_t *public_key, size_t public_key_size, size_t *public_key_length) {
+int EdhocCryptoManager::CallMakeKeyPair(const void *user_context, const void *key_id, uint8_t *private_key, size_t private_key_size, size_t *private_key_length, uint8_t *public_key, size_t public_key_size, size_t *public_key_length) {
     std::promise<int> promise;
     std::future<int> future = promise.get_future();
 
-    this->makeKeyPairTsfn.BlockingCall([&promise, &key_id, &private_key, private_key_size, &private_key_length, &public_key, public_key_size, &public_key_length](Napi::Env env, Napi::Function jsCallback) {
+    this->makeKeyPairTsfn.BlockingCall([&user_context, &promise, &key_id, &private_key, private_key_size, &private_key_length, &public_key, public_key_size, &public_key_length](Napi::Env env, Napi::Function jsCallback) {
         try {
             std::vector<napi_value> arguments = {
+                static_cast<const UserContext*>(user_context)->parent.Value(),
                 Napi::Buffer<uint8_t>::Copy(env, static_cast<const uint8_t*>(key_id), EDHOC_KID_LEN),
                 Napi::Number::New(env, static_cast<size_t>(private_key_size)),
                 Napi::Number::New(env, static_cast<size_t>(public_key_size))
@@ -249,13 +252,14 @@ int EdhocCryptoManager::CallMakeKeyPair(const void *key_id, uint8_t *private_key
     return future.get();
 }
 
-int EdhocCryptoManager::CallKeyAgreement(const void *key_id, const uint8_t *peer_public_key, size_t peer_public_key_length, uint8_t *shared_secret, size_t shared_secret_size, size_t *shared_secret_length) {
+int EdhocCryptoManager::CallKeyAgreement(const void *user_context, const void *key_id, const uint8_t *peer_public_key, size_t peer_public_key_length, uint8_t *shared_secret, size_t shared_secret_size, size_t *shared_secret_length) {
     std::promise<int> promise;
     std::future<int> future = promise.get_future();
 
-    this->keyAgreementTsfn.BlockingCall([&promise, &key_id, &peer_public_key, peer_public_key_length, &shared_secret, shared_secret_size, &shared_secret_length](Napi::Env env, Napi::Function jsCallback) {
+    this->keyAgreementTsfn.BlockingCall([&user_context, &promise, &key_id, &peer_public_key, peer_public_key_length, &shared_secret, shared_secret_size, &shared_secret_length](Napi::Env env, Napi::Function jsCallback) {
         try {
             std::vector<napi_value> arguments = {
+                static_cast<const UserContext*>(user_context)->parent.Value(),
                 Napi::Buffer<uint8_t>::Copy(env, static_cast<const uint8_t*>(key_id), EDHOC_KID_LEN),
                 Napi::Buffer<uint8_t>::Copy(env, peer_public_key, peer_public_key_length),
                 Napi::Number::New(env, static_cast<size_t>(shared_secret_size)),
@@ -287,15 +291,16 @@ int EdhocCryptoManager::CallKeyAgreement(const void *key_id, const uint8_t *peer
     return future.get();
 }
 
-int EdhocCryptoManager::CallSign(const void *key_id, const uint8_t *input, size_t input_length, uint8_t *signature, size_t signature_size, size_t *signature_length) {
+int EdhocCryptoManager::CallSign(const void *user_context, const void *key_id, const uint8_t *input, size_t input_length, uint8_t *signature, size_t signature_size, size_t *signature_length) {
     std::promise<int> promise;
     std::future<int> future = promise.get_future();
 
     const uint8_t * kid = static_cast<const uint8_t*>(key_id);
 
-    this->signTsfn.BlockingCall([&promise, kid, &input, input_length, &signature, signature_size, &signature_length](Napi::Env env, Napi::Function jsCallback) {
+    this->signTsfn.BlockingCall([&user_context, &promise, kid, &input, input_length, &signature, signature_size, &signature_length](Napi::Env env, Napi::Function jsCallback) {
         try {
             std::vector<napi_value> arguments = {
+                static_cast<const UserContext*>(user_context)->parent.Value(),
                 Napi::Buffer<uint8_t>::Copy(env, static_cast<const uint8_t*>(kid), EDHOC_KID_LEN),
                 Napi::Buffer<uint8_t>::Copy(env, input, input_length),
                 Napi::Number::New(env, static_cast<size_t>(signature_size))
@@ -328,13 +333,14 @@ int EdhocCryptoManager::CallSign(const void *key_id, const uint8_t *input, size_
     return future.get();
 }
 
-int EdhocCryptoManager::CallVerify(const void *key_id, const uint8_t *input, size_t input_length, const uint8_t *signature, size_t signature_length) {
+int EdhocCryptoManager::CallVerify(const void *user_context, const void *key_id, const uint8_t *input, size_t input_length, const uint8_t *signature, size_t signature_length) {
 std::promise<int> promise;
     std::future<int> future = promise.get_future();
 
-    this->verifyTsfn.BlockingCall([&promise, &key_id, &input, input_length, &signature, signature_length](Napi::Env env, Napi::Function jsCallback) {
+    this->verifyTsfn.BlockingCall([&user_context, &promise, &key_id, &input, input_length, &signature, signature_length](Napi::Env env, Napi::Function jsCallback) {
         try {
             std::vector<napi_value> arguments = {
+                static_cast<const UserContext*>(user_context)->parent.Value(),
                 Napi::Buffer<uint8_t>::Copy(env, static_cast<const uint8_t*>(key_id), EDHOC_KID_LEN),
                 Napi::Buffer<uint8_t>::Copy(env, input, input_length),
                 Napi::Buffer<uint8_t>::Copy(env, signature, signature_length),
@@ -355,13 +361,14 @@ std::promise<int> promise;
     return future.get();
 }
 
-int EdhocCryptoManager::CallExtract(const void *key_id, const uint8_t *salt, size_t salt_len, uint8_t *pseudo_random_key, size_t pseudo_random_key_size, size_t *pseudo_random_key_length) {
+int EdhocCryptoManager::CallExtract(const void *user_context, const void *key_id, const uint8_t *salt, size_t salt_len, uint8_t *pseudo_random_key, size_t pseudo_random_key_size, size_t *pseudo_random_key_length) {
     std::promise<int> promise;
     std::future<int> future = promise.get_future();
 
-    this->extractTsfn.BlockingCall([&promise, &key_id, &salt, salt_len, &pseudo_random_key, pseudo_random_key_size, &pseudo_random_key_length](Napi::Env env, Napi::Function jsCallback) {
+    this->extractTsfn.BlockingCall([&user_context, &promise, &key_id, &salt, salt_len, &pseudo_random_key, pseudo_random_key_size, &pseudo_random_key_length](Napi::Env env, Napi::Function jsCallback) {
         try {
             std::vector<napi_value> arguments = {
+                static_cast<const UserContext*>(user_context)->parent.Value(),
                 Napi::Buffer<uint8_t>::Copy(env, static_cast<const uint8_t*>(key_id), EDHOC_KID_LEN),
                 Napi::Buffer<uint8_t>::Copy(env, salt, salt_len),
                 Napi::Number::New(env, static_cast<size_t>(pseudo_random_key_size))
@@ -396,13 +403,14 @@ int EdhocCryptoManager::CallExtract(const void *key_id, const uint8_t *salt, siz
     return future.get();
 }
 
-int EdhocCryptoManager::CallExpand(const void *key_id, const uint8_t *info, size_t info_length, uint8_t *output_keying_material, size_t output_keying_material_length) {
+int EdhocCryptoManager::CallExpand(const void *user_context, const void *key_id, const uint8_t *info, size_t info_length, uint8_t *output_keying_material, size_t output_keying_material_length) {
     std::promise<int> promise;
     std::future<int> future = promise.get_future();
 
-    this->expandTsfn.BlockingCall([&promise, &key_id, &info, info_length, &output_keying_material, output_keying_material_length](Napi::Env env, Napi::Function jsCallback) {
+    this->expandTsfn.BlockingCall([&user_context, &promise, &key_id, &info, info_length, &output_keying_material, output_keying_material_length](Napi::Env env, Napi::Function jsCallback) {
         try {
             std::vector<napi_value> arguments = {
+                static_cast<const UserContext*>(user_context)->parent.Value(),
                 Napi::Buffer<uint8_t>::Copy(env, static_cast<const uint8_t*>(key_id), EDHOC_KID_LEN),
                 Napi::Buffer<uint8_t>::Copy(env, info, info_length),
                 Napi::Number::New(env, static_cast<size_t>(output_keying_material_length))
@@ -431,13 +439,14 @@ int EdhocCryptoManager::CallExpand(const void *key_id, const uint8_t *info, size
     return future.get();
 }
 
-int EdhocCryptoManager::CallEncrypt(const void *key_id, const uint8_t *nonce, size_t nonce_length, const uint8_t *additional_data, size_t additional_data_length, const uint8_t *plaintext, size_t plaintext_length, uint8_t *ciphertext, size_t ciphertext_size, size_t *ciphertext_length) {
+int EdhocCryptoManager::CallEncrypt(const void *user_context, const void *key_id, const uint8_t *nonce, size_t nonce_length, const uint8_t *additional_data, size_t additional_data_length, const uint8_t *plaintext, size_t plaintext_length, uint8_t *ciphertext, size_t ciphertext_size, size_t *ciphertext_length) {
     std::promise<int> promise;
     std::future<int> future = promise.get_future();
 
-    this->encryptTsfn.BlockingCall([&promise, &key_id, &nonce, nonce_length, &additional_data, additional_data_length, &plaintext, plaintext_length, &ciphertext, ciphertext_size, &ciphertext_length](Napi::Env env, Napi::Function jsCallback) {
+    this->encryptTsfn.BlockingCall([&user_context, &promise, &key_id, &nonce, nonce_length, &additional_data, additional_data_length, &plaintext, plaintext_length, &ciphertext, ciphertext_size, &ciphertext_length](Napi::Env env, Napi::Function jsCallback) {
         try {
             std::vector<napi_value> arguments = {
+                static_cast<const UserContext*>(user_context)->parent.Value(),
                 Napi::Buffer<uint8_t>::Copy(env, static_cast<const uint8_t*>(key_id), EDHOC_KID_LEN),
                 Napi::Buffer<uint8_t>::Copy(env, nonce, nonce_length),
                 Napi::Buffer<uint8_t>::Copy(env, additional_data, additional_data_length),
@@ -469,13 +478,14 @@ int EdhocCryptoManager::CallEncrypt(const void *key_id, const uint8_t *nonce, si
     return future.get();
 }
 
-int EdhocCryptoManager::CallDecrypt(const void *key_id, const uint8_t *nonce, size_t nonce_length, const uint8_t *additional_data, size_t additional_data_length, const uint8_t *ciphertext, size_t ciphertext_length, uint8_t *plaintext, size_t plaintext_size, size_t *plaintext_length) {
+int EdhocCryptoManager::CallDecrypt(const void *user_context, const void *key_id, const uint8_t *nonce, size_t nonce_length, const uint8_t *additional_data, size_t additional_data_length, const uint8_t *ciphertext, size_t ciphertext_length, uint8_t *plaintext, size_t plaintext_size, size_t *plaintext_length) {
     std::promise<int> promise;
     std::future<int> future = promise.get_future();
 
-    this->decryptTsfn.BlockingCall([&promise, &key_id, &nonce, nonce_length, &additional_data, additional_data_length, &ciphertext, &ciphertext_length, &plaintext, plaintext_size, plaintext_length](Napi::Env env, Napi::Function jsCallback) {
+    this->decryptTsfn.BlockingCall([&user_context, &promise, &key_id, &nonce, nonce_length, &additional_data, additional_data_length, &ciphertext, &ciphertext_length, &plaintext, plaintext_size, plaintext_length](Napi::Env env, Napi::Function jsCallback) {
         try {
             std::vector<napi_value> arguments = {
+                static_cast<const UserContext*>(user_context)->parent.Value(),
                 Napi::Buffer<uint8_t>::Copy(env, static_cast<const uint8_t*>(key_id), EDHOC_KID_LEN),
                 Napi::Buffer<uint8_t>::Copy(env, nonce, nonce_length),
                 Napi::Buffer<uint8_t>::Copy(env, additional_data, additional_data_length),
@@ -507,13 +517,14 @@ int EdhocCryptoManager::CallDecrypt(const void *key_id, const uint8_t *nonce, si
     return future.get();
 }
 
-int EdhocCryptoManager::CallHash(const uint8_t *input, size_t input_length, uint8_t *hash, size_t hash_size, size_t *hash_length) {
+int EdhocCryptoManager::CallHash(const void *user_context, const uint8_t *input, size_t input_length, uint8_t *hash, size_t hash_size, size_t *hash_length) {
     std::promise<int> promise;
     std::future<int> future = promise.get_future();
 
-    this->hashTsfn.BlockingCall([&promise, &input, input_length, &hash, hash_size, &hash_length](Napi::Env env, Napi::Function jsCallback) {
+    this->hashTsfn.BlockingCall([&user_context, &promise, &input, input_length, &hash, hash_size, &hash_length](Napi::Env env, Napi::Function jsCallback) {
         try {
             std::vector<napi_value> arguments = {
+                static_cast<const UserContext*>(user_context)->parent.Value(),
                 Napi::Buffer<uint8_t>::Copy(env, input, input_length),
                 Napi::Number::New(env, static_cast<size_t>(hash_size)),
             };

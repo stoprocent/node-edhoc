@@ -28,8 +28,8 @@ public:
 
     // Methods to invoke the JavaScript callbacks for fetching and verifying credentials via the N-API ThreadSafeFunction mechanism.
     // These methods facilitate the asynchronous interaction between C++ and Node.js.
-    int CallFetchCredentials(struct edhoc_auth_creds *credentials);
-    int CallVerifyCredentials(struct edhoc_auth_creds *credentials, const uint8_t **public_key_reference, size_t *public_key_length);
+    int CallFetchCredentials(const void *user_context, struct edhoc_auth_creds *credentials);
+    int CallVerifyCredentials(const void *user_context, struct edhoc_auth_creds *credentials, const uint8_t **public_key_reference, size_t *public_key_length);
 
 private:
     // Map to store credential buffers by credential label.

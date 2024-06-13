@@ -55,8 +55,9 @@ taskQueue(std::make_unique<TaskQueue>()) {
 
     // User Context
     this->userContext = std::make_shared<UserContext>(cryptoManager, eadManager, credentialManager);
+    this->userContext->parent = Reference<Object>::New(info.This().As<Object>());
     ret = edhoc_set_user_context(&this->_context, static_cast<void*>(this->userContext.get()));
-
+    
     if (ret != EDHOC_SUCCESS) {
         Napi::TypeError::New(env, "Failed to initialize EDHOC context.")
             .ThrowAsJavaScriptException();

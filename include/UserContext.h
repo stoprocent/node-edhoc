@@ -44,7 +44,10 @@ public:
         return credentialManager_.get();
     }
 
+    Napi::ObjectReference parent;
+
 protected:
+    
     // Protected members to store the shared pointers to the managers
     std::shared_ptr<EdhocCryptoManager> cryptoManager_;
     std::shared_ptr<EdhocEADManager> eadManager_;
