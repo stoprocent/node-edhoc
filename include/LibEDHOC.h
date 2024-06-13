@@ -34,6 +34,12 @@ public:
     // Sets the Method in the EDHOC context from a N-API value
     void SetMethod(const Napi::CallbackInfo &info, const Napi::Value &value);
 
+    // Retrieves the Cipher Suites from the EDHOC context as a N-API value
+    void SetCipherSuites(const Napi::CallbackInfo &info, const Napi::Value &value);
+
+    // Gets the Cipher Suites from the EDHOC context as a N-API value
+    Napi::Value GetCipherSuites(const Napi::CallbackInfo &info);
+
     // Retrieves the Logger function from the EDHOC context as a N-API value
     Napi::Value GetLogger(const Napi::CallbackInfo &info);
 

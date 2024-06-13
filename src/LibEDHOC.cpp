@@ -2,21 +2,11 @@
 #include <thread>
 
 #include "LibEDHOC.h"
+#include "Suites.h"
 #include "Utils.h"
 #include "ThreadSafeDeferred.h"
 #include "EdhocCryptoManagerWrapper.h"
 #include "EdhocCredentialManagerWrapper.h"
-
-static const struct edhoc_cipher_suite edhoc_cipher_suite_0 = {
-    .value = 2,
-    .aead_key_length = 16,
-    .aead_tag_length = 8,
-    .aead_iv_length = 13,
-    .hash_length = 32,
-    .mac_length = 8,
-    .ecc_key_length = 32,
-    .ecc_sign_length = 64,
-};
 
 using namespace Napi;
 
@@ -37,13 +27,11 @@ taskQueue(std::make_unique<TaskQueue>()) {
     // Method
     this->SetMethod(info, info[1]);
 
-    info.This().As<Napi::Object>().Set("taskQueue", Napi::External<TaskQueue>::New(env, taskQueue.get()));
-
     // Suites
-    ret = edhoc_set_cipher_suites(&this->_context, &edhoc_cipher_suite_0, 1);
+    this->SetCipherSuites(info, info[2]);
 
     // Crypto Manager
-    EdhocCryptoManagerWrapper* cryptoWrapper = Napi::ObjectWrap<EdhocCryptoManagerWrapper>::Unwrap(info[3].As<Napi::Object>());
+    EdhocCryptoManagerWrapper* cryptoWrapper = Napi::ObjectWrap<EdhocCryptoManagerWrapper>::Unwrap(info[4].As<Napi::Object>());
     std::shared_ptr<EdhocCryptoManager> cryptoManager = cryptoWrapper->GetInternalManager();
 
     // Keys
@@ -53,7 +41,7 @@ taskQueue(std::make_unique<TaskQueue>()) {
 	ret = edhoc_bind_crypto(&this->_context, cryptoManager.get()->crypto);
 
     // Credentials
-    EdhocCredentialManagerWrapper* credentialWrapper = Napi::ObjectWrap<EdhocCredentialManagerWrapper>::Unwrap(info[2].As<Napi::Object>());
+    EdhocCredentialManagerWrapper* credentialWrapper = Napi::ObjectWrap<EdhocCredentialManagerWrapper>::Unwrap(info[3].As<Napi::Object>());
     std::shared_ptr<EdhocCredentialManager> credentialManager = credentialWrapper->GetInternalManager();
 
     ret = edhoc_bind_credentials(&this->_context, credentialManager.get()->credentials);
@@ -107,6 +95,46 @@ void LibEDHOC::SetMethod(const Napi::CallbackInfo &info, const Napi::Value &valu
         Napi::TypeError::New(info.Env(), "Failed to set EDHOC Method.")
             .ThrowAsJavaScriptException();
     }
+}
+
+void LibEDHOC::SetCipherSuites(const Napi::CallbackInfo &info, const Napi::Value &value) {
+    Napi::Env env = info.Env();
+
+    if (!value.IsArray()) {
+        Napi::TypeError::New(env, "Array of suite indexes expected")
+            .ThrowAsJavaScriptException();
+        return;
+    }
+
+    Napi::Array jsArray = value.As<Napi::Array>();
+    std::vector<const struct edhoc_cipher_suite> selected_suites;
+    
+    for (uint32_t i = 0; i < jsArray.Length(); i++) {
+        uint32_t index = jsArray.Get(i).As<Napi::Number>().Uint32Value();
+        if (index < suite_pointers_count && suite_pointers[index] != nullptr) {
+            selected_suites.push_back(*suite_pointers[index]);
+        } else {
+            Napi::RangeError::New(env, "Invalid cipher suite index")
+                .ThrowAsJavaScriptException();
+            return;
+        }
+    }
+
+    int ret = edhoc_set_cipher_suites(&this->_context, (const struct edhoc_cipher_suite *)selected_suites.data(), (size_t)selected_suites.size());
+    if (ret != 0) {
+        Napi::TypeError::New(env, "Failed to set cipher suites")
+            .ThrowAsJavaScriptException();
+        return;
+    }
+}
+
+Napi::Value LibEDHOC::GetCipherSuites(const Napi::CallbackInfo &info) {
+    Napi::Env env = info.Env();
+    Napi::Array result = Napi::Array::New(env, this->_context.EDHOC_PRIVATE(csuite_len));
+    for (size_t i = 0; i < this->_context.EDHOC_PRIVATE(csuite_len); i++) {
+        result.Set(i, Napi::Number::New(env, this->_context.EDHOC_PRIVATE(csuite)[i].value));
+    }
+    return result;
 }
 
 Napi::Value LibEDHOC::GetLogger(const Napi::CallbackInfo &info) {
@@ -385,6 +413,7 @@ Napi::Object LibEDHOC::Init(Napi::Env env, Napi::Object exports) {
         InstanceAccessor("connectionID", &LibEDHOC::GetCID, &LibEDHOC::SetCID),
         InstanceAccessor<&LibEDHOC::GetPeerCID>("peerConnectionID"),
         InstanceAccessor("method", &LibEDHOC::GetMethod, &LibEDHOC::SetMethod),
+        InstanceAccessor("cipherSuites", &LibEDHOC::GetCipherSuites, &LibEDHOC::SetCipherSuites),
         InstanceAccessor("logger", &LibEDHOC::GetLogger, &LibEDHOC::SetLogger),
         InstanceMethod("composeMessage1", &LibEDHOC::ComposeMessage1),
         InstanceMethod("processMessage1", &LibEDHOC::ProcessMessage1),

@@ -198,7 +198,7 @@ int EdhocCryptoManager::CallMakeKeyPair(const void *key_id, uint8_t *private_key
                 Napi::Number::New(env, static_cast<size_t>(private_key_size)),
                 Napi::Number::New(env, static_cast<size_t>(public_key_size))
             };
-            Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise, &key_id, &private_key, private_key_size, &private_key_length, &public_key, public_key_size, &public_key_length](Napi::Env env, Napi::Value result) {
+            Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise, &private_key, private_key_size, &private_key_length, &public_key, public_key_size, &public_key_length](Napi::Env env, Napi::Value result) {
                 if (!result.IsArray()) {
                     throw Napi::TypeError::New(env, "Expected an array");
                 }
@@ -261,7 +261,7 @@ int EdhocCryptoManager::CallKeyAgreement(const void *key_id, const uint8_t *peer
                 Napi::Number::New(env, static_cast<size_t>(shared_secret_size)),
             };
 
-            Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise, &key_id, &peer_public_key, peer_public_key_length, &shared_secret, shared_secret_size, &shared_secret_length](Napi::Env env, Napi::Value result) {
+            Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise, &shared_secret, shared_secret_size, &shared_secret_length](Napi::Env env, Napi::Value result) {
                 if (!result.IsBuffer()) {
                     throw Napi::TypeError::New(env, "Expected the result to be a Buffer");
                 }
@@ -293,14 +293,14 @@ int EdhocCryptoManager::CallSign(const void *key_id, const uint8_t *input, size_
 
     const uint8_t * kid = static_cast<const uint8_t*>(key_id);
 
-    this->signTsfn.BlockingCall([&promise, &key_id, kid, &input, input_length, &signature, signature_size, &signature_length](Napi::Env env, Napi::Function jsCallback) {
+    this->signTsfn.BlockingCall([&promise, kid, &input, input_length, &signature, signature_size, &signature_length](Napi::Env env, Napi::Function jsCallback) {
         try {
             std::vector<napi_value> arguments = {
                 Napi::Buffer<uint8_t>::Copy(env, static_cast<const uint8_t*>(kid), EDHOC_KID_LEN),
                 Napi::Buffer<uint8_t>::Copy(env, input, input_length),
                 Napi::Number::New(env, static_cast<size_t>(signature_size))
             };
-            Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise, &key_id, &signature, signature_size, &signature_length](Napi::Env env, Napi::Value result) {
+            Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise, &signature, signature_size, &signature_length](Napi::Env env, Napi::Value result) {
                 if (!result.IsBuffer()) {
                     Napi::TypeError::New(env, "Expected the result to be a Buffer").ThrowAsJavaScriptException();
                     return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
@@ -407,7 +407,7 @@ int EdhocCryptoManager::CallExpand(const void *key_id, const uint8_t *info, size
                 Napi::Buffer<uint8_t>::Copy(env, info, info_length),
                 Napi::Number::New(env, static_cast<size_t>(output_keying_material_length))
             };
-            Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise, &key_id, &output_keying_material, output_keying_material_length](Napi::Env env, Napi::Value result) {
+            Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise, &output_keying_material, output_keying_material_length](Napi::Env env, Napi::Value result) {
                 if (!result.IsBuffer()) {
                     throw Napi::TypeError::New(env, "Expected the result to be a Buffer");
                 }
@@ -444,7 +444,7 @@ int EdhocCryptoManager::CallEncrypt(const void *key_id, const uint8_t *nonce, si
                 Napi::Buffer<uint8_t>::Copy(env, plaintext, plaintext_length),
                 Napi::Number::New(env, static_cast<size_t>(ciphertext_size))
             };
-            Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise, &key_id, &ciphertext, ciphertext_size, &ciphertext_length](Napi::Env env, Napi::Value result) {
+            Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise, &ciphertext, ciphertext_size, &ciphertext_length](Napi::Env env, Napi::Value result) {
                 if (!result.IsBuffer()) {
                     throw Napi::TypeError::New(env, "Expected the result to be a Buffer");
                 }
@@ -482,7 +482,7 @@ int EdhocCryptoManager::CallDecrypt(const void *key_id, const uint8_t *nonce, si
                 Napi::Buffer<uint8_t>::Copy(env, ciphertext, ciphertext_length),
                 Napi::Number::New(env, static_cast<size_t>(plaintext_size))
             };
-            Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise, &key_id, &plaintext, plaintext_size, plaintext_length](Napi::Env env, Napi::Value result) {
+            Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise, &plaintext, plaintext_size, plaintext_length](Napi::Env env, Napi::Value result) {
                 if (!result.IsBuffer()) {
                     throw Napi::TypeError::New(env, "Expected the result to be a Buffer");
                 }

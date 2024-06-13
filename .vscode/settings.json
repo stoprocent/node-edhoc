@@ -66,6 +66,7 @@
         "map": "cpp",
         "condition_variable": "cpp",
         "deque": "cpp",
-        "queue": "cpp"
+        "queue": "cpp",
+        "edhoc_context.h": "c"
     }
 }
