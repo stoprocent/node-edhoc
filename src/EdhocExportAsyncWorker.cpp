@@ -1,5 +1,11 @@
 #include "EdhocExportAsyncWorker.h"
 
+static constexpr const char* kErrorMessagePrefix = "Failed to export OSCORE. Error code: ";
+static constexpr const char* kPropMasterSecret   = "masterSecret";
+static constexpr const char* kPropMasterSalt     = "masterSalt";
+static constexpr const char* kPropSenderId       = "senderId";
+static constexpr const char* kPropRecipientId    = "recipientId";
+
 EdhocExportAsyncWorker::EdhocExportAsyncWorker(Napi::Env& env, 
                                                Napi::Promise::Deferred deferred, 
                                                struct edhoc_context &context)
@@ -11,9 +17,7 @@ EdhocExportAsyncWorker::EdhocExportAsyncWorker(Napi::Env& env,
       senderId(7),
       recipientId(7) {}
 
-EdhocExportAsyncWorker::~EdhocExportAsyncWorker() {
-
-}
+EdhocExportAsyncWorker::~EdhocExportAsyncWorker() {}
 
 void EdhocExportAsyncWorker::Execute() {
     try {
@@ -28,7 +32,7 @@ void EdhocExportAsyncWorker::Execute() {
         );
 
         if (ret != EDHOC_SUCCESS) {
-            std::string errorMessage = "Failed to export OSCORE. Error code: " + std::to_string(ret);
+            std::string errorMessage = kErrorMessagePrefix + std::to_string(ret);
             SetError(errorMessage);
         } else {
             senderId.resize(sender_id_length);
@@ -50,10 +54,10 @@ void EdhocExportAsyncWorker::OnOK() {
     auto recipientIdBuffer = Napi::Buffer<uint8_t>::Copy(env, recipientId.data(), recipientId.size());
 
     Napi::Object resultObj = Napi::Object::New(env);
-    resultObj.Set("masterSecret", masterSecretBuffer);
-    resultObj.Set("masterSalt", masterSaltBuffer);
-    resultObj.Set("senderId", senderIdBuffer);
-    resultObj.Set("recipientId", recipientIdBuffer);
+    resultObj.Set(kPropMasterSecret, masterSecretBuffer);
+    resultObj.Set(kPropMasterSalt, masterSaltBuffer);
+    resultObj.Set(kPropSenderId, senderIdBuffer);
+    resultObj.Set(kPropRecipientId, recipientIdBuffer);
 
     deferred.Resolve(resultObj);
 }

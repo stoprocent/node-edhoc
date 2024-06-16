@@ -13,7 +13,6 @@
         'EDHOC_CRED_KEY_ID_LEN=1',
         'EDHOC_CRED_X509_HASH_ALG_LEN=1',
         'ZCBOR_CANONICAL=1',
-        'EDHOC_MAX_MESSAGE_SIZE=2048',
         'restrict=__restrict'
       ],
       "sources": [ 
@@ -33,11 +32,11 @@
         "<!(node -p \"require('node-addon-api').gyp\")"
       ],
       'cflags!': [ '-fno-exceptions', '-std=c99' ],
-      'cflags_cc!': [ '-fno-exceptions', '-std=c++17' ],
+      'cflags_cc!': [ '-fno-exceptions', '-std=c++20' ],
       'xcode_settings': {
         'GCC_ENABLE_CPP_EXCEPTIONS': 'YES',
         'CLANG_CXX_LIBRARY': 'libc++',
-        'CLANG_CXX_LANGUAGE_STANDARD': 'c++17',
+        'CLANG_CXX_LANGUAGE_STANDARD': 'c++20',
         'MACOSX_DEPLOYMENT_TARGET': '10.7'
       },
       'conditions': [

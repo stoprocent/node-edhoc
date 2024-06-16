@@ -7,23 +7,23 @@
 #include "UserContext.h"
 #include "Utils.h"
 
-static const char* const kLabel            = "label";
-static const char* const kPrivateKeyId     = "privateKeyId";
-static const char* const kPublicKey        = "publicKey";
-static const char* const kKid              = "kid";
-static const char* const kIsCBOR           = "isCBOR";
-static const char* const kCredentials      = "credentials";
-static const char* const kX5chain          = "x5chain";
-static const char* const kCertificate      = "certificate";
-static const char* const kX5t              = "x5t";
-static const char* const kHash             = "hash";
-static const char* const kHashAlgorithm    = "hashAlgorithm";
+static constexpr const char* kLabel            = "label";
+static constexpr const char* kPrivateKeyId     = "privateKeyId";
+static constexpr const char* kPublicKey        = "publicKey";
+static constexpr const char* kKid              = "kid";
+static constexpr const char* kIsCBOR           = "isCBOR";
+static constexpr const char* kCredentials      = "credentials";
+static constexpr const char* kX5chain          = "x5chain";
+static constexpr const char* kCertificate      = "certificate";
+static constexpr const char* kX5t              = "x5t";
+static constexpr const char* kHash             = "hash";
+static constexpr const char* kHashAlgorithm    = "hashAlgorithm";
 
-static const char* const kUnsupportedCredentialTypeError  = "Unsupported credential type specified";
-static const char* const kInvalidInputCredentialTypeError = "Invalid credentials object specified";
-static const char* const kInvalidInputDataErrorKid        = "Invalid input data for Key ID";
-static const char* const kInvalidInputDataErrorX509Chain  = "Invalid input data for X.509 chain";
-static const char* const kInvalidInputDataErrorX509Hash   = "Invalid input data for X.509 hash";
+static constexpr const char* kUnsupportedCredentialTypeError  = "Unsupported credential type specified";
+static constexpr const char* kInvalidInputCredentialTypeError = "Invalid credentials object specified";
+static constexpr const char* kInvalidInputDataErrorKid        = "Invalid input data for Key ID";
+static constexpr const char* kInvalidInputDataErrorX509Chain  = "Invalid input data for X.509 chain";
+static constexpr const char* kInvalidInputDataErrorX509Hash   = "Invalid input data for X.509 hash";
 
 void convert_js_to_edhoc_kid(const Napi::Object& jsObject, struct edhoc_auth_creds *credentials) {
     Napi::Object kidObj = jsObject.Get(kKid).As<Napi::Object>();

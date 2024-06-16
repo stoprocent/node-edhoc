@@ -7,18 +7,38 @@
 #include "UserContext.h"
 #include "Utils.h"
 
+static constexpr const char* kErrorInvalidUint8ArrayLength      = "Returned Uint8Array length exceeds buffer length.";
+static constexpr const char* kErrorEncodedUint32Length          = "Encoded uint32 exceeds buffer length.";
+static constexpr const char* kErrorExpectUint8ArrayOrNumber     = "Function must return a Uint8Array or a Number.";
+static constexpr const char* kErrorExpectBoolean                = "Expected boolean return value from destroyKey function";
+static constexpr const char* kErrorExpectArray                  = "Expected an array";
+static constexpr const char* kErrorArrayTooShort                = "Array must contain at least two elements";
+static constexpr const char* kErrorFirstElementBuffer           = "First element must be a Buffer";
+static constexpr const char* kErrorKeyLengthExceeds             = "Returned private key length exceeds buffer length.";
+static constexpr const char* kErrorPublicKeyBuffer              = "Second element must be a Buffer";
+static constexpr const char* kErrorPublicKeyLengthExceeds       = "Returned public key length exceeds buffer length.";
+static constexpr const char* kErrorExpectBuffer                 = "Expected the result to be a Buffer";
+static constexpr const char* kErrorExpectBooleanVerify          = "Expected boolean value as a result from verify function";
+static constexpr const char* kErrorSecretLengthExceeds          = "Returned shared secret length exceeds buffer length.";
+static constexpr const char* kErrorSignatureLengthExceeds       = "Returned signature length exceeds buffer length.";
+static constexpr const char* kErrorBufferTooSmall               = "Returned ciphertext length exceeds buffer length.";
+static constexpr const char* kErrorPlaintextLengthExceeds       = "Returned plaintext length exceeds buffer length.";
+static constexpr const char* kErrorHashLengthExceeds            = "Returned hash length exceeds buffer length.";
+static constexpr const char* kErrorPseudoRandpmLengthExceeds    = "Returned pseudo random key length exceeds buffer length.";
+static constexpr const char* kErrorKeyingMaterialLengthExceeds  = "Returned output keying material length exceeds buffer length.";
+
 EdhocCryptoManager::EdhocCryptoManager() {
-    keys.generate_key = &EdhocCryptoManager::GenerateKey;
-    keys.destroy_key = &EdhocCryptoManager::DestroyKey;
+    keys.generate_key    = &EdhocCryptoManager::GenerateKey;
+    keys.destroy_key     = &EdhocCryptoManager::DestroyKey;
     crypto.make_key_pair = &EdhocCryptoManager::MakeKeyPair;
     crypto.key_agreement = &EdhocCryptoManager::KeyAgreement;
-    crypto.signature = &EdhocCryptoManager::Sign;
-    crypto.verify = &EdhocCryptoManager::Verify;
-    crypto.extract = &EdhocCryptoManager::Extract;
-    crypto.expand = &EdhocCryptoManager::Expand;
-    crypto.encrypt = &EdhocCryptoManager::Encrypt;
-    crypto.decrypt = &EdhocCryptoManager::Decrypt;
-    crypto.hash = &EdhocCryptoManager::Hash;
+    crypto.signature     = &EdhocCryptoManager::Sign;
+    crypto.verify        = &EdhocCryptoManager::Verify;
+    crypto.extract       = &EdhocCryptoManager::Extract;
+    crypto.expand        = &EdhocCryptoManager::Expand;
+    crypto.encrypt       = &EdhocCryptoManager::Encrypt;
+    crypto.decrypt       = &EdhocCryptoManager::Decrypt;
+    crypto.hash          = &EdhocCryptoManager::Hash;
 }
 
 EdhocCryptoManager::~EdhocCryptoManager() {
@@ -122,7 +142,7 @@ int EdhocCryptoManager::callGenerateKey(const void *user_context, enum edhoc_key
                 Napi::Uint8Array resultArray = result.As<Napi::Uint8Array>();
                 if (resultArray.ElementLength() > EDHOC_KID_LEN) {
                     promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-                    throw Napi::TypeError::New(env, "Returned Uint8Array length exceeds buffer length.");
+                    throw Napi::TypeError::New(env, kErrorInvalidUint8ArrayLength);
                 }
                 memcpy(key_id, resultArray.Data(), resultArray.ElementLength());
                 promise.set_value(EDHOC_SUCCESS);
@@ -134,14 +154,14 @@ int EdhocCryptoManager::callGenerateKey(const void *user_context, enum edhoc_key
 
                 if (encodedLength > EDHOC_KID_LEN) {
                     promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-                    throw Napi::TypeError::New(env, "Encoded uint32 exceeds buffer length.");
+                    throw Napi::TypeError::New(env, kErrorEncodedUint32Length);
                 }
                 memcpy(key_id, tempBuffer, encodedLength);
                 memset(key_id + encodedLength, 0, EDHOC_KID_LEN - encodedLength);
                 promise.set_value(EDHOC_SUCCESS);
             } else {
                 promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-                throw Napi::TypeError::New(env, "Function must return a Uint8Array or a Number.");
+                throw Napi::TypeError::New(env, kErrorExpectUint8ArrayOrNumber);
             }
         });
     });
@@ -162,7 +182,7 @@ int EdhocCryptoManager::callDestroyKey(const void *user_context, void *key_id) {
         Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise](Napi::Env env, Napi::Value result) {
             if (!result.IsBoolean()) {
                 promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-                throw Napi::TypeError::New(env, "Expected boolean return value from destroyKey function");
+                throw Napi::TypeError::New(env, kErrorExpectBoolean);
             }
             promise.set_value( result.As<Napi::Boolean>().Value() ? EDHOC_SUCCESS : EDHOC_ERROR_GENERIC_ERROR );
         });
@@ -186,27 +206,27 @@ int EdhocCryptoManager::callMakeKeyPair(const void *user_context, const void *ke
         Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise, &private_key, private_key_size, &private_key_length, &public_key, public_key_size, &public_key_length](Napi::Env env, Napi::Value result) {
             if (!result.IsArray()) {
                 promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-                throw Napi::TypeError::New(env, "Expected an array");
+                throw Napi::TypeError::New(env, kErrorExpectArray);
             }
 
             Napi::Array resultArray = result.As<Napi::Array>();
             
             if (resultArray.Length() < 2) {
                 promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-                throw Napi::TypeError::New(env, "Array must contain at least two elements");
+                throw Napi::TypeError::New(env, kErrorArrayTooShort);
             }
 
             Napi::Value privateKeyValue = resultArray.Get((uint32_t)0);
             if (!privateKeyValue.IsBuffer()) {
                 promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-                throw Napi::TypeError::New(env, "First element must be a Buffer");
+                throw Napi::TypeError::New(env, kErrorFirstElementBuffer);
             }
             
             Napi::Buffer<uint8_t> privateKeyBuffer = privateKeyValue.As<Napi::Buffer<uint8_t>>();
             
             if (privateKeyBuffer.Length() > private_key_size) {
                 promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-                throw Napi::TypeError::New(env, "Returned private key length exceeds buffer length.");
+                throw Napi::TypeError::New(env, kErrorKeyLengthExceeds);
             }
 
             memcpy(private_key, privateKeyBuffer.Data(), privateKeyBuffer.Length());
@@ -215,14 +235,14 @@ int EdhocCryptoManager::callMakeKeyPair(const void *user_context, const void *ke
             Napi::Value publicKeyValue = resultArray.Get((uint32_t)1);
             if (!publicKeyValue.IsBuffer()) {
                 promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-                throw Napi::TypeError::New(env, "Second element must be a Buffer");
+                throw Napi::TypeError::New(env, kErrorPublicKeyBuffer);
             }
 
             Napi::Buffer<uint8_t> publicKeyBuffer = publicKeyValue.As<Napi::Buffer<uint8_t>>();
 
             if (publicKeyBuffer.Length() > public_key_size) {
                 promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-                throw Napi::TypeError::New(env, "Returned public key length exceeds buffer length.");
+                throw Napi::TypeError::New(env, kErrorPublicKeyLengthExceeds);
             }
 
             memcpy(public_key, publicKeyBuffer.Data(), publicKeyBuffer.Length());
@@ -251,14 +271,14 @@ int EdhocCryptoManager::callKeyAgreement(const void *user_context, const void *k
         Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise, &shared_secret, shared_secret_size, &shared_secret_length](Napi::Env env, Napi::Value result) {
             if (!result.IsBuffer()) {
                 promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-                throw Napi::TypeError::New(env, "Expected the result to be a Buffer");
+                throw Napi::TypeError::New(env, kErrorExpectBuffer);
             }
 
             Napi::Buffer<uint8_t> sharedSecretBuffer = result.As<Napi::Buffer<uint8_t>>();
 
             if (sharedSecretBuffer.Length() > shared_secret_size) {
                 promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-                throw Napi::TypeError::New(env, "Returned shared secret length exceeds buffer length.");
+                throw Napi::TypeError::New(env, kErrorSecretLengthExceeds);
             }
 
             memcpy(shared_secret, sharedSecretBuffer.Data(), sharedSecretBuffer.Length());
@@ -288,14 +308,14 @@ int EdhocCryptoManager::callSign(const void *user_context, const void *key_id, c
         Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise, &signature, signature_size, &signature_length](Napi::Env env, Napi::Value result) {
             if (!result.IsBuffer()) {
                 promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-                throw Napi::TypeError::New(env, "Expected the result to be a Buffer");
+                throw Napi::TypeError::New(env, kErrorExpectBuffer);
             }
 
             Napi::Buffer<uint8_t> signatureBuffer = result.As<Napi::Buffer<uint8_t>>();
 
             if (signatureBuffer.Length() > signature_size) {
                 promise.set_value(EDHOC_ERROR_BUFFER_TOO_SMALL);
-                throw Napi::TypeError::New(env, "Returned signature length exceeds buffer length.");
+                throw Napi::TypeError::New(env, kErrorSignatureLengthExceeds);
             }
 
             memcpy(signature, signatureBuffer.Data(), signatureBuffer.Length());
@@ -323,7 +343,7 @@ std::promise<int> promise;
         Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise](Napi::Env env, Napi::Value result) {
             if (!result.IsBoolean()) {
                 promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-                throw Napi::TypeError::New(env, "Expected boolean value as a result from verify function");
+                throw Napi::TypeError::New(env, kErrorExpectBooleanVerify);
             }
             promise.set_value( result.As<Napi::Boolean>().Value() ? EDHOC_SUCCESS : EDHOC_ERROR_CRYPTO_FAILURE );
         });
@@ -347,14 +367,14 @@ int EdhocCryptoManager::callExtract(const void *user_context, const void *key_id
         Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise, &pseudo_random_key, pseudo_random_key_size, &pseudo_random_key_length](Napi::Env env, Napi::Value result) {
             if (!result.IsBuffer()) {
                 promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-                throw Napi::TypeError::New(env, "Expected the result to be a Buffer");
+                throw Napi::TypeError::New(env, kErrorExpectBuffer);
             }
             
             Napi::Buffer<uint8_t> randomKeyBuffer = result.As<Napi::Buffer<uint8_t>>();
             
             if (randomKeyBuffer.Length() > pseudo_random_key_size) {
                 promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-                throw Napi::TypeError::New(env, "Returned pseudo random key length exceeds buffer length.");
+                throw Napi::TypeError::New(env, kErrorPseudoRandpmLengthExceeds);
             }
 
             memcpy(pseudo_random_key, randomKeyBuffer.Data(), randomKeyBuffer.Length());
@@ -382,13 +402,13 @@ int EdhocCryptoManager::callExpand(const void *user_context, const void *key_id,
         Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise, &output_keying_material, output_keying_material_length](Napi::Env env, Napi::Value result) {
             if (!result.IsBuffer()) {
                 promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-                throw Napi::TypeError::New(env, "Expected the result to be a Buffer");
+                throw Napi::TypeError::New(env, kErrorExpectBuffer);
             }
             
             Napi::Buffer<uint8_t> outputBuffer = result.As<Napi::Buffer<uint8_t>>();
             if (outputBuffer.Length() > output_keying_material_length) {
                 promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-                throw Napi::TypeError::New(env, "Returned output keying material length exceeds buffer length.");
+                throw Napi::TypeError::New(env, kErrorKeyingMaterialLengthExceeds);
             }
 
             memcpy(output_keying_material, outputBuffer.Data(), outputBuffer.Length());
@@ -417,13 +437,13 @@ int EdhocCryptoManager::callEncrypt(const void *user_context, const void *key_id
         Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise, &ciphertext, ciphertext_size, &ciphertext_length](Napi::Env env, Napi::Value result) {
             if (!result.IsBuffer()) {
                 promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-                throw Napi::TypeError::New(env, "Expected the result to be a Buffer");
+                throw Napi::TypeError::New(env, kErrorExpectBuffer);
             }
             
             Napi::Buffer<uint8_t> ciphertextBuffer = result.As<Napi::Buffer<uint8_t>>();
             if (ciphertextBuffer.Length() > ciphertext_size) {
                 promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-                throw Napi::TypeError::New(env, "Returned ciphertext length exceeds buffer length.");
+                throw Napi::TypeError::New(env, kErrorBufferTooSmall);
             }
 
             memcpy(ciphertext, ciphertextBuffer.Data(), ciphertextBuffer.Length());
@@ -453,13 +473,13 @@ int EdhocCryptoManager::callDecrypt(const void *user_context, const void *key_id
         Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise, &plaintext, plaintext_size, plaintext_length](Napi::Env env, Napi::Value result) {
             if (!result.IsBuffer()) {
                 promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-                throw Napi::TypeError::New(env, "Expected the result to be a Buffer");
+                throw Napi::TypeError::New(env, kErrorExpectBuffer);
             }
             
             Napi::Buffer<uint8_t> plaintextBuffer = result.As<Napi::Buffer<uint8_t>>();
             if (plaintextBuffer.Length() > plaintext_size) {
                 promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-                throw Napi::TypeError::New(env, "Returned plaintext length exceeds buffer length.");
+                throw Napi::TypeError::New(env, kErrorPlaintextLengthExceeds);
             }
 
             memcpy(plaintext, plaintextBuffer.Data(), plaintextBuffer.Length());
@@ -486,13 +506,13 @@ int EdhocCryptoManager::callHash(const void *user_context, const uint8_t *input,
         Utils::InvokeJSFunctionWithPromiseHandling(env, jsCallback, arguments, [&promise, &hash, hash_size, &hash_length](Napi::Env env, Napi::Value result) {
             if (!result.IsBuffer()) {
                 promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-                throw Napi::TypeError::New(env, "Expected the result to be a Buffer");
+                throw Napi::TypeError::New(env, kErrorExpectBuffer);
             }
             Napi::Buffer<uint8_t> hashBuffer = result.As<Napi::Buffer<uint8_t>>();
             
             if (hashBuffer.Length() > hash_size) {
                 promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-                throw Napi::TypeError::New(env, "Returned hash length exceeds buffer length.");
+                throw Napi::TypeError::New(env, kErrorHashLengthExceeds);
             }
 
             memcpy(hash, hashBuffer.Data(), hashBuffer.Length());

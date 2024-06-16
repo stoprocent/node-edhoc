@@ -111,12 +111,12 @@ void LibEDHOC::SetCipherSuites(const Napi::CallbackInfo &info, const Napi::Value
     }
 
     Napi::Array jsArray = value.As<Napi::Array>();
-    std::vector<const struct edhoc_cipher_suite> selected_suites;
+    std::vector<const struct edhoc_cipher_suite *> selected_suites;
     
     for (uint32_t i = 0; i < jsArray.Length(); i++) {
         uint32_t index = jsArray.Get(i).As<Napi::Number>().Uint32Value();
         if (index < suite_pointers_count && suite_pointers[index] != nullptr) {
-            selected_suites.push_back(*suite_pointers[index]);
+            selected_suites.push_back(suite_pointers[index]); // store pointer
         } else {
             Napi::RangeError::New(env, "Invalid cipher suite index")
                 .ThrowAsJavaScriptException();
@@ -124,7 +124,7 @@ void LibEDHOC::SetCipherSuites(const Napi::CallbackInfo &info, const Napi::Value
         }
     }
 
-    int ret = edhoc_set_cipher_suites(&this->_context, (const struct edhoc_cipher_suite *)selected_suites.data(), (size_t)selected_suites.size());
+    int ret = edhoc_set_cipher_suites(&this->_context, *selected_suites.data(), (size_t)selected_suites.size());
     if (ret != 0) {
         Napi::TypeError::New(env, "Failed to set cipher suites")
             .ThrowAsJavaScriptException();

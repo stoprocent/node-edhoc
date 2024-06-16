@@ -7,9 +7,14 @@
 #include "UserContext.h"
 #include "Utils.h"
 
+static constexpr const char* kErrorExpectedObject                    = "Expected an object as element in the input array";
+static constexpr const char* kErrorExpectedLabelNumberAndValueBuffer = "Expected 'label' to be a number and 'value' to be a buffer in the input array";
+static constexpr const char* kPropLabel                              = "label";
+static constexpr const char* kPropValue                              = "value";
+
 EdhocEadManager::EdhocEadManager() {
-    this->ead.compose = ComposeEad;
-    this->ead.process = ProcessEad;
+    ead.compose = ComposeEad;
+    ead.process = ProcessEad;
 }
 
 EdhocEadManager::~EdhocEadManager() {
@@ -28,15 +33,15 @@ void EdhocEadManager::StoreEad(enum edhoc_message message, const Napi::Array& ea
     for (size_t i = 0; i < eadArray.Length(); i++) {
         Napi::Value element = eadArray.Get(i);
         if (!element.IsObject()) {
-            throw Napi::TypeError::New(env, "Expected an object as element in the input array");
+            throw Napi::TypeError::New(env, kErrorExpectedObject);
         }
 
         Napi::Object obj = element.As<Napi::Object>();
-        Napi::Value labelValue = obj.Get("label");
-        Napi::Value bufferValue = obj.Get("value");
+        Napi::Value labelValue = obj.Get(kPropLabel);
+        Napi::Value bufferValue = obj.Get(kPropValue);
 
         if (!labelValue.IsNumber() || !bufferValue.IsBuffer()) {
-            throw Napi::TypeError::New(env, "Expected 'label' to be a number and 'value' to be a buffer in the input array");
+            throw Napi::TypeError::New(env, kErrorExpectedLabelNumberAndValueBuffer);
         }
 
         int label = labelValue.As<Napi::Number>().Int32Value();
@@ -52,7 +57,7 @@ const EadMapVector* EdhocEadManager::GetEadByMessage(enum edhoc_message message)
     return it != eadBuffers_.end() ? &it->second : nullptr;
 }
 
-Napi::Array EdhocEadManager::GetEadByMessage(Napi::Env& env, enum edhoc_message message) const {    
+Napi::Array EdhocEadManager::GetEadByMessage(Napi::Env& env, enum edhoc_message message) const {
     const EadMapVector* buffers = GetEadByMessage(message);
     if (!buffers) {
         return Napi::Array::New(env);
@@ -63,8 +68,8 @@ Napi::Array EdhocEadManager::GetEadByMessage(Napi::Env& env, enum edhoc_message 
     for (auto const& map : *buffers) {
         Napi::Object obj = Napi::Object::New(env);
         for (auto const& [label, buffer] : map) {
-            obj.Set("label", Napi::Number::New(env, label));
-            obj.Set("value", Napi::Buffer<uint8_t>::Copy(env, buffer.data(), buffer.size()));
+            obj.Set(kPropLabel, Napi::Number::New(env, label));
+            obj.Set(kPropValue, Napi::Buffer<uint8_t>::Copy(env, buffer.data(), buffer.size()));
         }
         result.Set(i++, obj);
     }

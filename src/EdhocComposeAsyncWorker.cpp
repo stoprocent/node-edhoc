@@ -1,5 +1,9 @@
 #include "EdhocComposeAsyncWorker.h"
 
+static const size_t kInitialBufferSize                  = 1024 * 10;
+static constexpr const char* kErrorInvalidMessageNumber = "Invalid message number";
+static constexpr const char* kErrorMessagePrefix        = "Failed to compose EDHOC message ";
+static constexpr const char* kErrorMessageSuffix        = ". Error code: ";
 
 EdhocComposeAsyncWorker::EdhocComposeAsyncWorker(Napi::Env& env, Napi::Promise::Deferred deferred, struct edhoc_context &context, int messageNumber, CallbackType callback)
     : Napi::AsyncWorker(env), deferred(deferred), context(context), messageNumber(messageNumber), callback(std::move(callback)) {
@@ -7,10 +11,10 @@ EdhocComposeAsyncWorker::EdhocComposeAsyncWorker(Napi::Env& env, Napi::Promise::
 
 void EdhocComposeAsyncWorker::Execute() {
     try {
-        composedMessage.resize(4096);
+        composedMessage.resize(kInitialBufferSize);
         size_t composedMessageLength = 0;
 
-        int ret = 0;
+        int ret = EDHOC_ERROR_GENERIC_ERROR;
         switch (messageNumber) {
             case EDHOC_MSG_1:
                 ret = edhoc_message_1_compose(&context, composedMessage.data(), composedMessage.size(), &composedMessageLength);
@@ -25,14 +29,14 @@ void EdhocComposeAsyncWorker::Execute() {
                 ret = edhoc_message_4_compose(&context, composedMessage.data(), composedMessage.size(), &composedMessageLength);
                 break;
             default:
-                SetError("Invalid message number");
+                SetError(kErrorInvalidMessageNumber);
                 return;
         }
 
         composedMessage.resize(composedMessageLength);
 
-         if (ret != EDHOC_SUCCESS) {
-            std::string errorMessage = "Failed to compose EDHOC message " + std::to_string(messageNumber) + ". Error code: " + std::to_string(ret);
+        if (ret != EDHOC_SUCCESS) {
+            std::string errorMessage = kErrorMessagePrefix + std::to_string(messageNumber) + kErrorMessageSuffix + std::to_string(ret);
             SetError(errorMessage);
         }
 
