@@ -4,14 +4,15 @@
 #include "LibEDHOC.h"
 #include "Suites.h"
 #include "Utils.h"
-#include "ThreadSafeDeferred.h"
 #include "EdhocCryptoManagerWrapper.h"
 #include "EdhocCredentialManagerWrapper.h"
+#include "EdhocComposeAsyncWorker.h"
+#include "EdhocProcessAsyncWorker.h"
+#include "EdhocExportAsyncWorker.h"
 
 using namespace Napi;
 
-LibEDHOC::LibEDHOC(const Napi::CallbackInfo& info) : Napi::ObjectWrap<LibEDHOC>(info),
-taskQueue(std::make_unique<TaskQueue>()) {
+LibEDHOC::LibEDHOC(const Napi::CallbackInfo& info) : Napi::ObjectWrap<LibEDHOC>(info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
@@ -47,7 +48,7 @@ taskQueue(std::make_unique<TaskQueue>()) {
     ret = edhoc_bind_credentials(&this->_context, credentialManager.get()->credentials);
 
     // EAD
-    std::shared_ptr<EdhocEADManager> eadManager = std::make_shared<EdhocEADManager>();
+    std::shared_ptr<EdhocEadManager> eadManager = std::make_shared<EdhocEadManager>();
     ret = edhoc_bind_ead(&this->_context, eadManager.get()->ead);
 
     // Logger
@@ -56,8 +57,10 @@ taskQueue(std::make_unique<TaskQueue>()) {
     // User Context
     this->userContext = std::make_shared<UserContext>(cryptoManager, eadManager, credentialManager);
     this->userContext->parent = Reference<Object>::New(info.This().As<Object>());
+
     ret = edhoc_set_user_context(&this->_context, static_cast<void*>(this->userContext.get()));
     
+    // 
     if (ret != EDHOC_SUCCESS) {
         Napi::TypeError::New(env, "Failed to initialize EDHOC context.")
             .ThrowAsJavaScriptException();
@@ -169,163 +172,53 @@ Napi::Value LibEDHOC::ComposeMessage(const Napi::CallbackInfo& info, enum edhoc_
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
-    this->userContext->edhoc = this;
-
-    auto deferred = new ThreadSafeDeferred(env);
-
     // Parse input array
-    if (!info[0].IsArray()) {
-        Napi::TypeError::New(env, "Expected an array as input")
-            .ThrowAsJavaScriptException();
-        return env.Null();
-    }
-
-    Napi::Array inputArray = info[0].As<Napi::Array>();
-    size_t arrayLength = inputArray.Length();
-
-    for (size_t i = 0; i < arrayLength; i++) {
-        Napi::Value element = inputArray.Get(i);
-        if (!element.IsObject()) {
-            Napi::TypeError::New(env, "Expected an object as element in the input array")
-                .ThrowAsJavaScriptException();
-            return env.Null();
-        }
-
-        Napi::Object obj = element.As<Napi::Object>();
-        Napi::Value labelValue = obj.Get("label");
-        Napi::Value bufferValue = obj.Get("value");
-
-        if (!labelValue.IsNumber() || !bufferValue.IsBuffer()) {
-            Napi::TypeError::New(env, "Expected 'label' to be a number and 'value' to be a buffer in the input array")
-                .ThrowAsJavaScriptException();
-            return env.Null();
-        }
-
-        int label = labelValue.As<Napi::Number>().Int32Value();
-        Napi::Buffer<uint8_t> buffer = bufferValue.As<Napi::Buffer<uint8_t>>();
-
-        this->userContext->GetEADManager()->StoreEADBuffer(messageNumber, label, std::vector<uint8_t>(buffer.Data(), buffer.Data() + buffer.Length()));
-    }
-
-    this->taskQueue->EnqueueTask([context = &this->_context, userContext = this->userContext, deferred, messageNumber]() mutable {
-        uint8_t composedMessage[EDHOC_MAX_MESSAGE_SIZE] = { 0 };
-        size_t composedMessage_length = 0;
+    if (info[0].IsArray()) {
         try {
-            int ret = 0;
-            switch (messageNumber) {
-                case EDHOC_MSG_1:
-                    ret = edhoc_message_1_compose(context, composedMessage, sizeof(composedMessage), &composedMessage_length);
-                    break;
-                case EDHOC_MSG_2:
-                    ret = edhoc_message_2_compose(context, composedMessage, sizeof(composedMessage), &composedMessage_length);
-                    break;
-                case EDHOC_MSG_3:
-                    ret = edhoc_message_3_compose(context, composedMessage, sizeof(composedMessage), &composedMessage_length);
-                    break;
-                case EDHOC_MSG_4:
-                    ret = edhoc_message_4_compose(context, composedMessage, sizeof(composedMessage), &composedMessage_length);
-                    break;
-                default:
-                    deferred->Reject("Invalid message number");
-                    return;
-            }
-
-            if (ret != EDHOC_SUCCESS) {
-                std::string errorMessage = "Failed to compose EDHOC Message " + std::to_string(messageNumber) + ". Error code: " + std::to_string(ret);
-                deferred->Reject(errorMessage);
-            } else {
-                userContext->GetEADManager()->ClearEADBuffersByMessage(messageNumber);
-                deferred->Resolve(THREADSAFE_DEFERRED_RESOLVER(Napi::Buffer<uint8_t>::Copy(env, composedMessage, composedMessage_length)));
-            }
+            this->userContext->GetEadManager()->StoreEad(messageNumber, info[0].As<Napi::Array>());
         }
         catch (const Napi::Error &e) {
-            deferred->Resolve(THREADSAFE_DEFERRED_RESOLVER(e.Value()));
+            e.ThrowAsJavaScriptException();
+            return env.Null();
         }
-        catch (const std::exception &e) {
-            deferred->Reject(e.what());
-        }   
-    });
+    }
 
-    return deferred->Promise();
+    auto deferred = Napi::Promise::Deferred::New(env);
+
+    EdhocComposeAsyncWorker::CallbackType callback = [this, messageNumber](Napi::Env &env) {
+        this->userContext->GetEadManager()->ClearEadByMessage(messageNumber);
+    };
+
+    EdhocComposeAsyncWorker* worker = new EdhocComposeAsyncWorker(env, deferred, this->_context, messageNumber, callback);
+    worker->Queue();
+
+    return deferred.Promise();
 }
 
 Napi::Value LibEDHOC::ProcessMessage(const Napi::CallbackInfo &info, enum edhoc_message messageNumber) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
-    // Check the number of arguments passed.
-    if (info.Length() < 1) {
-        Napi::TypeError::New(env, "Expected at least one argument")
-            .ThrowAsJavaScriptException();
-        return env.Null();
-    }
-
-    // Check the type of the first argument
-    if (!info[0].IsBuffer()) {
+    if (info.Length() < 1 || !info[0].IsBuffer()) {
         Napi::TypeError::New(env, "Expected first argument to be a Buffer")
             .ThrowAsJavaScriptException();
         return env.Null();
     }
 
-    // Extract the buffer and its length
     Napi::Buffer<uint8_t> inputBuffer = info[0].As<Napi::Buffer<uint8_t>>();
-    uint8_t* message = inputBuffer.Data();
-    size_t message_length = inputBuffer.Length();
 
-    auto deferred = new ThreadSafeDeferred(env);
+    auto deferred = Napi::Promise::Deferred::New(env);
 
-    this->taskQueue->EnqueueTask([context = &this->_context, userContext = 
-    this->userContext, deferred, message, message_length, messageNumber]() mutable {
-        try {
-            int ret = 0;
-            switch (messageNumber) {
-                case EDHOC_MSG_1:
-                    ret = edhoc_message_1_process(context, message, message_length);
-                    break;
-                case EDHOC_MSG_2:
-                    ret = edhoc_message_2_process(context, message, message_length);
-                    break;
-                case EDHOC_MSG_3:
-                    ret = edhoc_message_3_process(context, message, message_length);
-                    break;
-                case EDHOC_MSG_4:
-                    ret = edhoc_message_4_process(context, message, message_length);
-                    break;
-                default:
-                    deferred->Reject("Invalid message number");
-                    return;
-            }
+    EdhocProcessAsyncWorker::CallbackType callback = [userContext = this->userContext, messageNumber](Napi::Env &env) {
+        Napi::Array EADs = userContext->GetEadManager()->GetEadByMessage(env, messageNumber);
+        userContext->GetEadManager()->ClearEadByMessage(messageNumber);
+        return EADs;
+    };
 
-            if (ret != EDHOC_SUCCESS) {
-                std::string errorMessage = "Failed to process EDHOC Message " + std::to_string(messageNumber) + ". Error code: " + std::to_string(ret);
-                deferred->Reject(errorMessage);
-            } else {
-                auto buffers = userContext->GetEADManager()->GetEADBuffersByMessage(messageNumber);
-                deferred->Resolve([userContext, buffers, messageNumber] (const Napi::Env env) {
-                    Napi::Array result = Napi::Array::New(env, buffers.size());
-                    size_t i = 0;
-                    for (auto const& map : buffers) {
-                        Napi::Object obj = Napi::Object::New(env);
-                        for (auto const& [label, buffer] : map) {
-                            obj.Set("label", Napi::Number::New(env, label));
-                            obj.Set("value", Napi::Buffer<uint8_t>::Copy(env, buffer.data(), buffer.size()));
-                        }
-                        result.Set(i++, obj);
-                    }
-                    userContext->GetEADManager()->ClearEADBuffersByMessage(messageNumber);
-                    return result;
-                });
-            }
-        }
-        catch (const Napi::Error &e) {
-            deferred->Resolve(THREADSAFE_DEFERRED_RESOLVER(e.Value()));
-        }
-        catch (const std::exception &e) {
-            deferred->Reject(e.what());
-        }   
-    });
+    EdhocProcessAsyncWorker* worker = new EdhocProcessAsyncWorker(env, deferred, this->_context, messageNumber, inputBuffer, callback);
+    worker->Queue();
 
-    return deferred->Promise();
+    return deferred.Promise();
 }
 
 Napi::Value LibEDHOC::ComposeMessage1(const Napi::CallbackInfo& info) {
@@ -364,48 +257,12 @@ Napi::Value LibEDHOC::ExportOSCORE(const Napi::CallbackInfo &info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
-    auto deferred = new ThreadSafeDeferred(env);
+    auto deferred = Napi::Promise::Deferred::New(env);
 
-    this->taskQueue->EnqueueTask([context = &this->_context, deferred]() mutable {
-        // Prepare buffers for master_secret, master_salt, sender_id, recipient_id
-        uint8_t master_secret[16], master_salt[8], sender_id[7], recipient_id[7];
-        size_t master_secret_length = sizeof(master_secret);
-        size_t master_salt_length = sizeof(master_salt);
-        size_t sender_id_length, recipient_id_length;
+    EdhocExportAsyncWorker* worker = new EdhocExportAsyncWorker(env, deferred, this->_context);
+    worker->Queue();
 
-        // Call the native function
-        int ret = edhoc_export_oscore_session(
-            context,
-            master_secret, master_secret_length,
-            master_salt, master_salt_length,
-            sender_id, sizeof(sender_id), &sender_id_length,
-            recipient_id, sizeof(recipient_id), &recipient_id_length
-        );
-
-        if (ret != EDHOC_SUCCESS) {
-            std::string errorMessage = "Failed to export OSCORE session. Error code: " + std::to_string(ret);
-            deferred->Reject(errorMessage);
-        } else {
-            deferred->Resolve([master_secret, master_secret_length, master_salt, master_salt_length, sender_id, sender_id_length, recipient_id, recipient_id_length] (const Napi::Env env) {
-                // Convert the outputs to JavaScript types
-                auto masterSecret = Napi::Buffer<uint8_t>::Copy(env, master_secret, master_secret_length);
-                auto masterSalt = Napi::Buffer<uint8_t>::Copy(env, master_salt, master_salt_length);
-                auto senderId = Napi::Buffer<uint8_t>::Copy(env, sender_id, sender_id_length);
-                auto recipientId = Napi::Buffer<uint8_t>::Copy(env, recipient_id, recipient_id_length);
-
-                // Create a return object
-                Napi::Object resultObj = Napi::Object::New(env);
-                resultObj.Set("masterSecret", masterSecret);
-                resultObj.Set("masterSalt", masterSalt);
-                resultObj.Set("senderId", senderId);
-                resultObj.Set("recipientId", recipientId);
-
-                return resultObj;             
-            });
-        }
-    });
-
-    return deferred->Promise();
+    return deferred.Promise();
 }
 
 Napi::Object LibEDHOC::Init(Napi::Env env, Napi::Object exports) {

@@ -13,6 +13,20 @@ extern "C" {
 class Utils {
 public:
     /**
+     * Resets a JavaScript function reference and releases a thread-safe function.
+     * This helper function is designed to encapsulate the cleanup logic for N-API resources,
+     * ensuring that function references are reset and thread-safe functions are released properly.
+     * This prevents memory leaks and ensures that asynchronous operations using thread-safe functions
+     * do not attempt to call into JavaScript after the native resources have been disposed of.
+     *
+     * @param funcRef A reference to a N-API function that may be called from native code.
+     *                This function reference will be reset if it is not empty.
+     * @param tsfn A N-API thread-safe function that facilitates calling JavaScript functions asynchronously
+     *             from native threads. This thread-safe function will be released and set to nullptr.
+     */
+    static void ResetAndRelease(Napi::FunctionReference& funcRef, Napi::ThreadSafeFunction& tsfn);
+
+    /**
      * Invokes a JavaScript function with promise handling.
      * The function is called with the specified arguments, and the result is passed to a callback function.
      * 

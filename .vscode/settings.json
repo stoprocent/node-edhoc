@@ -69,6 +69,7 @@
         "queue": "cpp",
         "edhoc_context.h": "c",
         "authentication_credentials_2.h": "c",
-        "test_vector_2.h": "c"
+        "test_vector_2.h": "c",
+        "type_traits": "cpp"
     }
 }

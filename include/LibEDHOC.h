@@ -3,7 +3,6 @@
 
 #include <napi.h>  // Include the N-API headers to interact with Node.js
 #include "UserContext.h"  // Include the interface for user context
-#include "TaskQueue.h"  // Include the task queue for asynchronous operations
 
 extern "C" {
     #include "edhoc.h"  // Include EDHOC protocol C headers necessary for cryptographic operations
@@ -78,9 +77,6 @@ public:
 
 private:
     struct edhoc_context _context;
-
-    // Private member variable to hold the task queue for asynchronous operations
-    std::shared_ptr<TaskQueue> taskQueue;
 
     // Private member variables to hold instances of EDHOC managers for cryptographic operations, EAD, and credentials
     std::shared_ptr<UserContext> userContext;

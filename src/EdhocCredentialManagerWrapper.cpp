@@ -1,13 +1,13 @@
 #include "EdhocCredentialManagerWrapper.h"
 
 EdhocCredentialManagerWrapper::EdhocCredentialManagerWrapper(const Napi::CallbackInfo& info) : Napi::ObjectWrap<EdhocCredentialManagerWrapper>(info) {
-    this->manager = std::make_shared<EdhocCredentialManager>();
+    manager = std::make_shared<EdhocCredentialManager>();
 }
 
 EdhocCredentialManagerWrapper::~EdhocCredentialManagerWrapper() {}
 
 const std::shared_ptr<EdhocCredentialManager> EdhocCredentialManagerWrapper::GetInternalManager() {
-    return this->manager;
+    return manager;
 }
 
 void EdhocCredentialManagerWrapper::SetFunctionAndTsfn(const Napi::Value &value, const std::string& tsfnName, Napi::FunctionReference& functionRef, Napi::ThreadSafeFunction& tsfn) {
@@ -26,19 +26,19 @@ void EdhocCredentialManagerWrapper::SetFunctionAndTsfn(const Napi::Value &value,
 }
 
 void EdhocCredentialManagerWrapper::SetFetch(const Napi::CallbackInfo& info, const Napi::Value &value) {
-    SetFunctionAndTsfn(value, "FetchCredentials", this->manager->fetchFuncRef, this->manager->fetchTsfn);
+    SetFunctionAndTsfn(value, "FetchCredentials", manager->fetchFuncRef, manager->fetchTsfn);
 }
 
 void EdhocCredentialManagerWrapper::SetVerify(const Napi::CallbackInfo& info, const Napi::Value &value) {
-    SetFunctionAndTsfn(value, "VerifyCredentials", this->manager->verifyFuncRef, this->manager->verifyTsfn);
+    SetFunctionAndTsfn(value, "VerifyCredentials", manager->verifyFuncRef, manager->verifyTsfn);
 }
 
 Napi::Value EdhocCredentialManagerWrapper::GetFetch(const Napi::CallbackInfo& info) {
-    return this->manager->fetchFuncRef.Value();
+    return manager->fetchFuncRef.Value();
 }
 
 Napi::Value EdhocCredentialManagerWrapper::GetVerify(const Napi::CallbackInfo& info) {
-    return this->manager->verifyFuncRef.Value();
+    return manager->verifyFuncRef.Value();
 }
 
 Napi::Object EdhocCredentialManagerWrapper::Init(Napi::Env env, Napi::Object exports) {

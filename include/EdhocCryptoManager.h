@@ -35,43 +35,23 @@ public:
     static int Hash(void *user_context, const uint8_t *input, size_t input_length, uint8_t *hash, size_t hash_size, size_t *hash_length);
 
     // Instance methods to invoke the JavaScript callbacks for cryptographic operations via the N-API ThreadSafeFunction mechanism.
-    int CallGenerateKey(const void *user_context, enum edhoc_key_type key_type, const uint8_t *raw_key, size_t raw_key_length, void *key_id);
-    int CallDestroyKey(const void *user_context, void *key_id);
-    int CallMakeKeyPair(const void *user_context, const void *key_id, uint8_t *private_key, size_t private_key_size, size_t *private_key_length, uint8_t *public_key, size_t public_key_size, size_t *public_key_length);
-    int CallKeyAgreement(const void *user_context, const void *key_id, const uint8_t *peer_public_key, size_t peer_public_key_length, uint8_t *shared_secret, size_t shared_secret_size, size_t *shared_secret_length);
-    int CallSign(const void *user_context, const void *key_id, const uint8_t *input, size_t input_length, uint8_t *signature, size_t signature_size, size_t *signature_length);
-    int CallVerify(const void *user_context, const void *key_id, const uint8_t *input, size_t input_length, const uint8_t *signature, size_t signature_length);
-    int CallExtract(const void *user_context, const void *key_id, const uint8_t *salt, size_t salt_len, uint8_t *pseudo_random_key, size_t pseudo_random_key_size, size_t *pseudo_random_key_length);
-    int CallExpand(const void *user_context, const void *key_id, const uint8_t *info, size_t info_length, uint8_t *output_keying_material, size_t output_keying_material_length);
-    int CallEncrypt(const void *user_context, const void *key_id, const uint8_t *nonce, size_t nonce_length, const uint8_t *additional_data, size_t additional_data_length, const uint8_t *plaintext, size_t plaintext_length, uint8_t *ciphertext, size_t ciphertext_size, size_t *ciphertext_length);
-    int CallDecrypt(const void *user_context, const void *key_id, const uint8_t *nonce, size_t nonce_length, const uint8_t *additional_data, size_t additional_data_length, const uint8_t *ciphertext, size_t ciphertext_length, uint8_t *plaintext, size_t plaintext_size, size_t *plaintext_length);
-    int CallHash(const void *user_context, const uint8_t *input, size_t input_length, uint8_t *hash, size_t hash_size, size_t *hash_length);
+    int callGenerateKey(const void *user_context, enum edhoc_key_type key_type, const uint8_t *raw_key, size_t raw_key_length, void *key_id);
+    int callDestroyKey(const void *user_context, void *key_id);
+    int callMakeKeyPair(const void *user_context, const void *key_id, uint8_t *private_key, size_t private_key_size, size_t *private_key_length, uint8_t *public_key, size_t public_key_size, size_t *public_key_length);
+    int callKeyAgreement(const void *user_context, const void *key_id, const uint8_t *peer_public_key, size_t peer_public_key_length, uint8_t *shared_secret, size_t shared_secret_size, size_t *shared_secret_length);
+    int callSign(const void *user_context, const void *key_id, const uint8_t *input, size_t input_length, uint8_t *signature, size_t signature_size, size_t *signature_length);
+    int callVerify(const void *user_context, const void *key_id, const uint8_t *input, size_t input_length, const uint8_t *signature, size_t signature_length);
+    int callExtract(const void *user_context, const void *key_id, const uint8_t *salt, size_t salt_len, uint8_t *pseudo_random_key, size_t pseudo_random_key_size, size_t *pseudo_random_key_length);
+    int callExpand(const void *user_context, const void *key_id, const uint8_t *info, size_t info_length, uint8_t *output_keying_material, size_t output_keying_material_length);
+    int callEncrypt(const void *user_context, const void *key_id, const uint8_t *nonce, size_t nonce_length, const uint8_t *additional_data, size_t additional_data_length, const uint8_t *plaintext, size_t plaintext_length, uint8_t *ciphertext, size_t ciphertext_size, size_t *ciphertext_length);
+    int callDecrypt(const void *user_context, const void *key_id, const uint8_t *nonce, size_t nonce_length, const uint8_t *additional_data, size_t additional_data_length, const uint8_t *ciphertext, size_t ciphertext_length, uint8_t *plaintext, size_t plaintext_size, size_t *plaintext_length);
+    int callHash(const void *user_context, const uint8_t *input, size_t input_length, uint8_t *hash, size_t hash_size, size_t *hash_length);
     
 private:
 
-    Napi::ThreadSafeFunction generateTsfn;
-    Napi::ThreadSafeFunction destroyTsfn;
-    Napi::ThreadSafeFunction makeKeyPairTsfn;
-    Napi::ThreadSafeFunction keyAgreementTsfn;
-    Napi::ThreadSafeFunction signTsfn;
-    Napi::ThreadSafeFunction verifyTsfn;
-    Napi::ThreadSafeFunction extractTsfn;
-    Napi::ThreadSafeFunction expandTsfn;
-    Napi::ThreadSafeFunction encryptTsfn;
-    Napi::ThreadSafeFunction decryptTsfn;
-    Napi::ThreadSafeFunction hashTsfn;
-       
-    Napi::FunctionReference generateKeyFuncRef;
-    Napi::FunctionReference destroyKeyFuncRef;
-    Napi::FunctionReference makeKeyPairFuncRef;
-    Napi::FunctionReference keyAgreementFuncRef;
-    Napi::FunctionReference signFuncRef;
-    Napi::FunctionReference verifyFuncRef;
-    Napi::FunctionReference extractFuncRef;
-    Napi::FunctionReference expandFuncRef;
-    Napi::FunctionReference encryptFuncRef;
-    Napi::FunctionReference decryptFuncRef;
-    Napi::FunctionReference hashFuncRef;
+    Napi::FunctionReference generateKeyFuncRef, destroyKeyFuncRef, makeKeyPairFuncRef, keyAgreementFuncRef, signFuncRef, verifyFuncRef, extractFuncRef, expandFuncRef, encryptFuncRef, decryptFuncRef, hashFuncRef;
+    Napi::ThreadSafeFunction generateTsfn, destroyTsfn, makeKeyPairTsfn, keyAgreementTsfn, signTsfn, verifyTsfn, extractTsfn, expandTsfn, encryptTsfn, decryptTsfn, hashTsfn;
+
 };
 
 #endif // EDHOC_CRYPTO_MANAGER_H
