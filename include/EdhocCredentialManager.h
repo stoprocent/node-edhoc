@@ -1,46 +1,94 @@
 #ifndef EDHOC_CREDENTIAL_MANAGER_H
 #define EDHOC_CREDENTIAL_MANAGER_H
 
-#include <napi.h>  // Include N-API to interact with Node.js
+#include <napi.h>
 
 extern "C" {
-    #include "edhoc.h"  // Include EDHOC protocol C headers for cryptographic operations
+#include "edhoc.h"
 }
 
-// Define the EdhocCredentialManager class for managing EDHOC authentication credentials.
+/**
+ * @brief The EdhocCredentialManager class manages the credentials required for
+ * EDHOC protocol.
+ */
 class EdhocCredentialManager {
 public:
-    friend class EdhocCredentialManagerWrapper;
+  friend class EdhocCredentialManagerWrapper;
 
-    // EDHOC authentication credentials structure that stores pointers to credential fetching and verifying functions.
-    struct edhoc_credentials credentials;
+  /**
+   * @brief Structure to hold the EDHOC credentials.
+   */
+  struct edhoc_credentials credentials;
 
-    // Constructor to initialize the manager with JavaScript callbacks for credential fetching and verifying.
-    // These callbacks are passed by the JavaScript side and used to integrate EDHOC credential management with Node.js.
-    EdhocCredentialManager();
+  /**
+   * @brief Constructs an EdhocCredentialManager object.
+   */
+  EdhocCredentialManager();
 
-    // Destructor to clean up resources, specifically the ThreadSafeFunction objects.
-    ~EdhocCredentialManager();
+  /**
+   * @brief Destroys the EdhocCredentialManager object.
+   */
+  ~EdhocCredentialManager();
 
-    // Static methods that serve as C-style callbacks. They are used by the EDHOC library to fetch and verify credentials.
-    static int FetchCredentials(void *user_context, struct edhoc_auth_creds *credentials);
-    static int VerifyCredentials(void *user_context, struct edhoc_auth_creds *credentials, const uint8_t **public_key_reference, size_t *public_key_length);
+  /**
+   * @brief Static function to fetch the credentials.
+   * @param user_context The user context.
+   * @param credentials Pointer to the edhoc_auth_creds structure to store the
+   * fetched credentials.
+   * @return 0 if successful, otherwise an error code.
+   */
+  static int FetchCredentials(void *user_context,
+                              struct edhoc_auth_creds *credentials);
 
-    // Methods to invoke the JavaScript callbacks for fetching and verifying credentials via the N-API ThreadSafeFunction mechanism.
-    // These methods facilitate the asynchronous interaction between C++ and Node.js.
-    int callFetchCredentials(const void *user_context, struct edhoc_auth_creds *credentials);
-    int callVerifyCredentials(const void *user_context, struct edhoc_auth_creds *credentials, const uint8_t **public_key_reference, size_t *public_key_length);
+  /**
+   * @brief Static function to verify the credentials.
+   * @param user_context The user context.
+   * @param credentials Pointer to the edhoc_auth_creds structure containing the
+   * credentials to verify.
+   * @param public_key_reference Pointer to the public key reference.
+   * @param public_key_length Pointer to the length of the public key.
+   * @return 0 if successful, otherwise an error code.
+   */
+  static int VerifyCredentials(void *user_context,
+                               struct edhoc_auth_creds *credentials,
+                               const uint8_t **public_key_reference,
+                               size_t *public_key_length);
+
+  /**
+   * @brief Calls the FetchCredentials function.
+   * @param user_context The user context.
+   * @param credentials Pointer to the edhoc_auth_creds structure to store the
+   * fetched credentials.
+   * @return 0 if successful, otherwise an error code.
+   */
+  int callFetchCredentials(const void *user_context,
+                           struct edhoc_auth_creds *credentials);
+
+  /**
+   * @brief Calls the VerifyCredentials function.
+   * @param user_context The user context.
+   * @param credentials Pointer to the edhoc_auth_creds structure containing the
+   * credentials to verify.
+   * @param public_key_reference Pointer to the public key reference.
+   * @param public_key_length Pointer to the length of the public key.
+   * @return 0 if successful, otherwise an error code.
+   */
+  int callVerifyCredentials(const void *user_context,
+                            struct edhoc_auth_creds *credentials,
+                            const uint8_t **public_key_reference,
+                            size_t *public_key_length);
 
 private:
-    // Map to store credential buffers by credential label.
-    std::vector<Napi::Buffer<uint8_t>> credentialBuffers;
-
-    Napi::ThreadSafeFunction fetchTsfn;
-    Napi::ThreadSafeFunction verifyTsfn;
-
-    // Napi::FunctionReference objects to hold the JavaScript callbacks for fetching and verifying credentials.
-    Napi::FunctionReference fetchFuncRef;
-    Napi::FunctionReference verifyFuncRef;
+  std::vector<Napi::Buffer<uint8_t>>
+      credentialBuffers; /**< Vector to hold credential buffers */
+  Napi::ThreadSafeFunction
+      fetchTsfn; /**< Thread-safe function for FetchCredentials */
+  Napi::ThreadSafeFunction
+      verifyTsfn; /**< Thread-safe function for VerifyCredentials */
+  Napi::FunctionReference
+      fetchFuncRef; /**< Reference to FetchCredentials function */
+  Napi::FunctionReference
+      verifyFuncRef; /**< Reference to VerifyCredentials function */
 };
 
 #endif // EDHOC_CREDENTIAL_MANAGER_H

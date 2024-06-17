@@ -72,7 +72,8 @@
         "test_vector_2.h": "c",
         "type_traits": "cpp",
         "stack": "cpp",
-        "cppStandard": "c++20"
+        "cppStandard": "c++20",
+        "format": "cpp"
     },
     "C_Cpp.default.cppStandard": "c++20"
 }

@@ -1,27 +1,57 @@
 #ifndef LIB_EDHOC_H
 #define LIB_EDHOC_H
 
-#include <napi.h>  // Include the N-API headers to interact with Node.js
-#include "UserContext.h"  // Include the interface for user context
+#include <napi.h>
+#include "UserContext.h"
 
 extern "C" {
-    #include "edhoc.h"  // Include EDHOC protocol C headers necessary for cryptographic operations
+    #include "edhoc.h"
 }
 
-// Define the LibEDHOC class that extends Napi::ObjectWrap to enable wrapping with N-API functionalities,
-// and implements UserContext for user-specific context handling in EDHOC operations
+/**
+ * @class LibEDHOC
+ * @brief Represents the EDHOC protocol in a Node.js add-on.
+ * 
+ * The LibEDHOC class encapsulates the EDHOC protocol and provides methods to interact with it.
+ * It also provides access to the EDHOC context, connection identifiers, method, cipher suites, and logger.
+ */
 class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
 public:
-    // Constructor that takes N-API callback info object which includes arguments passed from JS
+    
+    /**
+     * @brief Constructs a LibEDHOC object.
+     * 
+     * The constructor initializes the EDHOC context and connection identifiers.
+     * It also sets the method to EDHOC_METHOD_INITIATOR and the logger to nullptr.
+     */
     LibEDHOC(const Napi::CallbackInfo& info);
 
-    // Virtual destructor to clean up resources upon object destruction
+    /**
+     * @brief Destroys the LibEDHOC object.
+     * 
+     * The destructor releases the EDHOC context and connection identifiers.
+     * It also releases the user context and logger.
+     */
     ~LibEDHOC();
 
-    // Retrieves the Connection ID from the EDHOC context as a N-API value
+    /**
+     * @brief Retrieves the EDHOC context as a N-API value.
+     * 
+     * This method retrieves the EDHOC context as a N-API value.
+     * 
+     * @param info The Napi::CallbackInfo object representing the callback information.
+     * @return The N-API value representing the EDHOC context.
+     */
     Napi::Value GetCID(const Napi::CallbackInfo &info);
 
-    // Sets the Connection ID in the EDHOC context from a N-API value
+    /**
+     * @brief Sets the connection identifier in the EDHOC context from a N-API value.
+     * 
+     * This method sets the connection identifier in the EDHOC context from a N-API value.
+     * 
+     * @param info The Napi::CallbackInfo object representing the callback information.
+     * @param value The N-API value representing the connection identifier.
+     */
     void SetCID(const Napi::CallbackInfo &info, const Napi::Value &value);
     
     // Retrieves the Peer Connection ID from the EDHOC context as a N-API value

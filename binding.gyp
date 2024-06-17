@@ -37,7 +37,7 @@
         'GCC_ENABLE_CPP_EXCEPTIONS': 'YES',
         'CLANG_CXX_LIBRARY': 'libc++',
         'CLANG_CXX_LANGUAGE_STANDARD': 'c++20',
-        'MACOSX_DEPLOYMENT_TARGET': '10.7'
+        'MACOSX_DEPLOYMENT_TARGET': '12'
       },
       'conditions': [
         ['OS=="win"', {

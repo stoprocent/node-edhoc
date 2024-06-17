@@ -1,9 +1,6 @@
 #include "EdhocCryptoManagerWrapper.h"
 
-// Constants for exception messages
 static constexpr const char *kErrorFunctionExpected = "Function expected";
-
-// Constants for TSFN names
 static constexpr const char *kTsfnNameGenerateKey   = "GenerateKey";
 static constexpr const char *kTsfnNameDestroyKey    = "DestroyKey";
 static constexpr const char *kTsfnNameMakeKeyPair   = "MakeKeyPair";
@@ -15,8 +12,6 @@ static constexpr const char *kTsfnNameExpand        = "Expand";
 static constexpr const char *kTsfnNameEncrypt       = "Encrypt";
 static constexpr const char *kTsfnNameDecrypt       = "Decrypt";
 static constexpr const char *kTsfnNameHash          = "Hash";
-
-// Constants for class and property names
 static constexpr const char *kClassName             = "EdhocCryptoManager";
 static constexpr const char *kGenerateKeyAccessor   = "generateKey";
 static constexpr const char *kDestroyKeyAccessor    = "destroyKey";

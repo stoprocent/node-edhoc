@@ -60,7 +60,6 @@ LibEDHOC::LibEDHOC(const Napi::CallbackInfo& info) : Napi::ObjectWrap<LibEDHOC>(
 
     ret = edhoc_set_user_context(&this->_context, static_cast<void*>(this->userContext.get()));
     
-    // 
     if (ret != EDHOC_SUCCESS) {
         Napi::TypeError::New(env, "Failed to initialize EDHOC context.")
             .ThrowAsJavaScriptException();
@@ -116,7 +115,7 @@ void LibEDHOC::SetCipherSuites(const Napi::CallbackInfo &info, const Napi::Value
     for (uint32_t i = 0; i < jsArray.Length(); i++) {
         uint32_t index = jsArray.Get(i).As<Napi::Number>().Uint32Value();
         if (index < suite_pointers_count && suite_pointers[index] != nullptr) {
-            selected_suites.push_back(suite_pointers[index]); // store pointer
+            selected_suites.push_back(suite_pointers[index]);
         } else {
             Napi::RangeError::New(env, "Invalid cipher suite index")
                 .ThrowAsJavaScriptException();
@@ -172,7 +171,6 @@ Napi::Value LibEDHOC::ComposeMessage(const Napi::CallbackInfo& info, enum edhoc_
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
 
-    // Parse input array
     if (info[0].IsArray()) {
         try {
             this->userContext->GetEadManager()->StoreEad(messageNumber, info[0].As<Napi::Array>());

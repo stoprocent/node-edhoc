@@ -2,8 +2,9 @@
 
 static const size_t kInitialBufferSize                  = 1024 * 10;
 static constexpr const char* kErrorInvalidMessageNumber = "Invalid message number";
-static constexpr const char* kErrorMessagePrefix        = "Failed to compose EDHOC message ";
-static constexpr const char* kErrorMessageSuffix        = ". Error code: ";
+static constexpr const char* kErrorMessageFormat        = "Failed to compose EDHOC message %d. Error code: %d";
+static constexpr size_t kErrorBufferSize                = 100;
+
 
 EdhocComposeAsyncWorker::EdhocComposeAsyncWorker(Napi::Env& env, Napi::Promise::Deferred deferred, struct edhoc_context &context, int messageNumber, CallbackType callback)
     : Napi::AsyncWorker(env), deferred(deferred), context(context), messageNumber(messageNumber), callback(std::move(callback)) {
@@ -36,7 +37,8 @@ void EdhocComposeAsyncWorker::Execute() {
         composedMessage.resize(composedMessageLength);
 
         if (ret != EDHOC_SUCCESS) {
-            std::string errorMessage = kErrorMessagePrefix + std::to_string(messageNumber) + kErrorMessageSuffix + std::to_string(ret);
+            char errorMessage[kErrorBufferSize];
+            std::snprintf(errorMessage, kErrorBufferSize, kErrorMessageFormat, messageNumber, ret);
             SetError(errorMessage);
         }
 

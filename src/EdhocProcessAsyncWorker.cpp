@@ -1,8 +1,8 @@
 #include "EdhocProcessAsyncWorker.h"
 
 static constexpr const char* kErrorInvalidMessageNumber = "Invalid message number";
-static constexpr const char* kErrorMessagePrefix        = "Failed to process EDHOC message ";
-static constexpr const char* kErrorMessageSuffix        = ". Error code: ";
+static constexpr const char* kErrorMessageFormat        = "Failed to process EDHOC message %d. Error code: %d";
+static constexpr size_t kErrorBufferSize                = 100;
 
 EdhocProcessAsyncWorker::EdhocProcessAsyncWorker(Napi::Env& env, Napi::Promise::Deferred deferred, struct edhoc_context &context, int messageNumber, Napi::Buffer<uint8_t> buffer, CallbackType callback)
     : Napi::AsyncWorker(env), deferred(deferred), context(context), messageNumber(messageNumber), messageBuffer(buffer.Data(), buffer.Data() + buffer.Length()), callback(std::move(callback)) { }
@@ -12,7 +12,7 @@ void EdhocProcessAsyncWorker::Execute() {
         uint8_t* message = messageBuffer.data();
         size_t message_length = messageBuffer.size();
 
-        int ret = 0;
+        int ret = EDHOC_ERROR_GENERIC_ERROR;
         switch (messageNumber) {
             case EDHOC_MSG_1:
                 ret = edhoc_message_1_process(&context, message, message_length);
@@ -32,7 +32,8 @@ void EdhocProcessAsyncWorker::Execute() {
         }
 
          if (ret != EDHOC_SUCCESS) {
-            std::string errorMessage = kErrorMessagePrefix + std::to_string(messageNumber) + kErrorMessageSuffix + std::to_string(ret);
+            char errorMessage[kErrorBufferSize];
+            std::snprintf(errorMessage, kErrorBufferSize, kErrorMessageFormat, messageNumber, ret);
             SetError(errorMessage);
         }
 

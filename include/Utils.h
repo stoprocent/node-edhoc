@@ -7,10 +7,17 @@
 #include <cstdint>
 
 extern "C" {
-    #include "edhoc.h"  // Include EDHOC protocol C headers necessary for cryptographic operations
+    #include "edhoc.h"
 }
 
+/**
+ * @class Utils
+ * @brief Utility functions for handling N-API resources and converting between JavaScript and native types.
+ * 
+ * The Utils class provides static utility functions for handling N-API resources and converting between JavaScript and native types.
+ */
 class Utils {
+    
 public:
     /**
      * Resets a JavaScript function reference and releases a thread-safe function.
