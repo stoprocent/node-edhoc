@@ -8,6 +8,7 @@ extern "C" {
 }
 
 /**
+ * @class EdhocCredentialManager
  * @brief The EdhocCredentialManager class manages the credentials required for
  * EDHOC protocol.
  */
@@ -16,7 +17,8 @@ public:
   friend class EdhocCredentialManagerWrapper;
 
   /**
-   * @brief Structure to hold the EDHOC credentials.
+   * @struct edhoc_credentials
+   * @brief Libedhoc's bind structure for authentication credentials.
    */
   struct edhoc_credentials credentials;
 
@@ -35,7 +37,7 @@ public:
    * @param user_context The user context.
    * @param credentials Pointer to the edhoc_auth_creds structure to store the
    * fetched credentials.
-   * @return 0 if successful, otherwise an error code.
+   * @return EDHOC_SUCCESS if successful, otherwise an error code.
    */
   static int FetchCredentials(void *user_context,
                               struct edhoc_auth_creds *credentials);
@@ -47,7 +49,7 @@ public:
    * credentials to verify.
    * @param public_key_reference Pointer to the public key reference.
    * @param public_key_length Pointer to the length of the public key.
-   * @return 0 if successful, otherwise an error code.
+   * @return EDHOC_SUCCESS if successful, otherwise an error code.
    */
   static int VerifyCredentials(void *user_context,
                                struct edhoc_auth_creds *credentials,
@@ -59,7 +61,7 @@ public:
    * @param user_context The user context.
    * @param credentials Pointer to the edhoc_auth_creds structure to store the
    * fetched credentials.
-   * @return 0 if successful, otherwise an error code.
+   * @return EDHOC_SUCCESS if successful, otherwise an error code.
    */
   int callFetchCredentials(const void *user_context,
                            struct edhoc_auth_creds *credentials);
@@ -71,7 +73,7 @@ public:
    * credentials to verify.
    * @param public_key_reference Pointer to the public key reference.
    * @param public_key_length Pointer to the length of the public key.
-   * @return 0 if successful, otherwise an error code.
+   * @return EDHOC_SUCCESS if successful, otherwise an error code.
    */
   int callVerifyCredentials(const void *user_context,
                             struct edhoc_auth_creds *credentials,
@@ -80,15 +82,15 @@ public:
 
 private:
   std::vector<Napi::Buffer<uint8_t>>
-      credentialBuffers; /**< Vector to hold credential buffers */
+      credentialBuffers; ///< Vector to hold credential buffers
   Napi::ThreadSafeFunction
-      fetchTsfn; /**< Thread-safe function for FetchCredentials */
+      fetchTsfn; ///< Thread-safe function for FetchCredentials
   Napi::ThreadSafeFunction
-      verifyTsfn; /**< Thread-safe function for VerifyCredentials */
+      verifyTsfn; ///< Thread-safe function for VerifyCredentials
   Napi::FunctionReference
-      fetchFuncRef; /**< Reference to FetchCredentials function */
+      fetchFuncRef; ///< Reference to FetchCredentials function
   Napi::FunctionReference
-      verifyFuncRef; /**< Reference to VerifyCredentials function */
+      verifyFuncRef; ///< Reference to VerifyCredentials function
 };
 
 #endif // EDHOC_CREDENTIAL_MANAGER_H

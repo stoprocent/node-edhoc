@@ -45,6 +45,10 @@ public:
   const std::shared_ptr<EdhocCredentialManager> GetInternalManager();
 
 private:
+
+  /**
+   * @brief The internal EdhocCredentialManager object.
+   */
   std::shared_ptr<EdhocCredentialManager> manager;
 
   /**

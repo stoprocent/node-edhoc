@@ -19,6 +19,9 @@ extern "C" {
  */
 class EdhocExportAsyncWorker : public Napi::AsyncWorker {
 public:
+  /**
+   * @brief The type definition for the callback function.
+   */
   using CallbackType = std::function<void(Napi::Env)>;
 
   /**
@@ -38,38 +41,30 @@ public:
   ~EdhocExportAsyncWorker() override;
 
   /**
-   * @brief Executes the export operation.
-   *
-   * This method is called by the worker thread to perform the export operation.
+   * @brief Executes the asynchronous worker task.
    */
   void Execute() override;
 
   /**
-   * @brief Handles the successful completion of the export operation.
-   *
-   * This method is called on the main thread when the export operation is
-   * completed successfully.
+   * @brief Executes when the asynchronous worker task is completed
+   * successfully.
    */
   void OnOK() override;
 
   /**
-   * @brief Handles the error that occurred during the export operation.
-   *
-   * This method is called on the main thread when an error occurs during the
-   * export operation.
-   *
-   * @param error The Napi::Error object representing the error.
+   * @brief Executes when an error occurs during the asynchronous worker task.
+   * @param error The Napi::Error object.
    */
   void OnError(const Napi::Error &error) override;
 
 private:
-  Napi::Promise::Deferred deferred; /**< The deferred promise object. */
+  Napi::Promise::Deferred deferred; ///< The deferred promise object.
   struct edhoc_context
-      &context; /**< The reference to the edhoc_context structure. */
-  std::vector<uint8_t> masterSecret; /**< The master secret. */
-  std::vector<uint8_t> masterSalt;   /**< The master salt. */
-  std::vector<uint8_t> senderId;     /**< The sender ID. */
-  std::vector<uint8_t> recipientId;  /**< The recipient ID. */
+      &context; ///< The reference to the edhoc_context structure.
+  std::vector<uint8_t> masterSecret; ///< The master secret.
+  std::vector<uint8_t> masterSalt;   ///< The master salt.
+  std::vector<uint8_t> senderId;     ///< The sender ID.
+  std::vector<uint8_t> recipientId;  ///< The recipient ID.
 };
 
 #endif // EDHOC_EXPORT_ASYNC_WORKER_H

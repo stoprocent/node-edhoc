@@ -9,6 +9,9 @@ extern "C" {
 #include "edhoc.h"
 }
 
+/**
+ * @brief Type definition for the EAD (External Authorization Data) map.
+ */
 using EadMap = std::map<int, std::vector<uint8_t>>;
 using EadMapVector = std::vector<EadMap>;
 using EadBufferMap = std::map<enum edhoc_message, EadMapVector>;
@@ -26,9 +29,7 @@ class EdhocEadManager {
 public:
   /**
    * @struct edhoc_ead
-   * @brief Structure representing the EAD (External Authorization Data).
-   *
-   * This structure holds the EAD data for a specific EDHOC message.
+   * @brief Libedhoc's bind structure for EAD operations.
    */
   struct edhoc_ead ead;
 
@@ -86,8 +87,8 @@ public:
   void ClearEadByMessage(enum edhoc_message message);
 
 private:
-  EadBufferMap eadBuffers_; /**< Map to store the EAD buffers for different
-                               EDHOC messages. */
+  EadBufferMap eadBuffers_; ///< Map to store the EAD buffers for different
+                            ///< EDHOC messages.
 
   /**
    * @brief Static callback function for composing an EAD token.

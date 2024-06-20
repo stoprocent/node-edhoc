@@ -9,10 +9,14 @@ extern "C" {
 }
 
 /**
+ * @class EdhocComposeAsyncWorker
  * @brief Asynchronous worker class for composing EDHOC messages.
  */
 class EdhocComposeAsyncWorker : public Napi::AsyncWorker {
 public:
+  /**
+   * @brief The type definition for the callback function.
+   */
   using CallbackType = std::function<void(Napi::Env &)>;
 
   /**
@@ -45,11 +49,11 @@ public:
   void OnError(const Napi::Error &error) override;
 
 private:
-  Napi::Promise::Deferred deferred;     /**< The deferred promise object. */
-  struct edhoc_context &context;        /**< The EDHOC context. */
-  int messageNumber;                    /**< The message number. */
-  CallbackType callback;                /**< The callback function. */
-  std::vector<uint8_t> composedMessage; /**< The composed message. */
+  Napi::Promise::Deferred deferred;     ///< The deferred promise object.
+  struct edhoc_context &context;        ///< The EDHOC context.
+  int messageNumber;                    ///< The message number.
+  CallbackType callback;                ///< The callback function.
+  std::vector<uint8_t> composedMessage; ///< The composed message.
 };
 
 #endif // EDHOC_COMPOSE_ASYNC_WORKER_H

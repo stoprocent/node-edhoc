@@ -20,7 +20,16 @@ class EdhocCryptoManager {
 public:
   friend class EdhocCryptoManagerWrapper;
 
+  /**
+   * @struct edhoc_crypto
+   * @brief Libedhoc's bind structure for cryptographics operations.
+   */
   struct edhoc_crypto crypto;
+
+  /**
+   * @struct edhoc_keys
+   * @brief Libedhoc's bind structure for cryptographic key identifiers.
+   */
   struct edhoc_keys keys;
 
   /**
@@ -57,7 +66,7 @@ public:
   static int DestroyKey(void *user_context, void *key_id);
 
   /**
-   * @brief Generate a key pair.
+   * @brief Make a key pair.
    *
    * @param user_context The user context.
    * @param key_id The key ID.
