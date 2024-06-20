@@ -61,9 +61,10 @@ public:
 
 private:
   Napi::Promise::Deferred deferred; ///< The Napi::Promise::Deferred object for
-  resolving or rejecting the promise.struct edhoc_context
-                   &context; ///< The reference to the edhoc_context structure.
-  int messageNumber;         ///< The message number.
+                                    ///< resolving or rejecting the promise.
+  struct edhoc_context
+      &context;      ///< The reference to the edhoc_context structure.
+  int messageNumber; ///< The message number.
   std::vector<uint8_t> messageBuffer; ///< The message buffer.
   CallbackType
       callback; ///< The callback function to be called after processing.

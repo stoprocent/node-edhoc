@@ -27,9 +27,9 @@ public:
   UserContext(std::shared_ptr<EdhocCryptoManager> cryptoManager,
               std::shared_ptr<EdhocEadManager> eadManager,
               std::shared_ptr<EdhocCredentialManager> credentialManager)
-      : cryptoManager_(std::move(cryptoManager)),
-        eadManager_(std::move(eadManager)),
-        credentialManager_(std::move(credentialManager)) {}
+      : cryptoManager(std::move(cryptoManager)),
+        eadManager(std::move(eadManager)),
+        credentialManager(std::move(credentialManager)) {}
 
   /**
    * @brief Destroys the UserContext object.
@@ -47,14 +47,14 @@ public:
    *
    * @return A pointer to the EdhocCryptoManager.
    */
-  EdhocCryptoManager *GetCryptoManager() const { return cryptoManager_.get(); }
+  EdhocCryptoManager *GetCryptoManager() const { return cryptoManager.get(); }
 
   /**
    * @brief Gets the EAD manager associated with the UserContext.
    *
    * @return A pointer to the EdhocEadManager.
    */
-  EdhocEadManager *GetEadManager() const { return eadManager_.get(); }
+  EdhocEadManager *GetEadManager() const { return eadManager.get(); }
 
   /**
    * @brief Gets the credential manager associated with the UserContext.
@@ -62,18 +62,18 @@ public:
    * @return A pointer to the EdhocCredentialManager.
    */
   EdhocCredentialManager *GetCredentialManager() const {
-    return credentialManager_.get();
+    return credentialManager.get();
   }
 
-  Napi::ThreadSafeFunction logger; /**< The logger for the UserContext */
+  Napi::ThreadSafeFunction logger; ///< The logger for the UserContext
   Napi::ObjectReference
-      parent; /**< The parent object reference for the UserContext */
+      parent; ///< The parent object reference for the UserContext
 
 protected:
-  std::shared_ptr<EdhocCryptoManager> cryptoManager_; /**< The crypto manager */
-  std::shared_ptr<EdhocEadManager> eadManager_;       /**< The EAD manager */
+  std::shared_ptr<EdhocCryptoManager> cryptoManager; ///< The crypto manager
+  std::shared_ptr<EdhocEadManager> eadManager;       ///< The EAD manager
   std::shared_ptr<EdhocCredentialManager>
-      credentialManager_; /**< The credential manager */
+      credentialManager; ///< The credential manager
 };
 
 #endif // USER_CONTEXT_H

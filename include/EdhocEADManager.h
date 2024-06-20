@@ -87,8 +87,8 @@ public:
   void ClearEadByMessage(enum edhoc_message message);
 
 private:
-  EadBufferMap eadBuffers_; ///< Map to store the EAD buffers for different
-                            ///< EDHOC messages.
+  EadBufferMap eadBuffers; ///< Map to store the EAD buffers for different
+                           ///< EDHOC messages.
 
   /**
    * @brief Static callback function for composing an EAD token.
