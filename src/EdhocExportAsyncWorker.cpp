@@ -1,17 +1,26 @@
 #include "EdhocExportAsyncWorker.h"
 
-static constexpr const char *kErrorMessagePrefix =
-    "Failed to export OSCORE. Error code: ";
-static constexpr const char *kPropMasterSecret = "masterSecret";
-static constexpr const char *kPropMasterSalt = "masterSalt";
-static constexpr const char *kPropSenderId = "senderId";
-static constexpr const char *kPropRecipientId = "recipientId";
+static constexpr const char* kErrorMessageFormat =
+    "Failed to export OSCORE. Error code: %d.";
+static constexpr const char* kPropMasterSecret = "masterSecret";
+static constexpr const char* kPropMasterSalt = "masterSalt";
+static constexpr const char* kPropSenderId = "senderId";
+static constexpr const char* kPropRecipientId = "recipientId";
+static constexpr size_t kErrorBufferSize = 100;
+static constexpr size_t kMasterSecrectSize = 16;
+static constexpr size_t kMasterSaltSize = 8;
+static constexpr size_t kConnectionIdSize = 7;
 
-EdhocExportAsyncWorker::EdhocExportAsyncWorker(Napi::Env &env,
+EdhocExportAsyncWorker::EdhocExportAsyncWorker(Napi::Env& env,
                                                Napi::Promise::Deferred deferred,
-                                               struct edhoc_context &context)
-    : Napi::AsyncWorker(env), deferred(std::move(deferred)), context(context),
-      masterSecret(16), masterSalt(8), senderId(7), recipientId(7) {}
+                                               struct edhoc_context& context)
+    : Napi::AsyncWorker(env),
+      deferred(std::move(deferred)),
+      context(context),
+      masterSecret(kMasterSecrectSize),
+      masterSalt(kMasterSaltSize),
+      senderId(kConnectionIdSize),
+      recipientId(kConnectionIdSize) {}
 
 EdhocExportAsyncWorker::~EdhocExportAsyncWorker() {}
 
@@ -19,20 +28,28 @@ void EdhocExportAsyncWorker::Execute() {
   try {
     size_t sender_id_length, recipient_id_length;
 
-    int ret = edhoc_export_oscore_session(
-        &context, masterSecret.data(), masterSecret.size(), masterSalt.data(),
-        masterSalt.size(), senderId.data(), senderId.size(), &sender_id_length,
-        recipientId.data(), recipientId.size(), &recipient_id_length);
+    int ret = edhoc_export_oscore_session(&context,
+                                          masterSecret.data(),
+                                          masterSecret.size(),
+                                          masterSalt.data(),
+                                          masterSalt.size(),
+                                          senderId.data(),
+                                          senderId.size(),
+                                          &sender_id_length,
+                                          recipientId.data(),
+                                          recipientId.size(),
+                                          &recipient_id_length);
 
     if (ret != EDHOC_SUCCESS) {
-      std::string errorMessage = kErrorMessagePrefix + std::to_string(ret);
+      char errorMessage[kErrorBufferSize];
+      std::snprintf(errorMessage, kErrorBufferSize, kErrorMessageFormat, ret);
       SetError(errorMessage);
     } else {
       senderId.resize(sender_id_length);
       recipientId.resize(recipient_id_length);
     }
 
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     SetError(e.what());
   }
 }
@@ -59,7 +76,7 @@ void EdhocExportAsyncWorker::OnOK() {
   deferred.Resolve(resultObj);
 }
 
-void EdhocExportAsyncWorker::OnError(const Napi::Error &error) {
+void EdhocExportAsyncWorker::OnError(const Napi::Error& error) {
   Napi::HandleScope scope(Env());
   deferred.Reject(error.Value());
 }

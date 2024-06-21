@@ -1,8 +1,8 @@
 #ifndef EDHOC_EAD_MANAGER_H
 #define EDHOC_EAD_MANAGER_H
 
-#include <map>
 #include <napi.h>
+#include <map>
 #include <vector>
 
 extern "C" {
@@ -26,7 +26,7 @@ using EadBufferMap = std::map<enum edhoc_message, EadMapVector>;
  * composing and processing EAD tokens.
  */
 class EdhocEadManager {
-public:
+ public:
   /**
    * @struct edhoc_ead
    * @brief Libedhoc's bind structure for EAD operations.
@@ -50,8 +50,9 @@ public:
    * @param label The label associated with the EAD.
    * @param ead The EAD data to be stored.
    */
-  void StoreEad(enum edhoc_message message, int label,
-                const std::vector<uint8_t> &ead);
+  void StoreEad(enum edhoc_message message,
+                int label,
+                const std::vector<uint8_t>& ead);
 
   /**
    * @brief Stores the EAD for a specific EDHOC message using a Napi::Array.
@@ -59,7 +60,7 @@ public:
    * @param message The EDHOC message type.
    * @param eadArray The Napi::Array containing the EAD data to be stored.
    */
-  void StoreEad(enum edhoc_message message, const Napi::Array &eadArray);
+  void StoreEad(enum edhoc_message message, const Napi::Array& eadArray);
 
   /**
    * @brief Retrieves the EAD for a specific EDHOC message.
@@ -68,7 +69,7 @@ public:
    * @return A constant pointer to the EadMapVector containing the EAD data for
    * the specified message.
    */
-  const EadMapVector *GetEadByMessage(enum edhoc_message message) const;
+  const EadMapVector* GetEadByMessage(enum edhoc_message message) const;
 
   /**
    * @brief Retrieves the EAD for a specific EDHOC message as a Napi::Array.
@@ -77,7 +78,7 @@ public:
    * @param message The EDHOC message type.
    * @return A Napi::Array containing the EAD data for the specified message.
    */
-  Napi::Array GetEadByMessage(Napi::Env &env, enum edhoc_message message) const;
+  Napi::Array GetEadByMessage(Napi::Env& env, enum edhoc_message message) const;
 
   /**
    * @brief Clears the EAD for a specific EDHOC message.
@@ -86,9 +87,9 @@ public:
    */
   void ClearEadByMessage(enum edhoc_message message);
 
-private:
-  EadBufferMap eadBuffers; ///< Map to store the EAD buffers for different
-                           ///< EDHOC messages.
+ private:
+  EadBufferMap eadBuffers;  ///< Map to store the EAD buffers for different
+                            ///< EDHOC messages.
 
   /**
    * @brief Static callback function for composing an EAD token.
@@ -100,9 +101,11 @@ private:
    * @param ead_token_len The length of the composed EAD token.
    * @return The status of the compose operation.
    */
-  static int ComposeEad(void *user_context, enum edhoc_message message,
-                        struct edhoc_ead_token *ead_token,
-                        size_t ead_token_size, size_t *ead_token_len);
+  static int ComposeEad(void* user_context,
+                        enum edhoc_message message,
+                        struct edhoc_ead_token* ead_token,
+                        size_t ead_token_size,
+                        size_t* ead_token_len);
 
   /**
    * @brief Static callback function for processing an EAD token.
@@ -113,8 +116,9 @@ private:
    * @param ead_token_size The size of the EAD token structure.
    * @return The status of the process operation.
    */
-  static int ProcessEad(void *user_context, enum edhoc_message message,
-                        const struct edhoc_ead_token *ead_token,
+  static int ProcessEad(void* user_context,
+                        enum edhoc_message message,
+                        const struct edhoc_ead_token* ead_token,
                         size_t ead_token_size);
 
   /**
@@ -127,8 +131,9 @@ private:
    * @return The status of the compose operation.
    */
   int callComposeEad(enum edhoc_message message,
-                     struct edhoc_ead_token *ead_token, size_t ead_token_size,
-                     size_t *ead_token_len);
+                     struct edhoc_ead_token* ead_token,
+                     size_t ead_token_size,
+                     size_t* ead_token_len);
 
   /**
    * @brief Calls the static ProcessEad callback function.
@@ -139,8 +144,8 @@ private:
    * @return The status of the process operation.
    */
   int callProcessEad(enum edhoc_message message,
-                     const struct edhoc_ead_token *ead_token,
+                     const struct edhoc_ead_token* ead_token,
                      size_t ead_token_size);
 };
 
-#endif // EDHOC_EAD_MANAGER_H
+#endif  // EDHOC_EAD_MANAGER_H

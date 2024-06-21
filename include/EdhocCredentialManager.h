@@ -13,7 +13,7 @@ extern "C" {
  * EDHOC protocol.
  */
 class EdhocCredentialManager {
-public:
+ public:
   friend class EdhocCredentialManagerWrapper;
 
   /**
@@ -39,8 +39,8 @@ public:
    * fetched credentials.
    * @return EDHOC_SUCCESS if successful, otherwise an error code.
    */
-  static int FetchCredentials(void *user_context,
-                              struct edhoc_auth_creds *credentials);
+  static int FetchCredentials(void* user_context,
+                              struct edhoc_auth_creds* credentials);
 
   /**
    * @brief Static function to verify the credentials.
@@ -51,10 +51,10 @@ public:
    * @param public_key_length Pointer to the length of the public key.
    * @return EDHOC_SUCCESS if successful, otherwise an error code.
    */
-  static int VerifyCredentials(void *user_context,
-                               struct edhoc_auth_creds *credentials,
-                               const uint8_t **public_key_reference,
-                               size_t *public_key_length);
+  static int VerifyCredentials(void* user_context,
+                               struct edhoc_auth_creds* credentials,
+                               const uint8_t** public_key_reference,
+                               size_t* public_key_length);
 
   /**
    * @brief Calls the FetchCredentials function.
@@ -63,8 +63,8 @@ public:
    * fetched credentials.
    * @return EDHOC_SUCCESS if successful, otherwise an error code.
    */
-  int callFetchCredentials(const void *user_context,
-                           struct edhoc_auth_creds *credentials);
+  int callFetchCredentials(const void* user_context,
+                           struct edhoc_auth_creds* credentials);
 
   /**
    * @brief Calls the VerifyCredentials function.
@@ -75,22 +75,22 @@ public:
    * @param public_key_length Pointer to the length of the public key.
    * @return EDHOC_SUCCESS if successful, otherwise an error code.
    */
-  int callVerifyCredentials(const void *user_context,
-                            struct edhoc_auth_creds *credentials,
-                            const uint8_t **public_key_reference,
-                            size_t *public_key_length);
+  int callVerifyCredentials(const void* user_context,
+                            struct edhoc_auth_creds* credentials,
+                            const uint8_t** public_key_reference,
+                            size_t* public_key_length);
 
-private:
+ private:
   std::vector<Napi::Buffer<uint8_t>>
-      credentialBuffers; ///< Vector to hold credential buffers
+      credentialBuffers;  ///< Vector to hold credential buffers
   Napi::ThreadSafeFunction
-      fetchTsfn; ///< Thread-safe function for FetchCredentials
+      fetchTsfn;  ///< Thread-safe function for FetchCredentials
   Napi::ThreadSafeFunction
-      verifyTsfn; ///< Thread-safe function for VerifyCredentials
+      verifyTsfn;  ///< Thread-safe function for VerifyCredentials
   Napi::FunctionReference
-      fetchFuncRef; ///< Reference to FetchCredentials function
+      fetchFuncRef;  ///< Reference to FetchCredentials function
   Napi::FunctionReference
-      verifyFuncRef; ///< Reference to VerifyCredentials function
+      verifyFuncRef;  ///< Reference to VerifyCredentials function
 };
 
-#endif // EDHOC_CREDENTIAL_MANAGER_H
+#endif  // EDHOC_CREDENTIAL_MANAGER_H

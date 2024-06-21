@@ -7,31 +7,31 @@
 #include "UserContext.h"
 #include "Utils.h"
 
-static constexpr const char *kLabel = "label";
-static constexpr const char *kPrivateKeyId = "privateKeyId";
-static constexpr const char *kPublicKey = "publicKey";
-static constexpr const char *kKid = "kid";
-static constexpr const char *kIsCBOR = "isCBOR";
-static constexpr const char *kCredentials = "credentials";
-static constexpr const char *kX5chain = "x5chain";
-static constexpr const char *kCertificate = "certificate";
-static constexpr const char *kX5t = "x5t";
-static constexpr const char *kHash = "hash";
-static constexpr const char *kHashAlgorithm = "hashAlgorithm";
+static constexpr const char* kLabel = "label";
+static constexpr const char* kPrivateKeyId = "privateKeyId";
+static constexpr const char* kPublicKey = "publicKey";
+static constexpr const char* kKid = "kid";
+static constexpr const char* kIsCBOR = "isCBOR";
+static constexpr const char* kCredentials = "credentials";
+static constexpr const char* kX5chain = "x5chain";
+static constexpr const char* kCertificate = "certificate";
+static constexpr const char* kX5t = "x5t";
+static constexpr const char* kHash = "hash";
+static constexpr const char* kHashAlgorithm = "hashAlgorithm";
 
-static constexpr const char *kUnsupportedCredentialTypeError =
+static constexpr const char* kUnsupportedCredentialTypeError =
     "Unsupported credential type specified";
-static constexpr const char *kInvalidInputCredentialTypeError =
+static constexpr const char* kInvalidInputCredentialTypeError =
     "Invalid credentials object specified";
-static constexpr const char *kInvalidInputDataErrorKid =
+static constexpr const char* kInvalidInputDataErrorKid =
     "Invalid input data for Key ID";
-static constexpr const char *kInvalidInputDataErrorX509Chain =
+static constexpr const char* kInvalidInputDataErrorX509Chain =
     "Invalid input data for X.509 chain";
-static constexpr const char *kInvalidInputDataErrorX509Hash =
+static constexpr const char* kInvalidInputDataErrorX509Hash =
     "Invalid input data for X.509 hash";
 
-void convert_js_to_edhoc_kid(const Napi::Object &jsObject,
-                             struct edhoc_auth_creds *credentials) {
+void convert_js_to_edhoc_kid(const Napi::Object& jsObject,
+                             struct edhoc_auth_creds* credentials) {
   Napi::Object kidObj = jsObject.Get(kKid).As<Napi::Object>();
   if (!kidObj.Has(kIsCBOR) || !kidObj.Has(kKid) || !kidObj.Has(kCredentials)) {
     throw Napi::Error::New(jsObject.Env(), kInvalidInputDataErrorKid);
@@ -47,8 +47,8 @@ void convert_js_to_edhoc_kid(const Napi::Object &jsObject,
       credentials->key_id.key_id_int = (int32_t)numeric;
     } else {
       size_t length = 0;
-      Utils::EncodeInt64ToBuffer(numeric, credentials->key_id.key_id_bstr,
-                                 &length);
+      Utils::EncodeInt64ToBuffer(
+          numeric, credentials->key_id.key_id_bstr, &length);
       credentials->key_id.encode_type = EDHOC_ENCODE_TYPE_BYTE_STRING;
       credentials->key_id.key_id_bstr_length = length;
     }
@@ -65,13 +65,12 @@ void convert_js_to_edhoc_kid(const Napi::Object &jsObject,
       kidObj.Get(kCredentials).As<Napi::Buffer<uint8_t>>();
   credentials->key_id.cred = credBuffer.Data();
   credentials->key_id.cred_len = credBuffer.Length();
-
   credentials->key_id.cred_is_cbor =
       kidObj.Get(kIsCBOR).As<Napi::Boolean>().Value();
 }
 
-void convert_js_to_edhoc_x5chain(const Napi::Object &jsObject,
-                                 struct edhoc_auth_creds *credentials) {
+void convert_js_to_edhoc_x5chain(const Napi::Object& jsObject,
+                                 struct edhoc_auth_creds* credentials) {
   Napi::Object x5chainObj = jsObject.Get(kX5chain).As<Napi::Object>();
   if (!x5chainObj.Has(kCertificate)) {
     throw Napi::Error::New(jsObject.Env(), kInvalidInputDataErrorX509Chain);
@@ -85,8 +84,8 @@ void convert_js_to_edhoc_x5chain(const Napi::Object &jsObject,
   credentials->x509_chain.cert_len = certBuffer.Length();
 }
 
-void convert_js_to_edhoc_x5t(const Napi::Object &jsObject,
-                             struct edhoc_auth_creds *credentials) {
+void convert_js_to_edhoc_x5t(const Napi::Object& jsObject,
+                             struct edhoc_auth_creds* credentials) {
   Napi::Object x5tObj = jsObject.Get(kX5t).As<Napi::Object>();
   if (!x5tObj.Has(kCertificate) || !x5tObj.Has(kHash) ||
       !x5tObj.Has(kHashAlgorithm)) {
@@ -110,16 +109,17 @@ void convert_js_to_edhoc_x5t(const Napi::Object &jsObject,
       x5tObj.Get(kHashAlgorithm).As<Napi::Number>().Int32Value();
 }
 
-Napi::Object convert_edhoc_kid_to_js(const Napi::Env &env,
-                                     const struct edhoc_auth_cred_key_id &kid) {
+Napi::Object convert_edhoc_kid_to_js(const Napi::Env& env,
+                                     const struct edhoc_auth_cred_key_id& kid) {
   Napi::Object obj = Napi::Object::New(env);
   obj.Set(kIsCBOR, Napi::Boolean::New(env, kid.cred_is_cbor));
 
   if (kid.encode_type == EDHOC_ENCODE_TYPE_INTEGER) {
     obj.Set(kKid, Napi::Number::New(env, kid.key_id_int));
   } else {
-    obj.Set(kKid, Napi::Buffer<uint8_t>::Copy(env, kid.key_id_bstr,
-                                              kid.key_id_bstr_length));
+    obj.Set(kKid,
+            Napi::Buffer<uint8_t>::Copy(
+                env, kid.key_id_bstr, kid.key_id_bstr_length));
   }
 
   obj.Set(kCredentials,
@@ -128,21 +128,22 @@ Napi::Object convert_edhoc_kid_to_js(const Napi::Env &env,
 }
 
 Napi::Object convert_edhoc_x5chain_to_js(
-    const Napi::Env &env, const struct edhoc_auth_cred_x509_chain &x509_chain) {
+    const Napi::Env& env, const struct edhoc_auth_cred_x509_chain& x509_chain) {
   Napi::Object obj = Napi::Object::New(env);
-  obj.Set(kCertificate, Napi::Buffer<uint8_t>::Copy(env, x509_chain.cert,
-                                                    x509_chain.cert_len));
+  obj.Set(
+      kCertificate,
+      Napi::Buffer<uint8_t>::Copy(env, x509_chain.cert, x509_chain.cert_len));
   return obj;
 }
 
-Napi::Object
-convert_edhoc_x5t_to_js(const Napi::Env &env,
-                        const struct edhoc_auth_cred_x509_hash &x509_hash) {
+Napi::Object convert_edhoc_x5t_to_js(
+    const Napi::Env& env, const struct edhoc_auth_cred_x509_hash& x509_hash) {
   Napi::Object obj = Napi::Object::New(env);
   obj.Set(kCertificate,
           Napi::Buffer<uint8_t>::Copy(env, x509_hash.cert, x509_hash.cert_len));
-  obj.Set(kHash, Napi::Buffer<uint8_t>::Copy(env, x509_hash.cert_fp,
-                                             x509_hash.cert_fp_len));
+  obj.Set(kHash,
+          Napi::Buffer<uint8_t>::Copy(
+              env, x509_hash.cert_fp, x509_hash.cert_fp_len));
   obj.Set(kHashAlgorithm, Napi::Number::New(env, x509_hash.alg_int));
   return obj;
 }
@@ -158,32 +159,36 @@ EdhocCredentialManager::~EdhocCredentialManager() {
 }
 
 int EdhocCredentialManager::FetchCredentials(
-    void *user_context, struct edhoc_auth_creds *credentials) {
-  UserContext *context = static_cast<UserContext *>(user_context);
-  EdhocCredentialManager *manager = context->GetCredentialManager();
+    void* user_context, struct edhoc_auth_creds* credentials) {
+  UserContext* context = static_cast<UserContext*>(user_context);
+  EdhocCredentialManager* manager = context->GetCredentialManager();
   return manager->callFetchCredentials(context, credentials);
 }
 
 int EdhocCredentialManager::VerifyCredentials(
-    void *user_context, struct edhoc_auth_creds *credentials,
-    const uint8_t **public_key_reference, size_t *public_key_length) {
-  UserContext *context = static_cast<UserContext *>(user_context);
-  EdhocCredentialManager *manager = context->GetCredentialManager();
+    void* user_context,
+    struct edhoc_auth_creds* credentials,
+    const uint8_t** public_key_reference,
+    size_t* public_key_length) {
+  UserContext* context = static_cast<UserContext*>(user_context);
+  EdhocCredentialManager* manager = context->GetCredentialManager();
   return manager->callVerifyCredentials(
       context, credentials, public_key_reference, public_key_length);
 }
 
 int EdhocCredentialManager::callFetchCredentials(
-    const void *user_context, struct edhoc_auth_creds *credentials) {
+    const void* user_context, struct edhoc_auth_creds* credentials) {
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
 
   fetchTsfn.BlockingCall([&user_context, &promise, &credentials](
                              Napi::Env env, Napi::Function jsCallback) {
     std::vector<napi_value> arguments = {
-        static_cast<const UserContext *>(user_context)->parent.Value()};
+        static_cast<const UserContext*>(user_context)->parent.Value()};
     Utils::InvokeJSFunctionWithPromiseHandling(
-        env, jsCallback, arguments,
+        env,
+        jsCallback,
+        arguments,
         [&promise, &credentials](Napi::Env env, Napi::Value result) {
           auto credsObj = result.As<Napi::Object>();
           if (credsObj.IsObject() == false || credsObj.Has(kLabel) == false) {
@@ -193,24 +198,25 @@ int EdhocCredentialManager::callFetchCredentials(
           int label = credsObj.Get(kLabel).As<Napi::Number>().Int32Value();
 
           switch (label) {
-          case EDHOC_COSE_HEADER_KID:
-            convert_js_to_edhoc_kid(credsObj, credentials);
-            break;
-          case EDHOC_COSE_HEADER_X509_CHAIN:
-            convert_js_to_edhoc_x5chain(credsObj, credentials);
-            break;
-          case EDHOC_COSE_HEADER_X509_HASH:
-            convert_js_to_edhoc_x5t(credsObj, credentials);
-            break;
-          default:
-            throw Napi::Error::New(env, kUnsupportedCredentialTypeError);
+            case EDHOC_COSE_HEADER_KID:
+              convert_js_to_edhoc_kid(credsObj, credentials);
+              break;
+            case EDHOC_COSE_HEADER_X509_CHAIN:
+              convert_js_to_edhoc_x5chain(credsObj, credentials);
+              break;
+            case EDHOC_COSE_HEADER_X509_HASH:
+              convert_js_to_edhoc_x5t(credsObj, credentials);
+              break;
+            default:
+              throw Napi::Error::New(env, kUnsupportedCredentialTypeError);
           }
 
           if (credsObj.Has(kPrivateKeyId) &&
               !credsObj.Get(kPrivateKeyId).IsNull()) {
             Napi::Buffer<uint8_t> privKeyIdBuffer =
                 credsObj.Get(kPrivateKeyId).As<Napi::Buffer<uint8_t>>();
-            memcpy(credentials->priv_key_id, privKeyIdBuffer.Data(),
+            memcpy(credentials->priv_key_id,
+                   privKeyIdBuffer.Data(),
                    privKeyIdBuffer.Length());
           }
 
@@ -223,41 +229,50 @@ int EdhocCredentialManager::callFetchCredentials(
 }
 
 int EdhocCredentialManager::callVerifyCredentials(
-    const void *user_context, struct edhoc_auth_creds *credentials,
-    const uint8_t **public_key_reference, size_t *public_key_length) {
+    const void* user_context,
+    struct edhoc_auth_creds* credentials,
+    const uint8_t** public_key_reference,
+    size_t* public_key_length) {
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
 
-  verifyTsfn.BlockingCall([&user_context, &promise, &credentials,
-                           &public_key_reference, &public_key_length](
-                              Napi::Env env, Napi::Function jsCallback) {
+  verifyTsfn.BlockingCall([&user_context,
+                           &promise,
+                           &credentials,
+                           &public_key_reference,
+                           &public_key_length](Napi::Env env,
+                                               Napi::Function jsCallback) {
     Napi::Object resultObject = Napi::Object::New(env);
     resultObject.Set(kLabel, Napi::Number::New(env, credentials->label));
 
     switch (credentials->label) {
-    case EDHOC_COSE_HEADER_KID:
-      resultObject.Set(kKid, convert_edhoc_kid_to_js(env, credentials->key_id));
-      break;
-    case EDHOC_COSE_HEADER_X509_CHAIN:
-      resultObject.Set(
-          kX5chain, convert_edhoc_x5chain_to_js(env, credentials->x509_chain));
-      break;
-    case EDHOC_COSE_HEADER_X509_HASH:
-      resultObject.Set(kX5t,
-                       convert_edhoc_x5t_to_js(env, credentials->x509_hash));
-      break;
-    default:
-      throw Napi::Error::New(env, kUnsupportedCredentialTypeError);
+      case EDHOC_COSE_HEADER_KID:
+        resultObject.Set(kKid,
+                         convert_edhoc_kid_to_js(env, credentials->key_id));
+        break;
+      case EDHOC_COSE_HEADER_X509_CHAIN:
+        resultObject.Set(
+            kX5chain,
+            convert_edhoc_x5chain_to_js(env, credentials->x509_chain));
+        break;
+      case EDHOC_COSE_HEADER_X509_HASH:
+        resultObject.Set(kX5t,
+                         convert_edhoc_x5t_to_js(env, credentials->x509_hash));
+        break;
+      default:
+        throw Napi::Error::New(env, kUnsupportedCredentialTypeError);
     }
 
     std::vector<napi_value> arguments = {
-        static_cast<const UserContext *>(user_context)->parent.Value(),
+        static_cast<const UserContext*>(user_context)->parent.Value(),
         resultObject};
 
     Utils::InvokeJSFunctionWithPromiseHandling(
-        env, jsCallback, arguments,
-        [&promise, &credentials, &public_key_reference,
-         &public_key_length](Napi::Env env, Napi::Value result) {
+        env,
+        jsCallback,
+        arguments,
+        [&promise, &credentials, &public_key_reference, &public_key_length](
+            Napi::Env env, Napi::Value result) {
           Napi::Object credsObj = result.As<Napi::Object>();
 
           if (credsObj.IsObject() == false) {
@@ -267,17 +282,17 @@ int EdhocCredentialManager::callVerifyCredentials(
 
           int label = credsObj.Get(kLabel).As<Napi::Number>().Int32Value();
           switch (label) {
-          case EDHOC_COSE_HEADER_KID:
-            convert_js_to_edhoc_kid(credsObj, credentials);
-            break;
-          case EDHOC_COSE_HEADER_X509_CHAIN:
-            convert_js_to_edhoc_x5chain(credsObj, credentials);
-            break;
-          case EDHOC_COSE_HEADER_X509_HASH:
-            convert_js_to_edhoc_x5t(credsObj, credentials);
-            break;
-          default:
-            throw Napi::Error::New(env, kUnsupportedCredentialTypeError);
+            case EDHOC_COSE_HEADER_KID:
+              convert_js_to_edhoc_kid(credsObj, credentials);
+              break;
+            case EDHOC_COSE_HEADER_X509_CHAIN:
+              convert_js_to_edhoc_x5chain(credsObj, credentials);
+              break;
+            case EDHOC_COSE_HEADER_X509_HASH:
+              convert_js_to_edhoc_x5t(credsObj, credentials);
+              break;
+            default:
+              throw Napi::Error::New(env, kUnsupportedCredentialTypeError);
           }
 
           if (credsObj.Has(kPublicKey) && !credsObj.Get(kPublicKey).IsNull()) {

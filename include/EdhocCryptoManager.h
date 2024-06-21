@@ -17,7 +17,7 @@ extern "C" {
  * extracting, expanding, encrypting, decrypting, and hashing data.
  */
 class EdhocCryptoManager {
-public:
+ public:
   friend class EdhocCryptoManagerWrapper;
 
   /**
@@ -52,9 +52,11 @@ public:
    * @param key_id The generated key ID.
    * @return int The result code.
    */
-  static int GenerateKey(void *user_context, enum edhoc_key_type key_type,
-                         const uint8_t *raw_key, size_t raw_key_length,
-                         void *key_id);
+  static int GenerateKey(void* user_context,
+                         enum edhoc_key_type key_type,
+                         const uint8_t* raw_key,
+                         size_t raw_key_length,
+                         void* key_id);
 
   /**
    * @brief Destroy a key.
@@ -63,7 +65,7 @@ public:
    * @param key_id The key ID to destroy.
    * @return int The result code.
    */
-  static int DestroyKey(void *user_context, void *key_id);
+  static int DestroyKey(void* user_context, void* key_id);
 
   /**
    * @brief Make a key pair.
@@ -78,10 +80,14 @@ public:
    * @param public_key_length The length of the generated public key.
    * @return int The result code.
    */
-  static int MakeKeyPair(void *user_context, const void *key_id,
-                         uint8_t *private_key, size_t private_key_size,
-                         size_t *private_key_length, uint8_t *public_key,
-                         size_t public_key_size, size_t *public_key_length);
+  static int MakeKeyPair(void* user_context,
+                         const void* key_id,
+                         uint8_t* private_key,
+                         size_t private_key_size,
+                         size_t* private_key_length,
+                         uint8_t* public_key,
+                         size_t public_key_size,
+                         size_t* public_key_length);
 
   /**
    * @brief Perform key agreement.
@@ -95,11 +101,13 @@ public:
    * @param shared_secret_length The length of the generated shared secret.
    * @return int The result code.
    */
-  static int KeyAgreement(void *user_context, const void *key_id,
-                          const uint8_t *peer_public_key,
-                          size_t peer_public_key_length, uint8_t *shared_secret,
+  static int KeyAgreement(void* user_context,
+                          const void* key_id,
+                          const uint8_t* peer_public_key,
+                          size_t peer_public_key_length,
+                          uint8_t* shared_secret,
                           size_t shared_secret_size,
-                          size_t *shared_secret_length);
+                          size_t* shared_secret_length);
 
   /**
    * @brief Sign data.
@@ -113,9 +121,13 @@ public:
    * @param signature_length The length of the generated signature.
    * @return int The result code.
    */
-  static int Sign(void *user_context, const void *key_id, const uint8_t *input,
-                  size_t input_length, uint8_t *signature,
-                  size_t signature_size, size_t *signature_length);
+  static int Sign(void* user_context,
+                  const void* key_id,
+                  const uint8_t* input,
+                  size_t input_length,
+                  uint8_t* signature,
+                  size_t signature_size,
+                  size_t* signature_length);
 
   /**
    * @brief Verify a signature.
@@ -128,9 +140,12 @@ public:
    * @param signature_length The length of the signature.
    * @return int The result code.
    */
-  static int Verify(void *user_context, const void *key_id,
-                    const uint8_t *input, size_t input_length,
-                    const uint8_t *signature, size_t signature_length);
+  static int Verify(void* user_context,
+                    const void* key_id,
+                    const uint8_t* input,
+                    size_t input_length,
+                    const uint8_t* signature,
+                    size_t signature_length);
 
   /**
    * @brief Extract a pseudo-random key.
@@ -145,10 +160,13 @@ public:
    * key.
    * @return int The result code.
    */
-  static int Extract(void *user_context, const void *key_id,
-                     const uint8_t *salt, size_t salt_len,
-                     uint8_t *pseudo_random_key, size_t pseudo_random_key_size,
-                     size_t *pseudo_random_key_length);
+  static int Extract(void* user_context,
+                     const void* key_id,
+                     const uint8_t* salt,
+                     size_t salt_len,
+                     uint8_t* pseudo_random_key,
+                     size_t pseudo_random_key_size,
+                     size_t* pseudo_random_key_length);
 
   /**
    * @brief Expand a key.
@@ -163,8 +181,11 @@ public:
    * keying material.
    * @return int The result code.
    */
-  static int Expand(void *user_context, const void *key_id, const uint8_t *info,
-                    size_t info_length, uint8_t *output_keying_material,
+  static int Expand(void* user_context,
+                    const void* key_id,
+                    const uint8_t* info,
+                    size_t info_length,
+                    uint8_t* output_keying_material,
                     size_t output_keying_material_length);
 
   /**
@@ -183,12 +204,17 @@ public:
    * @param ciphertext_length The length of the generated ciphertext.
    * @return int The result code.
    */
-  static int Encrypt(void *user_context, const void *key_id,
-                     const uint8_t *nonce, size_t nonce_length,
-                     const uint8_t *additional_data,
-                     size_t additional_data_length, const uint8_t *plaintext,
-                     size_t plaintext_length, uint8_t *ciphertext,
-                     size_t ciphertext_size, size_t *ciphertext_length);
+  static int Encrypt(void* user_context,
+                     const void* key_id,
+                     const uint8_t* nonce,
+                     size_t nonce_length,
+                     const uint8_t* additional_data,
+                     size_t additional_data_length,
+                     const uint8_t* plaintext,
+                     size_t plaintext_length,
+                     uint8_t* ciphertext,
+                     size_t ciphertext_size,
+                     size_t* ciphertext_length);
 
   /**
    * @brief Decrypt data.
@@ -206,12 +232,17 @@ public:
    * @param plaintext_length The length of the generated plaintext.
    * @return int The result code.
    */
-  static int Decrypt(void *user_context, const void *key_id,
-                     const uint8_t *nonce, size_t nonce_length,
-                     const uint8_t *additional_data,
-                     size_t additional_data_length, const uint8_t *ciphertext,
-                     size_t ciphertext_length, uint8_t *plaintext,
-                     size_t plaintext_size, size_t *plaintext_length);
+  static int Decrypt(void* user_context,
+                     const void* key_id,
+                     const uint8_t* nonce,
+                     size_t nonce_length,
+                     const uint8_t* additional_data,
+                     size_t additional_data_length,
+                     const uint8_t* ciphertext,
+                     size_t ciphertext_length,
+                     uint8_t* plaintext,
+                     size_t plaintext_size,
+                     size_t* plaintext_length);
 
   /**
    * @brief Hash data.
@@ -224,8 +255,12 @@ public:
    * @param hash_length The length of the generated hash.
    * @return int The result code.
    */
-  static int Hash(void *user_context, const uint8_t *input, size_t input_length,
-                  uint8_t *hash, size_t hash_size, size_t *hash_length);
+  static int Hash(void* user_context,
+                  const uint8_t* input,
+                  size_t input_length,
+                  uint8_t* hash,
+                  size_t hash_size,
+                  size_t* hash_length);
 
   /**
    * @brief Calls the GenerateKey function.
@@ -237,9 +272,11 @@ public:
    * @param key_id The generated key ID.
    * @return int The result code.
    */
-  int callGenerateKey(const void *user_context, enum edhoc_key_type key_type,
-                      const uint8_t *raw_key, size_t raw_key_length,
-                      void *key_id);
+  int callGenerateKey(const void* user_context,
+                      enum edhoc_key_type key_type,
+                      const uint8_t* raw_key,
+                      size_t raw_key_length,
+                      void* key_id);
 
   /**
    * @brief Calls the DestroyKey function.
@@ -248,7 +285,7 @@ public:
    * @param key_id The key ID to destroy.
    * @return int The result code.
    */
-  int callDestroyKey(const void *user_context, void *key_id);
+  int callDestroyKey(const void* user_context, void* key_id);
 
   /**
    * @brief Calls the MakeKeyPair function.
@@ -263,10 +300,14 @@ public:
    * @param public_key_length The length of the generated public key.
    * @return int The result code.
    */
-  int callMakeKeyPair(const void *user_context, const void *key_id,
-                      uint8_t *private_key, size_t private_key_size,
-                      size_t *private_key_length, uint8_t *public_key,
-                      size_t public_key_size, size_t *public_key_length);
+  int callMakeKeyPair(const void* user_context,
+                      const void* key_id,
+                      uint8_t* private_key,
+                      size_t private_key_size,
+                      size_t* private_key_length,
+                      uint8_t* public_key,
+                      size_t public_key_size,
+                      size_t* public_key_length);
 
   /**
    * @brief Calls the KeyAgreement function.
@@ -280,10 +321,13 @@ public:
    * @param shared_secret_length The length of the generated shared secret.
    * @return int The result code.
    */
-  int callKeyAgreement(const void *user_context, const void *key_id,
-                       const uint8_t *peer_public_key,
-                       size_t peer_public_key_length, uint8_t *shared_secret,
-                       size_t shared_secret_size, size_t *shared_secret_length);
+  int callKeyAgreement(const void* user_context,
+                       const void* key_id,
+                       const uint8_t* peer_public_key,
+                       size_t peer_public_key_length,
+                       uint8_t* shared_secret,
+                       size_t shared_secret_size,
+                       size_t* shared_secret_length);
 
   /**
    * @brief Calls the Sign function.
@@ -297,9 +341,13 @@ public:
    * @param signature_length The length of the generated signature.
    * @return int The result code.
    */
-  int callSign(const void *user_context, const void *key_id,
-               const uint8_t *input, size_t input_length, uint8_t *signature,
-               size_t signature_size, size_t *signature_length);
+  int callSign(const void* user_context,
+               const void* key_id,
+               const uint8_t* input,
+               size_t input_length,
+               uint8_t* signature,
+               size_t signature_size,
+               size_t* signature_length);
 
   /**
    * @brief Calls the Verify function.
@@ -312,9 +360,12 @@ public:
    * @param signature_length The length of the signature.
    * @return int The result code.
    */
-  int callVerify(const void *user_context, const void *key_id,
-                 const uint8_t *input, size_t input_length,
-                 const uint8_t *signature, size_t signature_length);
+  int callVerify(const void* user_context,
+                 const void* key_id,
+                 const uint8_t* input,
+                 size_t input_length,
+                 const uint8_t* signature,
+                 size_t signature_length);
 
   /**
    * @brief Calls the Extract function.
@@ -329,10 +380,13 @@ public:
    * key.
    * @return int The result code.
    */
-  int callExtract(const void *user_context, const void *key_id,
-                  const uint8_t *salt, size_t salt_len,
-                  uint8_t *pseudo_random_key, size_t pseudo_random_key_size,
-                  size_t *pseudo_random_key_length);
+  int callExtract(const void* user_context,
+                  const void* key_id,
+                  const uint8_t* salt,
+                  size_t salt_len,
+                  uint8_t* pseudo_random_key,
+                  size_t pseudo_random_key_size,
+                  size_t* pseudo_random_key_length);
 
   /**
    * @brief Calls the Expand function.
@@ -347,9 +401,11 @@ public:
    * keying material.
    * @return int The result code.
    */
-  int callExpand(const void *user_context, const void *key_id,
-                 const uint8_t *info, size_t info_length,
-                 uint8_t *output_keying_material,
+  int callExpand(const void* user_context,
+                 const void* key_id,
+                 const uint8_t* info,
+                 size_t info_length,
+                 uint8_t* output_keying_material,
                  size_t output_keying_material_length);
 
   /**
@@ -368,12 +424,17 @@ public:
    * @param ciphertext_length The length of the generated ciphertext.
    * @return int The result code.
    */
-  int callEncrypt(const void *user_context, const void *key_id,
-                  const uint8_t *nonce, size_t nonce_length,
-                  const uint8_t *additional_data, size_t additional_data_length,
-                  const uint8_t *plaintext, size_t plaintext_length,
-                  uint8_t *ciphertext, size_t ciphertext_size,
-                  size_t *ciphertext_length);
+  int callEncrypt(const void* user_context,
+                  const void* key_id,
+                  const uint8_t* nonce,
+                  size_t nonce_length,
+                  const uint8_t* additional_data,
+                  size_t additional_data_length,
+                  const uint8_t* plaintext,
+                  size_t plaintext_length,
+                  uint8_t* ciphertext,
+                  size_t ciphertext_size,
+                  size_t* ciphertext_length);
 
   /**
    * @brief Calls the Decrypt function.
@@ -391,12 +452,17 @@ public:
    * @param plaintext_length The length of the generated plaintext.
    * @return int The result code.
    */
-  int callDecrypt(const void *user_context, const void *key_id,
-                  const uint8_t *nonce, size_t nonce_length,
-                  const uint8_t *additional_data, size_t additional_data_length,
-                  const uint8_t *ciphertext, size_t ciphertext_length,
-                  uint8_t *plaintext, size_t plaintext_size,
-                  size_t *plaintext_length);
+  int callDecrypt(const void* user_context,
+                  const void* key_id,
+                  const uint8_t* nonce,
+                  size_t nonce_length,
+                  const uint8_t* additional_data,
+                  size_t additional_data_length,
+                  const uint8_t* ciphertext,
+                  size_t ciphertext_length,
+                  uint8_t* plaintext,
+                  size_t plaintext_size,
+                  size_t* plaintext_length);
 
   /**
    * @brief Calls the Hash function.
@@ -409,11 +475,14 @@ public:
    * @param hash_length The length of the generated hash.
    * @return int The result code.
    */
-  int callHash(const void *user_context, const uint8_t *input,
-               size_t input_length, uint8_t *hash, size_t hash_size,
-               size_t *hash_length);
+  int callHash(const void* user_context,
+               const uint8_t* input,
+               size_t input_length,
+               uint8_t* hash,
+               size_t hash_size,
+               size_t* hash_length);
 
-private:
+ private:
   /* Functions references */
   Napi::FunctionReference generateKeyFuncRef, destroyKeyFuncRef,
       makeKeyPairFuncRef, keyAgreementFuncRef, signFuncRef, verifyFuncRef,
@@ -426,4 +495,4 @@ private:
       encryptTsfn, decryptTsfn, hashTsfn;
 };
 
-#endif // EDHOC_CRYPTO_MANAGER_H
+#endif  // EDHOC_CRYPTO_MANAGER_H

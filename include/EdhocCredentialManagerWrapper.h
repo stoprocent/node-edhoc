@@ -1,8 +1,8 @@
 #ifndef EDHOC_CREDENTIAL_MANAGER_WRAPPER_H
 #define EDHOC_CREDENTIAL_MANAGER_WRAPPER_H
 
-#include "EdhocCredentialManager.h"
 #include <napi.h>
+#include "EdhocCredentialManager.h"
 
 /**
  * @class EdhocCredentialManagerWrapper
@@ -10,7 +10,7 @@
  */
 class EdhocCredentialManagerWrapper
     : public Napi::ObjectWrap<EdhocCredentialManagerWrapper> {
-public:
+ public:
   friend class EdhocCredentialManager;
 
   /**
@@ -29,7 +29,7 @@ public:
    * @param info The Napi::CallbackInfo object containing the constructor
    * arguments.
    */
-  EdhocCredentialManagerWrapper(const Napi::CallbackInfo &info);
+  EdhocCredentialManagerWrapper(const Napi::CallbackInfo& info);
 
   /**
    * @brief Destructor for EdhocCredentialManagerWrapper class.
@@ -44,8 +44,7 @@ public:
    */
   const std::shared_ptr<EdhocCredentialManager> GetInternalManager();
 
-private:
-
+ private:
   /**
    * @brief The internal EdhocCredentialManager object.
    */
@@ -57,7 +56,7 @@ private:
    * @param info The Napi::CallbackInfo object containing the function argument.
    * @param value The Napi::Value representing the fetch function.
    */
-  void SetFetch(const Napi::CallbackInfo &info, const Napi::Value &value);
+  void SetFetch(const Napi::CallbackInfo& info, const Napi::Value& value);
 
   /**
    * @brief Gets the fetch function.
@@ -65,7 +64,7 @@ private:
    * @param info The Napi::CallbackInfo object.
    * @return Napi::Value The fetch function.
    */
-  Napi::Value GetFetch(const Napi::CallbackInfo &info);
+  Napi::Value GetFetch(const Napi::CallbackInfo& info);
 
   /**
    * @brief Sets the verify function.
@@ -73,7 +72,7 @@ private:
    * @param info The Napi::CallbackInfo object containing the function argument.
    * @param value The Napi::Value representing the verify function.
    */
-  void SetVerify(const Napi::CallbackInfo &info, const Napi::Value &value);
+  void SetVerify(const Napi::CallbackInfo& info, const Napi::Value& value);
 
   /**
    * @brief Gets the verify function.
@@ -81,7 +80,7 @@ private:
    * @param info The Napi::CallbackInfo object.
    * @return Napi::Value The verify function.
    */
-  Napi::Value GetVerify(const Napi::CallbackInfo &info);
+  Napi::Value GetVerify(const Napi::CallbackInfo& info);
 
   /**
    * @brief Sets the function and ThreadSafeFunction for a given value.
@@ -97,9 +96,10 @@ private:
    * @param tsfn The Napi::ThreadSafeFunction representing the
    * ThreadSafeFunction.
    */
-  void SetFunctionAndTsfn(const Napi::Value &value, const std::string &tsfnName,
-                          Napi::FunctionReference &functionRef,
-                          Napi::ThreadSafeFunction &tsfn);
+  void SetFunctionAndTsfn(const Napi::Value& value,
+                          const std::string& tsfnName,
+                          Napi::FunctionReference& functionRef,
+                          Napi::ThreadSafeFunction& tsfn);
 };
 
-#endif // EDHOC_CREDENTIAL_MANAGER_WRAPPER_H
+#endif  // EDHOC_CREDENTIAL_MANAGER_WRAPPER_H

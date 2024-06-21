@@ -5,8 +5,13 @@
 
 #include "Utils.h"
 
-void Utils::ResetAndRelease(Napi::FunctionReference &funcRef,
-                            Napi::ThreadSafeFunction &tsfn) {
+static constexpr const char* kStringThen = "then";
+static constexpr const char* kStringCatch = "catch";
+static constexpr const char* kErrorInputValueMustBeANumberOrABuffer =
+    "Input value must be a number or a buffer";
+
+void Utils::ResetAndRelease(Napi::FunctionReference& funcRef,
+                            Napi::ThreadSafeFunction& tsfn) {
   if (!funcRef.IsEmpty()) {
     funcRef.Reset();
   }
@@ -17,45 +22,47 @@ void Utils::ResetAndRelease(Napi::FunctionReference &funcRef,
 }
 
 void Utils::InvokeJSFunctionWithPromiseHandling(
-    Napi::Env env, Napi::Function jsCallback,
-    const std::vector<napi_value> &args,
+    Napi::Env env,
+    Napi::Function jsCallback,
+    const std::vector<napi_value>& args,
     std::function<void(Napi::Env, Napi::Value)> callbackLambda) {
   auto deferred = Napi::Promise::Deferred::New(env);
   try {
     Napi::Value result = jsCallback.Call(args);
     deferred.Resolve(result);
-  } catch (const Napi::Error &e) {
+  } catch (const Napi::Error& e) {
     deferred.Reject(e.Value());
   }
 
   Napi::Promise promise = deferred.Promise();
 
   auto thenCallback = Napi::Function::New(
-      env, [callbackLambda](const Napi::CallbackInfo &info) {
+      env, [callbackLambda](const Napi::CallbackInfo& info) {
         Napi::Env env = info.Env();
         Napi::Value result = info[0];
         Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(env);
         try {
           callbackLambda(env, result);
           deferred.Resolve(result);
-        } catch (const Napi::Error &e) {
+        } catch (const Napi::Error& e) {
           deferred.Reject(e.Value());
         }
         return deferred.Promise();
       });
 
   auto catchCallback =
-      Napi::Function::New(env, [](const Napi::CallbackInfo &info) {
+      Napi::Function::New(env, [](const Napi::CallbackInfo& info) {
         Napi::Error error = info[0].As<Napi::Error>();
         throw error;
       });
 
-  promise.Get("then").As<Napi::Function>().Call(promise, {thenCallback});
-  promise.Get("catch").As<Napi::Function>().Call(promise, {catchCallback});
+  promise.Get(kStringThen).As<Napi::Function>().Call(promise, {thenCallback});
+  promise.Get(kStringCatch).As<Napi::Function>().Call(promise, {catchCallback});
 }
 
-void Utils::EncodeInt64ToBuffer(int64_t value, uint8_t *buffer,
-                                size_t *length) {
+void Utils::EncodeInt64ToBuffer(int64_t value,
+                                uint8_t* buffer,
+                                size_t* length) {
   size_t idx = 0;
   if (value == 0) {
     buffer[idx++] = 0;
@@ -89,7 +96,7 @@ struct edhoc_connection_id Utils::ConvertJsValueToEdhocCid(Napi::Value value) {
     memcpy(cid.bstr_value, buffer.Data(), cid.bstr_length);
   } else {
     throw Napi::TypeError::New(value.Env(),
-                               "Input value must be a number or a buffer");
+                               kErrorInputValueMustBeANumberOrABuffer);
   }
   return cid;
 }
@@ -99,8 +106,8 @@ Napi::Value Utils::CreateJsValueFromEdhocCid(Napi::Env env,
   if (value.encode_type == EDHOC_CID_TYPE_ONE_BYTE_INTEGER) {
     return Napi::Number::New(env, value.int_value);
   } else if (value.encode_type == EDHOC_CID_TYPE_BYTE_STRING) {
-    return Napi::Buffer<char>::Copy(env, (const char *)value.bstr_value,
-                                    value.bstr_length);
+    return Napi::Buffer<char>::Copy(
+        env, (const char*)value.bstr_value, value.bstr_length);
   }
   return env.Null();
 }

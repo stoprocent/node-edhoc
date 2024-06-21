@@ -1,8 +1,8 @@
 #ifndef EDHOC_EXPORT_ASYNC_WORKER_H
 #define EDHOC_EXPORT_ASYNC_WORKER_H
 
-#include <functional>
 #include <napi.h>
+#include <functional>
 #include <vector>
 
 extern "C" {
@@ -18,7 +18,7 @@ extern "C" {
  * the export operation asynchronously and handling the result or error.
  */
 class EdhocExportAsyncWorker : public Napi::AsyncWorker {
-public:
+ public:
   /**
    * @brief The type definition for the callback function.
    */
@@ -32,8 +32,9 @@ public:
    * deferred promise.
    * @param context The reference to the edhoc_context structure.
    */
-  EdhocExportAsyncWorker(Napi::Env &env, Napi::Promise::Deferred deferred,
-                         struct edhoc_context &context);
+  EdhocExportAsyncWorker(Napi::Env& env,
+                         Napi::Promise::Deferred deferred,
+                         struct edhoc_context& context);
 
   /**
    * @brief Destroys the EdhocExportAsyncWorker object.
@@ -55,16 +56,16 @@ public:
    * @brief Executes when an error occurs during the asynchronous worker task.
    * @param error The Napi::Error object.
    */
-  void OnError(const Napi::Error &error) override;
+  void OnError(const Napi::Error& error) override;
 
-private:
-  Napi::Promise::Deferred deferred; ///< The deferred promise object.
-  struct edhoc_context
-      &context; ///< The reference to the edhoc_context structure.
-  std::vector<uint8_t> masterSecret; ///< The master secret.
-  std::vector<uint8_t> masterSalt;   ///< The master salt.
-  std::vector<uint8_t> senderId;     ///< The sender ID.
-  std::vector<uint8_t> recipientId;  ///< The recipient ID.
+ private:
+  Napi::Promise::Deferred deferred;  ///< The deferred promise object.
+  struct edhoc_context&
+      context;  ///< The reference to the edhoc_context structure.
+  std::vector<uint8_t> masterSecret;  ///< The master secret.
+  std::vector<uint8_t> masterSalt;    ///< The master salt.
+  std::vector<uint8_t> senderId;      ///< The sender ID.
+  std::vector<uint8_t> recipientId;   ///< The recipient ID.
 };
 
-#endif // EDHOC_EXPORT_ASYNC_WORKER_H
+#endif  // EDHOC_EXPORT_ASYNC_WORKER_H

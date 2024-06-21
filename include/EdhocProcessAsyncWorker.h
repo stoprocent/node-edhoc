@@ -21,11 +21,11 @@ extern "C" {
  * OnError() method.
  */
 class EdhocProcessAsyncWorker : public Napi::AsyncWorker {
-public:
+ public:
   /**
    * @brief The type definition for the callback function.
    */
-  using CallbackType = std::function<Napi::Array(Napi::Env &)>;
+  using CallbackType = std::function<Napi::Array(Napi::Env&)>;
 
   /**
    * @brief Constructs a new instance of the EdhocProcessAsyncWorker class.
@@ -38,9 +38,12 @@ public:
    * buffer.
    * @param callback The callback function to be called after processing.
    */
-  EdhocProcessAsyncWorker(Napi::Env &env, Napi::Promise::Deferred deferred,
-                          struct edhoc_context &context, int messageNumber,
-                          Napi::Buffer<uint8_t> buffer, CallbackType callback);
+  EdhocProcessAsyncWorker(Napi::Env& env,
+                          Napi::Promise::Deferred deferred,
+                          struct edhoc_context& context,
+                          int messageNumber,
+                          Napi::Buffer<uint8_t> buffer,
+                          CallbackType callback);
 
   /**
    * @brief Executes the asynchronous worker task.
@@ -57,17 +60,17 @@ public:
    * @brief Executes when an error occurs during the asynchronous worker task.
    * @param error The Napi::Error object.
    */
-  void OnError(const Napi::Error &error) override;
+  void OnError(const Napi::Error& error) override;
 
-private:
-  Napi::Promise::Deferred deferred; ///< The Napi::Promise::Deferred object for
-                                    ///< resolving or rejecting the promise.
-  struct edhoc_context
-      &context;      ///< The reference to the edhoc_context structure.
-  int messageNumber; ///< The message number.
-  std::vector<uint8_t> messageBuffer; ///< The message buffer.
+ private:
+  Napi::Promise::Deferred deferred;  ///< The Napi::Promise::Deferred object for
+                                     ///< resolving or rejecting the promise.
+  struct edhoc_context&
+      context;        ///< The reference to the edhoc_context structure.
+  int messageNumber;  ///< The message number.
+  std::vector<uint8_t> messageBuffer;  ///< The message buffer.
   CallbackType
-      callback; ///< The callback function to be called after processing.
+      callback;  ///< The callback function to be called after processing.
 };
 
-#endif // EDHOC_PROCESS_ASYNC_WORKER_H
+#endif  // EDHOC_PROCESS_ASYNC_WORKER_H

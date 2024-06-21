@@ -1,8 +1,8 @@
 #ifndef LIB_EDHOC_H
 #define LIB_EDHOC_H
 
-#include "UserContext.h"
 #include <napi.h>
+#include "UserContext.h"
 
 extern "C" {
 #include "edhoc.h"
@@ -19,7 +19,7 @@ extern "C" {
  * compose/process EDHOC messages.
  */
 class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
-public:
+ public:
   /**
    * @brief Initializes the LibEDHOC object.
    *
@@ -35,73 +35,73 @@ public:
   /**
    * @brief Constructs a LibEDHOC object.
    *
-   * The constructor initializes the EDHOC context and connection identifiers.
-   *
    * @param info The Napi::CallbackInfo representing the callback information.
    */
-  LibEDHOC(const Napi::CallbackInfo &info);
+  LibEDHOC(const Napi::CallbackInfo& info);
 
   /**
    * @brief Destroys the LibEDHOC object.
-   *
-   * The destructor releases the EDHOC context and connection identifiers.
-   * It also releases the user context and logger.
    */
   ~LibEDHOC();
 
   /**
-   * @brief Gets the connection identifier (CID).
+   * @brief Gets the connection identifier (C_I or C_R depending on the role).
    *
-   * This method returns the connection identifier (CID) associated with
-   * the LibEDHOC object.
-   *
-   * @param info The Napi::CallbackInfo representing the callback information.
-   * @return Napi::Value The connection identifier (CID).
-   */
-  Napi::Value GetCID(const Napi::CallbackInfo &info);
-
-  /**
-   * @brief Sets the connection identifier (CID).
-   *
-   * This method sets the connection identifier (CID) for the LibEDHOC object.
+   * This method returns the connection identifier (C_I or C_R depending on the
+   * role).
    *
    * @param info The Napi::CallbackInfo representing the callback information.
-   * @param value The Napi::Value representing the connection identifier (CID).
+   * @return Napi::Value The connection identifier (C_I or C_R depending on the
+   * role).
    */
-  void SetCID(const Napi::CallbackInfo &info, const Napi::Value &value);
+  Napi::Value GetCID(const Napi::CallbackInfo& info);
 
   /**
-   * @brief Gets the peer connection identifier (CID).
+   * @brief Sets the connection identifier (C_I or C_R depending on the role).
    *
-   * This method returns the peer connection identifier (CID) associated with
-   * the LibEDHOC object.
+   * This method sets the connection identifier (C_I or C_R depending on the
+   * role).
    *
    * @param info The Napi::CallbackInfo representing the callback information.
-   * @return Napi::Value The peer connection identifier (CID).
+   * @param value The Napi::Value representing the connection identifier (C_I or
+   * C_R depending on the role).
    */
-  Napi::Value GetPeerCID(const Napi::CallbackInfo &info);
+  void SetCID(const Napi::CallbackInfo& info, const Napi::Value& value);
 
   /**
-   * @brief Gets the method used in EDHOC.
+   * @brief Gets the peer connection identifier (C_I or C_R depending on the
+   * role).
    *
-   * This method returns the method used in EDHOC (e.g., symmetric/asymmetric)
+   * This method returns the peer connection identifier (C_I or C_R depending on
+   * the role).
+   *
+   * @param info The Napi::CallbackInfo representing the callback information.
+   * @return Napi::Value The peer connection identifier (C_I or C_R depending on
+   * the role).
+   */
+  Napi::Value GetPeerCID(const Napi::CallbackInfo& info);
+
+  /**
+   * @brief Gets the Method (RFC 9528: 3.2.) used in EDHOC.
+   *
+   * This method returns the Method (RFC 9528: 3.2.) used in EDHOC
    * associated with the LibEDHOC object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
-   * @return Napi::Value The method used in EDHOC.
+   * @return Napi::Value The Method used in EDHOC.
    */
-  Napi::Value GetMethod(const Napi::CallbackInfo &info);
+  Napi::Value GetMethod(const Napi::CallbackInfo& info);
 
   /**
-   * @brief Sets the method used in EDHOC.
+   * @brief Sets the Method (RFC 9528: 3.2.) used in EDHOC.
    *
-   * This method sets the method used in EDHOC (e.g., symmetric/asymmetric)
-   * for the LibEDHOC object.
+   * This method sets the Method (RFC 9528: 3.2.) used in EDHOC for the LibEDHOC
+   * object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
-   * @param value The Napi::Value representing the method used in EDHOC.
+   * @param value The Napi::Value representing the Method used in EDHOC.
    */
-  void SetMethod(const Napi::CallbackInfo &info, const Napi::Value &value);
+  void SetMethod(const Napi::CallbackInfo& info, const Napi::Value& value);
 
   /**
    * @brief Sets the cipher suites.
@@ -111,8 +111,8 @@ public:
    * @param info The Napi::CallbackInfo representing the callback information.
    * @param value The Napi::Value representing the cipher suites.
    */
-  void SetCipherSuites(const Napi::CallbackInfo &info,
-                       const Napi::Value &value);
+  void SetCipherSuites(const Napi::CallbackInfo& info,
+                       const Napi::Value& value);
 
   /**
    * @brief Gets the cipher suites.
@@ -122,7 +122,7 @@ public:
    * @param info The Napi::CallbackInfo representing the callback information.
    * @return Napi::Value The cipher suites.
    */
-  Napi::Value GetCipherSuites(const Napi::CallbackInfo &info);
+  Napi::Value GetCipherSuites(const Napi::CallbackInfo& info);
 
   /**
    * @brief Gets the logger function.
@@ -133,7 +133,7 @@ public:
    * @param info The Napi::CallbackInfo representing the callback information.
    * @return Napi::Value The logger function.
    */
-  Napi::Value GetLogger(const Napi::CallbackInfo &info);
+  Napi::Value GetLogger(const Napi::CallbackInfo& info);
 
   /**
    * @brief Sets the logger function.
@@ -143,7 +143,7 @@ public:
    * @param info The Napi::CallbackInfo representing the callback information.
    * @param value The Napi::Value representing the logger function.
    */
-  void SetLogger(const Napi::CallbackInfo &info, const Napi::Value &value);
+  void SetLogger(const Napi::CallbackInfo& info, const Napi::Value& value);
 
   /**
    * @brief Composes EDHOC message 1.
@@ -153,7 +153,7 @@ public:
    * @param info The Napi::CallbackInfo representing the callback information.
    * @return Napi::Value The composed EDHOC message 1.
    */
-  Napi::Value ComposeMessage1(const Napi::CallbackInfo &info);
+  Napi::Value ComposeMessage1(const Napi::CallbackInfo& info);
 
   /**
    * @brief Processes EDHOC message 1.
@@ -161,9 +161,9 @@ public:
    * This method processes EDHOC message 1 for the LibEDHOC object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
-   * @return Napi::Value The processed EDHOC message 1.
+   * @return Napi::Value The EAD data from message 1 or Null.
    */
-  Napi::Value ProcessMessage1(const Napi::CallbackInfo &info);
+  Napi::Value ProcessMessage1(const Napi::CallbackInfo& info);
 
   /**
    * @brief Composes EDHOC message 2.
@@ -173,7 +173,7 @@ public:
    * @param info The Napi::CallbackInfo representing the callback information.
    * @return Napi::Value The composed EDHOC message 2.
    */
-  Napi::Value ComposeMessage2(const Napi::CallbackInfo &info);
+  Napi::Value ComposeMessage2(const Napi::CallbackInfo& info);
 
   /**
    * @brief Processes EDHOC message 2.
@@ -181,9 +181,9 @@ public:
    * This method processes EDHOC message 2 for the LibEDHOC object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
-   * @return Napi::Value The processed EDHOC message 2.
+   * @return Napi::Value The EAD data from message 2 or Null.
    */
-  Napi::Value ProcessMessage2(const Napi::CallbackInfo &info);
+  Napi::Value ProcessMessage2(const Napi::CallbackInfo& info);
 
   /**
    * @brief Composes EDHOC message 3.
@@ -193,7 +193,7 @@ public:
    * @param info The Napi::CallbackInfo representing the callback information.
    * @return Napi::Value The composed EDHOC message 3.
    */
-  Napi::Value ComposeMessage3(const Napi::CallbackInfo &info);
+  Napi::Value ComposeMessage3(const Napi::CallbackInfo& info);
 
   /**
    * @brief Processes EDHOC message 3.
@@ -201,9 +201,9 @@ public:
    * This method processes EDHOC message 3 for the LibEDHOC object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
-   * @return Napi::Value The processed EDHOC message 3.
+   * @return Napi::Value The EAD data from message 3 or Null.
    */
-  Napi::Value ProcessMessage3(const Napi::CallbackInfo &info);
+  Napi::Value ProcessMessage3(const Napi::CallbackInfo& info);
 
   /**
    * @brief Composes EDHOC message 4.
@@ -213,7 +213,7 @@ public:
    * @param info The Napi::CallbackInfo representing the callback information.
    * @return Napi::Value The composed EDHOC message 4.
    */
-  Napi::Value ComposeMessage4(const Napi::CallbackInfo &info);
+  Napi::Value ComposeMessage4(const Napi::CallbackInfo& info);
 
   /**
    * @brief Processes EDHOC message 4.
@@ -221,29 +221,30 @@ public:
    * This method processes EDHOC message 4 for the LibEDHOC object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
-   * @return Napi::Value The processed EDHOC message 4.
+   * @return Napi::Value The EAD data from message 4 or Null.
    */
-  Napi::Value ProcessMessage4(const Napi::CallbackInfo &info);
+  Napi::Value ProcessMessage4(const Napi::CallbackInfo& info);
 
   /**
    * @brief Exports OSCORE.
    *
-   * This method exports OSCORE for the LibEDHOC object.
+   * This method exports an OSCORE context object containing the master key,
+   * salt, recipient ID, and sender ID for the LibEDHOC object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
-   * @return Napi::Value The exported OSCORE.
+   * @return Napi::Value The exported OSCORE context object.
    */
-  Napi::Value ExportOSCORE(const Napi::CallbackInfo &info);
+  Napi::Value ExportOSCORE(const Napi::CallbackInfo& info);
 
-private:
+ private:
+  struct edhoc_context context;  ///< The EDHOC context.
 
-  struct edhoc_context context; ///< The EDHOC context.
+  struct edhoc_connection_id
+      cid;  ///< RFC 9528: 3.3.2. Representation of Byte String Identifiers.
 
-  struct edhoc_connection_id cid; ///< RFC 9528: 3.3.2. Representation of Byte String Identifiers.
+  enum edhoc_method method;  ///< RFC 9528: 3.2. Method.
 
-  enum edhoc_method method; ///< RFC 9528: 3.2. Method.
-
-  Napi::FunctionReference logger; ///< N-API reference to the logger function
+  Napi::FunctionReference logger;  ///< N-API reference to the logger function
 
   // Private member variables to hold instances of EDHOC managers for
   // cryptographic operations, EAD, and credentials
@@ -259,8 +260,10 @@ private:
    * @param buffer The buffer containing the log message.
    * @param buffer_length The length of the log message buffer.
    */
-  static void Logger(void *user_context, const char *name,
-                     const uint8_t *buffer, size_t buffer_length);
+  static void Logger(void* user_context,
+                     const char* name,
+                     const uint8_t* buffer,
+                     size_t buffer_length);
 
   /**
    * @brief Composes an EDHOC message.
@@ -271,7 +274,7 @@ private:
    * @param message The EDHOC message to compose.
    * @return Napi::Value The composed EDHOC message.
    */
-  Napi::Value ComposeMessage(const Napi::CallbackInfo &info,
+  Napi::Value ComposeMessage(const Napi::CallbackInfo& info,
                              enum edhoc_message message);
 
   /**
@@ -281,10 +284,10 @@ private:
    *
    * @param info The Napi::CallbackInfo representing the callback information.
    * @param message The EDHOC message to process.
-   * @return Napi::Value The processed EDHOC message.
+   * @return Napi::Value The EAD data or Null for given EDHOC message.
    */
-  Napi::Value ProcessMessage(const Napi::CallbackInfo &info,
+  Napi::Value ProcessMessage(const Napi::CallbackInfo& info,
                              enum edhoc_message message);
 };
 
-#endif // LIB_EDHOC_H
+#endif  // LIB_EDHOC_H

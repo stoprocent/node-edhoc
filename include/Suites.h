@@ -14,7 +14,7 @@ extern "C" {
  *
  * @see edhoc_cipher_suite
  */
-extern const struct edhoc_cipher_suite *suite_pointers[];
+extern const struct edhoc_cipher_suite* suite_pointers[];
 
 /**
  * @brief Number of EDHOC cipher suites.
@@ -24,4 +24,4 @@ extern const struct edhoc_cipher_suite *suite_pointers[];
  */
 extern const size_t suite_pointers_count;
 
-#endif // SUITES_H
+#endif  // SUITES_H

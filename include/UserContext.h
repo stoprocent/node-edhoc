@@ -1,11 +1,11 @@
 #ifndef USER_CONTEXT_H
 #define USER_CONTEXT_H
 
+#include <napi.h>
+#include <memory>
 #include "EdhocCredentialManager.h"
 #include "EdhocCryptoManager.h"
 #include "EdhocEadManager.h"
-#include <memory>
-#include <napi.h>
 
 /**
  * @class UserContext
@@ -16,7 +16,7 @@
  * It also provides access to a logger and a parent object reference.
  */
 class UserContext {
-public:
+ public:
   /**
    * @brief Constructs a UserContext object with the specified components.
    *
@@ -47,33 +47,33 @@ public:
    *
    * @return A pointer to the EdhocCryptoManager.
    */
-  EdhocCryptoManager *GetCryptoManager() const { return cryptoManager.get(); }
+  EdhocCryptoManager* GetCryptoManager() const { return cryptoManager.get(); }
 
   /**
    * @brief Gets the EAD manager associated with the UserContext.
    *
    * @return A pointer to the EdhocEadManager.
    */
-  EdhocEadManager *GetEadManager() const { return eadManager.get(); }
+  EdhocEadManager* GetEadManager() const { return eadManager.get(); }
 
   /**
    * @brief Gets the credential manager associated with the UserContext.
    *
    * @return A pointer to the EdhocCredentialManager.
    */
-  EdhocCredentialManager *GetCredentialManager() const {
+  EdhocCredentialManager* GetCredentialManager() const {
     return credentialManager.get();
   }
 
-  Napi::ThreadSafeFunction logger; ///< The logger for the UserContext
+  Napi::ThreadSafeFunction logger;  ///< The logger for the UserContext
   Napi::ObjectReference
-      parent; ///< The parent object reference for the UserContext
+      parent;  ///< The parent object reference for the UserContext
 
-protected:
-  std::shared_ptr<EdhocCryptoManager> cryptoManager; ///< The crypto manager
-  std::shared_ptr<EdhocEadManager> eadManager;       ///< The EAD manager
+ protected:
+  std::shared_ptr<EdhocCryptoManager> cryptoManager;  ///< The crypto manager
+  std::shared_ptr<EdhocEadManager> eadManager;        ///< The EAD manager
   std::shared_ptr<EdhocCredentialManager>
-      credentialManager; ///< The credential manager
+      credentialManager;  ///< The credential manager
 };
 
-#endif // USER_CONTEXT_H
+#endif  // USER_CONTEXT_H

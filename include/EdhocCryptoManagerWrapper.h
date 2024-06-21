@@ -1,8 +1,8 @@
 #ifndef EDHOC_CRYPTO_MANAGER_WRAPPER_H
 #define EDHOC_CRYPTO_MANAGER_WRAPPER_H
 
-#include "EdhocCryptoManager.h"
 #include <napi.h>
+#include "EdhocCryptoManager.h"
 
 /**
  * @class EdhocCryptoManagerWrapper
@@ -14,7 +14,7 @@
  */
 class EdhocCryptoManagerWrapper
     : public Napi::ObjectWrap<EdhocCryptoManagerWrapper> {
-public:
+ public:
   friend class EdhocCryptoManager;
 
   /**
@@ -38,7 +38,7 @@ public:
    *
    * @param info The Napi::CallbackInfo representing the callback information.
    */
-  EdhocCryptoManagerWrapper(const Napi::CallbackInfo &info);
+  EdhocCryptoManagerWrapper(const Napi::CallbackInfo& info);
 
   /**
    * @brief Destroys the EdhocCryptoManagerWrapper instance.
@@ -57,7 +57,7 @@ public:
    */
   const std::shared_ptr<EdhocCryptoManager> GetInternalManager();
 
-private:
+ private:
   /**
    * @brief The internal EdhocCryptoManager instance.
    */
@@ -71,7 +71,7 @@ private:
    * @param info The Napi::CallbackInfo object containing the function argument.
    * @param value The Napi::Value representing the generateKey function.
    */
-  void SetGenerateKey(const Napi::CallbackInfo &info, const Napi::Value &value);
+  void SetGenerateKey(const Napi::CallbackInfo& info, const Napi::Value& value);
 
   /**
    * @brief Gets the generateKey function.
@@ -81,7 +81,7 @@ private:
    * @param info The Napi::CallbackInfo object.
    * @return Napi::Value The generateKey function.
    */
-  void SetDestroyKey(const Napi::CallbackInfo &info, const Napi::Value &value);
+  void SetDestroyKey(const Napi::CallbackInfo& info, const Napi::Value& value);
 
   /**
    * @brief Sets the makeKeyPair function.
@@ -91,7 +91,7 @@ private:
    * @param info The Napi::CallbackInfo object containing the function argument.
    * @param value The Napi::Value representing the makeKeyPair function.
    */
-  void SetMakeKeyPair(const Napi::CallbackInfo &info, const Napi::Value &value);
+  void SetMakeKeyPair(const Napi::CallbackInfo& info, const Napi::Value& value);
 
   /**
    * @brief Sets the keyAgreement function.
@@ -101,8 +101,8 @@ private:
    * @param info The Napi::CallbackInfo object containing the function argument.
    * @param value The Napi::Value representing the keyAgreement function.
    */
-  void SetKeyAgreement(const Napi::CallbackInfo &info,
-                       const Napi::Value &value);
+  void SetKeyAgreement(const Napi::CallbackInfo& info,
+                       const Napi::Value& value);
 
   /**
    * @brief Sets the sign function.
@@ -112,7 +112,7 @@ private:
    * @param info The Napi::CallbackInfo object containing the function argument.
    * @param value The Napi::Value representing the sign function.
    */
-  void SetSign(const Napi::CallbackInfo &info, const Napi::Value &value);
+  void SetSign(const Napi::CallbackInfo& info, const Napi::Value& value);
 
   /**
    * @brief Sets the verify function.
@@ -122,7 +122,7 @@ private:
    * @param info The Napi::CallbackInfo object containing the function argument.
    * @param value The Napi::Value representing the verify function.
    */
-  void SetVerify(const Napi::CallbackInfo &info, const Napi::Value &value);
+  void SetVerify(const Napi::CallbackInfo& info, const Napi::Value& value);
 
   /**
    * @brief Sets the extract function.
@@ -132,7 +132,7 @@ private:
    * @param info The Napi::CallbackInfo object containing the function argument.
    * @param value The Napi::Value representing the extract function.
    */
-  void SetExtract(const Napi::CallbackInfo &info, const Napi::Value &value);
+  void SetExtract(const Napi::CallbackInfo& info, const Napi::Value& value);
 
   /**
    * @brief Sets the expand function.
@@ -142,7 +142,7 @@ private:
    * @param info The Napi::CallbackInfo object containing the function argument.
    * @param value The Napi::Value representing the expand function.
    */
-  void SetExpand(const Napi::CallbackInfo &info, const Napi::Value &value);
+  void SetExpand(const Napi::CallbackInfo& info, const Napi::Value& value);
 
   /**
    * @brief Sets the encrypt function.
@@ -152,7 +152,7 @@ private:
    * @param info The Napi::CallbackInfo object containing the function argument.
    * @param value The Napi::Value representing the encrypt function.
    */
-  void SetEncrypt(const Napi::CallbackInfo &info, const Napi::Value &value);
+  void SetEncrypt(const Napi::CallbackInfo& info, const Napi::Value& value);
 
   /**
    * @brief Sets the decrypt function.
@@ -162,7 +162,7 @@ private:
    * @param info The Napi::CallbackInfo object containing the function argument.
    * @param value The Napi::Value representing the decrypt function.
    */
-  void SetDecrypt(const Napi::CallbackInfo &info, const Napi::Value &value);
+  void SetDecrypt(const Napi::CallbackInfo& info, const Napi::Value& value);
 
   /**
    * @brief Sets the hash function.
@@ -172,7 +172,7 @@ private:
    * @param info The Napi::CallbackInfo object containing the function argument.
    * @param value The Napi::Value representing the hash function.
    */
-  void SetHash(const Napi::CallbackInfo &info, const Napi::Value &value);
+  void SetHash(const Napi::CallbackInfo& info, const Napi::Value& value);
 
   /**
    * @brief Gets the generateKey function.
@@ -182,7 +182,7 @@ private:
    * @param info The Napi::CallbackInfo object.
    * @return Napi::Value The generateKey function.
    */
-  Napi::Value GetGenerateKey(const Napi::CallbackInfo &info);
+  Napi::Value GetGenerateKey(const Napi::CallbackInfo& info);
 
   /**
    * @brief Gets the destroyKey function.
@@ -192,7 +192,7 @@ private:
    * @param info The Napi::CallbackInfo object.
    * @return Napi::Value The destroyKey function.
    */
-  Napi::Value GetDestroyKey(const Napi::CallbackInfo &info);
+  Napi::Value GetDestroyKey(const Napi::CallbackInfo& info);
 
   /**
    * @brief Gets the makeKeyPair function.
@@ -202,7 +202,7 @@ private:
    * @param info The Napi::CallbackInfo object.
    * @return Napi::Value The makeKeyPair function.
    */
-  Napi::Value GetMakeKeyPair(const Napi::CallbackInfo &info);
+  Napi::Value GetMakeKeyPair(const Napi::CallbackInfo& info);
 
   /**
    * @brief Gets the keyAgreement function.
@@ -212,7 +212,7 @@ private:
    * @param info The Napi::CallbackInfo object.
    * @return Napi::Value The keyAgreement function.
    */
-  Napi::Value GetKeyAgreement(const Napi::CallbackInfo &info);
+  Napi::Value GetKeyAgreement(const Napi::CallbackInfo& info);
 
   /**
    * @brief Gets the sign function.
@@ -222,7 +222,7 @@ private:
    * @param info The Napi::CallbackInfo object.
    * @return Napi::Value The sign function.
    */
-  Napi::Value GetSign(const Napi::CallbackInfo &info);
+  Napi::Value GetSign(const Napi::CallbackInfo& info);
 
   /**
    * @brief Gets the verify function.
@@ -232,7 +232,7 @@ private:
    * @param info The Napi::CallbackInfo object.
    * @return Napi::Value The verify function.
    */
-  Napi::Value GetVerify(const Napi::CallbackInfo &info);
+  Napi::Value GetVerify(const Napi::CallbackInfo& info);
 
   /**
    * @brief Gets the extract function.
@@ -242,7 +242,7 @@ private:
    * @param info The Napi::CallbackInfo object.
    * @return Napi::Value The extract function.
    */
-  Napi::Value GetExtract(const Napi::CallbackInfo &info);
+  Napi::Value GetExtract(const Napi::CallbackInfo& info);
 
   /**
    * @brief Gets the expand function.
@@ -252,7 +252,7 @@ private:
    * @param info The Napi::CallbackInfo object.
    * @return Napi::Value The expand function.
    */
-  Napi::Value GetExpand(const Napi::CallbackInfo &info);
+  Napi::Value GetExpand(const Napi::CallbackInfo& info);
 
   /**
    * @brief Gets the encrypt function.
@@ -262,7 +262,7 @@ private:
    * @param info The Napi::CallbackInfo object.
    * @return Napi::Value The encrypt function.
    */
-  Napi::Value GetEncrypt(const Napi::CallbackInfo &info);
+  Napi::Value GetEncrypt(const Napi::CallbackInfo& info);
 
   /**
    * @brief Gets the decrypt function.
@@ -272,7 +272,7 @@ private:
    * @param info The Napi::CallbackInfo object.
    * @return Napi::Value The decrypt function.
    */
-  Napi::Value GetDecrypt(const Napi::CallbackInfo &info);
+  Napi::Value GetDecrypt(const Napi::CallbackInfo& info);
 
   /**
    * @brief Gets the hash function.
@@ -282,7 +282,7 @@ private:
    * @param info The Napi::CallbackInfo object.
    * @return Napi::Value The hash function.
    */
-  Napi::Value GetHash(const Napi::CallbackInfo &info);
+  Napi::Value GetHash(const Napi::CallbackInfo& info);
 
   /**
    * @brief Sets the function and ThreadSafeFunction for a given value.
@@ -298,9 +298,10 @@ private:
    * @param tsfn The Napi::ThreadSafeFunction representing the
    * ThreadSafeFunction.
    */
-  void SetFunctionAndTsfn(const Napi::Value &value, const std::string &tsfnName,
-                          Napi::FunctionReference &functionRef,
-                          Napi::ThreadSafeFunction &tsfn);
+  void SetFunctionAndTsfn(const Napi::Value& value,
+                          const std::string& tsfnName,
+                          Napi::FunctionReference& functionRef,
+                          Napi::ThreadSafeFunction& tsfn);
 };
 
-#endif // EDHOC_CRYPTO_MANAGER_WRAPPER_H
+#endif  // EDHOC_CRYPTO_MANAGER_WRAPPER_H

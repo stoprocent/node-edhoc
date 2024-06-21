@@ -13,11 +13,11 @@ extern "C" {
  * @brief Asynchronous worker class for composing EDHOC messages.
  */
 class EdhocComposeAsyncWorker : public Napi::AsyncWorker {
-public:
+ public:
   /**
    * @brief The type definition for the callback function.
    */
-  using CallbackType = std::function<void(Napi::Env &)>;
+  using CallbackType = std::function<void(Napi::Env&)>;
 
   /**
    * @brief Constructor for EdhocComposeAsyncWorker.
@@ -27,8 +27,10 @@ public:
    * @param messageNumber The message number.
    * @param callback The callback function.
    */
-  EdhocComposeAsyncWorker(Napi::Env &env, Napi::Promise::Deferred deferred,
-                          struct edhoc_context &context, int messageNumber,
+  EdhocComposeAsyncWorker(Napi::Env& env,
+                          Napi::Promise::Deferred deferred,
+                          struct edhoc_context& context,
+                          int messageNumber,
                           CallbackType callback);
 
   /**
@@ -46,14 +48,14 @@ public:
    * @brief Executes when an error occurs during the asynchronous worker task.
    * @param error The Napi::Error object.
    */
-  void OnError(const Napi::Error &error) override;
+  void OnError(const Napi::Error& error) override;
 
-private:
-  Napi::Promise::Deferred deferred;     ///< The deferred promise object.
-  struct edhoc_context &context;        ///< The EDHOC context.
-  int messageNumber;                    ///< The message number.
-  CallbackType callback;                ///< The callback function.
-  std::vector<uint8_t> composedMessage; ///< The composed message.
+ private:
+  Napi::Promise::Deferred deferred;      ///< The deferred promise object.
+  struct edhoc_context& context;         ///< The EDHOC context.
+  int messageNumber;                     ///< The message number.
+  CallbackType callback;                 ///< The callback function.
+  std::vector<uint8_t> composedMessage;  ///< The composed message.
 };
 
-#endif // EDHOC_COMPOSE_ASYNC_WORKER_H
+#endif  // EDHOC_COMPOSE_ASYNC_WORKER_H

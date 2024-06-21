@@ -1,291 +1,363 @@
 #include <iostream>
 #include <thread>
 
+#include "EdhocComposeAsyncWorker.h"
+#include "EdhocCredentialManagerWrapper.h"
+#include "EdhocCryptoManagerWrapper.h"
+#include "EdhocExportAsyncWorker.h"
+#include "EdhocProcessAsyncWorker.h"
 #include "LibEDHOC.h"
 #include "Suites.h"
 #include "Utils.h"
-#include "EdhocCryptoManagerWrapper.h"
-#include "EdhocCredentialManagerWrapper.h"
-#include "EdhocComposeAsyncWorker.h"
-#include "EdhocProcessAsyncWorker.h"
-#include "EdhocExportAsyncWorker.h"
 
-using namespace Napi;
+static constexpr const char* kErrorFailedToInitializeEdhocContext =
+    "Failed to initialize EDHOC context.";
+static constexpr const char* kErrorFailedToSetEdhocConnectionId =
+    "Failed to set EDHOC Connection ID.";
+static constexpr const char* kErrorFailedToSetEdhocMethod =
+    "Failed to set EDHOC Method.";
+static constexpr const char* kErrorArraySuiteIndexesExpected =
+    "Array of suite indexes expected";
+static constexpr const char* kErrorInvalidCipherSuiteIndex =
+    "Invalid cipher suite index";
+static constexpr const char* kErrorFailedToSetCipherSuites =
+    "Failed to set cipher suites";
+static constexpr const char* kErrorExpectedFirstArgumentToBeBuffer =
+    "Expected first argument to be a Buffer";
+static constexpr const char* kErrorExpectedAFunction = "Expected a function";
+static constexpr const char* kClassNameLibEDHOC = "LibEDHOC";
+static constexpr const char* kMethodComposeMessage1 = "composeMessage1";
+static constexpr const char* kMethodProcessMessage1 = "processMessage1";
+static constexpr const char* kMethodComposeMessage2 = "composeMessage2";
+static constexpr const char* kMethodProcessMessage2 = "processMessage2";
+static constexpr const char* kMethodComposeMessage3 = "composeMessage3";
+static constexpr const char* kMethodProcessMessage3 = "processMessage3";
+static constexpr const char* kMethodComposeMessage4 = "composeMessage4";
+static constexpr const char* kMethodProcessMessage4 = "processMessage4";
+static constexpr const char* kMethodExportOSCORE = "exportOSCORE";
+static constexpr const char* kJsPropertyConnectionID = "connectionID";
+static constexpr const char* kJsPropertyPeerConnectionID = "peerConnectionID";
+static constexpr const char* kJsPropertyMethod = "method";
+static constexpr const char* kJsPropertyCipherSuites = "cipherSuites";
+static constexpr const char* kJsPropertyLogger = "logger";
+static constexpr const char* kLogggerFunctionName = "Logger";
 
-LibEDHOC::LibEDHOC(const Napi::CallbackInfo& info) : Napi::ObjectWrap<LibEDHOC>(info) {
-    Napi::Env env = info.Env();
-    Napi::HandleScope scope(env);
+LibEDHOC::LibEDHOC(const Napi::CallbackInfo& info)
+    : Napi::ObjectWrap<LibEDHOC>(info) {
+  Napi::Env env = info.Env();
+  Napi::HandleScope scope(env);
 
-    int ret = EDHOC_ERROR_GENERIC_ERROR;
-    
-    // Initialize EDHOC context
-    this->context = { };
-    ret = edhoc_context_init(&this->context);
+  int ret = EDHOC_ERROR_GENERIC_ERROR;
 
-    // Connection ID
-    this->SetCID(info, info[0]);
-    
-    // Method
-    this->SetMethod(info, info[1]);
+  // Initialize EDHOC context
+  context = {};
+  ret = edhoc_context_init(&context);
 
-    // Suites
-    this->SetCipherSuites(info, info[2]);
+  // Connection ID
+  SetCID(info, info[0]);
 
-    // Crypto Manager
-    EdhocCryptoManagerWrapper* cryptoWrapper = Napi::ObjectWrap<EdhocCryptoManagerWrapper>::Unwrap(info[4].As<Napi::Object>());
-    std::shared_ptr<EdhocCryptoManager> cryptoManager = cryptoWrapper->GetInternalManager();
+  // Method
+  SetMethod(info, info[1]);
 
-    // Keys
-	ret = edhoc_bind_keys(&this->context, cryptoManager.get()->keys);
+  // Suites
+  SetCipherSuites(info, info[2]);
 
-    // Crypto
-	ret = edhoc_bind_crypto(&this->context, cryptoManager.get()->crypto);
+  // Crypto Manager
+  EdhocCryptoManagerWrapper* cryptoWrapper =
+      Napi::ObjectWrap<EdhocCryptoManagerWrapper>::Unwrap(
+          info[4].As<Napi::Object>());
+  std::shared_ptr<EdhocCryptoManager> cryptoManager =
+      cryptoWrapper->GetInternalManager();
 
-    // Credentials
-    EdhocCredentialManagerWrapper* credentialWrapper = Napi::ObjectWrap<EdhocCredentialManagerWrapper>::Unwrap(info[3].As<Napi::Object>());
-    std::shared_ptr<EdhocCredentialManager> credentialManager = credentialWrapper->GetInternalManager();
+  // Keys
+  ret = edhoc_bind_keys(&context, cryptoManager.get()->keys);
 
-    ret = edhoc_bind_credentials(&this->context, credentialManager.get()->credentials);
+  // Crypto
+  ret = edhoc_bind_crypto(&context, cryptoManager.get()->crypto);
 
-    // EAD
-    std::shared_ptr<EdhocEadManager> eadManager = std::make_shared<EdhocEadManager>();
-    ret = edhoc_bind_ead(&this->context, eadManager.get()->ead);
+  // Credentials
+  EdhocCredentialManagerWrapper* credentialWrapper =
+      Napi::ObjectWrap<EdhocCredentialManagerWrapper>::Unwrap(
+          info[3].As<Napi::Object>());
+  std::shared_ptr<EdhocCredentialManager> credentialManager =
+      credentialWrapper->GetInternalManager();
 
-    // Logger
-    this->context.logger = LibEDHOC::Logger;
+  ret = edhoc_bind_credentials(&context,
+                               credentialManager.get()->credentials);
 
-    // User Context
-    this->userContext = std::make_shared<UserContext>(cryptoManager, eadManager, credentialManager);
-    this->userContext->parent = Reference<Object>::New(info.This().As<Object>());
+  // EAD
+  std::shared_ptr<EdhocEadManager> eadManager =
+      std::make_shared<EdhocEadManager>();
+  ret = edhoc_bind_ead(&context, eadManager.get()->ead);
 
-    ret = edhoc_set_user_context(&this->context, static_cast<void*>(this->userContext.get()));
-    
-    if (ret != EDHOC_SUCCESS) {
-        Napi::TypeError::New(env, "Failed to initialize EDHOC context.")
-            .ThrowAsJavaScriptException();
-    }
+  // Logger
+  context.logger = LibEDHOC::Logger;
+
+  // User Context
+  userContext = std::make_shared<UserContext>(
+      cryptoManager, eadManager, credentialManager);
+  userContext->parent =
+      Reference<Napi::Object>::New(info.This().As<Napi::Object>());
+
+  ret = edhoc_set_user_context(&context,
+                               static_cast<void*>(userContext.get()));
+
+  if (ret != EDHOC_SUCCESS) {
+    Napi::TypeError::New(env, kErrorFailedToInitializeEdhocContext)
+        .ThrowAsJavaScriptException();
+  }
 }
 
 LibEDHOC::~LibEDHOC() {
-    this->context = { };
+  context = {};
 }
 
-Napi::Value LibEDHOC::GetCID(const Napi::CallbackInfo &info) {
-    return Utils::CreateJsValueFromEdhocCid(info.Env(), this->cid);
+Napi::Value LibEDHOC::GetCID(const Napi::CallbackInfo& info) {
+  return Utils::CreateJsValueFromEdhocCid(info.Env(), cid);
 }
 
-void LibEDHOC::SetCID(const Napi::CallbackInfo &info, const Napi::Value &value) {
-    this->cid = Utils::ConvertJsValueToEdhocCid(value);
-    int result = edhoc_set_connection_id(&this->context, this->cid);
-    if (result != EDHOC_SUCCESS) {
-        Napi::TypeError::New(info.Env(), "Failed to set EDHOC Connection ID.")
-            .ThrowAsJavaScriptException();
+void LibEDHOC::SetCID(const Napi::CallbackInfo& info,
+                      const Napi::Value& value) {
+  cid = Utils::ConvertJsValueToEdhocCid(value);
+  int result = edhoc_set_connection_id(&context, cid);
+  if (result != EDHOC_SUCCESS) {
+    Napi::TypeError::New(info.Env(), kErrorFailedToSetEdhocConnectionId)
+        .ThrowAsJavaScriptException();
+  }
+}
+
+Napi::Value LibEDHOC::GetPeerCID(const Napi::CallbackInfo& info) {
+  return Utils::CreateJsValueFromEdhocCid(
+      info.Env(), context.EDHOC_PRIVATE(peer_cid));
+}
+
+Napi::Value LibEDHOC::GetMethod(const Napi::CallbackInfo& info) {
+  return Napi::Number::New(info.Env(), static_cast<int>(method));
+}
+
+void LibEDHOC::SetMethod(const Napi::CallbackInfo& info,
+                         const Napi::Value& value) {
+  method =
+      static_cast<edhoc_method>(value.As<Napi::Number>().Int32Value());
+  int result = edhoc_set_method(&context, method);
+  if (result != EDHOC_SUCCESS) {
+    Napi::TypeError::New(info.Env(), kErrorFailedToSetEdhocMethod)
+        .ThrowAsJavaScriptException();
+  }
+}
+
+void LibEDHOC::SetCipherSuites(const Napi::CallbackInfo& info,
+                               const Napi::Value& value) {
+  Napi::Env env = info.Env();
+
+  if (!value.IsArray()) {
+    Napi::TypeError::New(env, kErrorArraySuiteIndexesExpected)
+        .ThrowAsJavaScriptException();
+    return;
+  }
+
+  Napi::Array jsArray = value.As<Napi::Array>();
+  std::vector<const struct edhoc_cipher_suite*> selected_suites;
+
+  for (uint32_t i = 0; i < jsArray.Length(); i++) {
+    uint32_t index = jsArray.Get(i).As<Napi::Number>().Uint32Value();
+    if (index < suite_pointers_count && suite_pointers[index] != nullptr) {
+      selected_suites.push_back(suite_pointers[index]);
+    } else {
+      Napi::RangeError::New(env, kErrorInvalidCipherSuiteIndex)
+          .ThrowAsJavaScriptException();
+      return;
     }
+  }
+
+  int ret = edhoc_set_cipher_suites(
+      &context, *selected_suites.data(), (size_t)selected_suites.size());
+  if (ret != 0) {
+    Napi::TypeError::New(env, kErrorFailedToSetCipherSuites)
+        .ThrowAsJavaScriptException();
+    return;
+  }
 }
 
-Napi::Value LibEDHOC::GetPeerCID(const Napi::CallbackInfo &info) {
-    return Utils::CreateJsValueFromEdhocCid(info.Env(), this->context.EDHOC_PRIVATE(peer_cid));
+Napi::Value LibEDHOC::GetCipherSuites(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  Napi::Array result =
+      Napi::Array::New(env, context.EDHOC_PRIVATE(csuite_len));
+  for (size_t i = 0; i < context.EDHOC_PRIVATE(csuite_len); i++) {
+    result.Set(
+        i,
+        Napi::Number::New(env, context.EDHOC_PRIVATE(csuite)[i].value));
+  }
+  return result;
 }
 
-Napi::Value LibEDHOC::GetMethod(const Napi::CallbackInfo &info) {
-    return Napi::Number::New(info.Env(), static_cast<int>(this->method));
+Napi::Value LibEDHOC::GetLogger(const Napi::CallbackInfo& info) {
+  return logger.Value();
 }
 
-void LibEDHOC::SetMethod(const Napi::CallbackInfo &info, const Napi::Value &value) {
-    this->method = static_cast<edhoc_method>(value.As<Napi::Number>().Int32Value());
-    int result = edhoc_set_method(&this->context, this->method);
-    if (result != EDHOC_SUCCESS) {
-        Napi::TypeError::New(info.Env(), "Failed to set EDHOC Method.")
-            .ThrowAsJavaScriptException();
+void LibEDHOC::SetLogger(const Napi::CallbackInfo& info,
+                         const Napi::Value& value) {
+  if (!info[0].IsFunction()) {
+    Napi::TypeError::New(info.Env(), kErrorExpectedAFunction)
+        .ThrowAsJavaScriptException();
+  }
+  Napi::Function jsCallback = info[0].As<Napi::Function>();
+  logger = Napi::Persistent(jsCallback);
+  userContext->logger = Napi::ThreadSafeFunction::New(
+      info.Env(), jsCallback, kLogggerFunctionName, 0, 1);
+}
+
+void LibEDHOC::Logger(void* usercontext,
+                      const char* name,
+                      const uint8_t* buffer,
+                      size_t buffer_length) {
+  UserContext* context = static_cast<UserContext*>(usercontext);
+  if (context->logger == nullptr) {
+    return;
+  }
+  context->logger.NonBlockingCall(
+      [name, buffer, buffer_length](Napi::Env env, Napi::Function jsCallback) {
+        jsCallback.Call(
+            {Napi::String::New(env, name),
+             Napi::Buffer<uint8_t>::Copy(env, buffer, buffer_length)});
+      });
+}
+
+Napi::Value LibEDHOC::ComposeMessage(const Napi::CallbackInfo& info,
+                                     enum edhoc_message messageNumber) {
+  Napi::Env env = info.Env();
+  Napi::HandleScope scope(env);
+
+  if (info[0].IsArray()) {
+    try {
+      userContext->GetEadManager()->StoreEad(messageNumber,
+                                                   info[0].As<Napi::Array>());
+    } catch (const Napi::Error& e) {
+      e.ThrowAsJavaScriptException();
+      return env.Null();
     }
+  }
+
+  auto deferred = Napi::Promise::Deferred::New(env);
+
+  EdhocComposeAsyncWorker::CallbackType callback =
+      [this, messageNumber](Napi::Env& env) {
+        userContext->GetEadManager()->ClearEadByMessage(messageNumber);
+      };
+
+  EdhocComposeAsyncWorker* worker = new EdhocComposeAsyncWorker(
+      env, deferred, context, messageNumber, callback);
+  worker->Queue();
+
+  return deferred.Promise();
 }
 
-void LibEDHOC::SetCipherSuites(const Napi::CallbackInfo &info, const Napi::Value &value) {
-    Napi::Env env = info.Env();
+Napi::Value LibEDHOC::ProcessMessage(const Napi::CallbackInfo& info,
+                                     enum edhoc_message messageNumber) {
+  Napi::Env env = info.Env();
+  Napi::HandleScope scope(env);
 
-    if (!value.IsArray()) {
-        Napi::TypeError::New(env, "Array of suite indexes expected")
-            .ThrowAsJavaScriptException();
-        return;
-    }
+  if (info.Length() < 1 || !info[0].IsBuffer()) {
+    Napi::TypeError::New(env, kErrorExpectedFirstArgumentToBeBuffer)
+        .ThrowAsJavaScriptException();
+    return env.Null();
+  }
 
-    Napi::Array jsArray = value.As<Napi::Array>();
-    std::vector<const struct edhoc_cipher_suite *> selected_suites;
-    
-    for (uint32_t i = 0; i < jsArray.Length(); i++) {
-        uint32_t index = jsArray.Get(i).As<Napi::Number>().Uint32Value();
-        if (index < suite_pointers_count && suite_pointers[index] != nullptr) {
-            selected_suites.push_back(suite_pointers[index]);
-        } else {
-            Napi::RangeError::New(env, "Invalid cipher suite index")
-                .ThrowAsJavaScriptException();
-            return;
-        }
-    }
+  Napi::Buffer<uint8_t> inputBuffer = info[0].As<Napi::Buffer<uint8_t>>();
 
-    int ret = edhoc_set_cipher_suites(&this->context, *selected_suites.data(), (size_t)selected_suites.size());
-    if (ret != 0) {
-        Napi::TypeError::New(env, "Failed to set cipher suites")
-            .ThrowAsJavaScriptException();
-        return;
-    }
-}
+  auto deferred = Napi::Promise::Deferred::New(env);
 
-Napi::Value LibEDHOC::GetCipherSuites(const Napi::CallbackInfo &info) {
-    Napi::Env env = info.Env();
-    Napi::Array result = Napi::Array::New(env, this->context.EDHOC_PRIVATE(csuite_len));
-    for (size_t i = 0; i < this->context.EDHOC_PRIVATE(csuite_len); i++) {
-        result.Set(i, Napi::Number::New(env, this->context.EDHOC_PRIVATE(csuite)[i].value));
-    }
-    return result;
-}
-
-Napi::Value LibEDHOC::GetLogger(const Napi::CallbackInfo &info) {
-    return this->logger.Value();
-}
-
-void LibEDHOC::SetLogger(const Napi::CallbackInfo &info, const Napi::Value &value) {
-    if (!info[0].IsFunction()) {
-        Napi::TypeError::New(info.Env(), "Expected a function")
-            .ThrowAsJavaScriptException();
-    }
-    Napi::Function jsCallback = info[0].As<Napi::Function>();
-    this->logger = Napi::Persistent(jsCallback);
-    this->userContext->logger = Napi::ThreadSafeFunction::New(info.Env(), jsCallback, "Logger", 0, 1);
-}
-
-void LibEDHOC::Logger(void *usercontext, const char *name, const uint8_t *buffer, size_t buffer_length) {
-    UserContext* context = static_cast<UserContext*>(usercontext);
-    if (context->logger == nullptr) {
-        return;
-    }
-    context->logger.NonBlockingCall([name, buffer, buffer_length](Napi::Env env, Napi::Function jsCallback) {
-        jsCallback.Call({
-            Napi::String::New(env, name), 
-            Napi::Buffer<uint8_t>::Copy(env, buffer, buffer_length)
-        });
-    });
-}
-
-Napi::Value LibEDHOC::ComposeMessage(const Napi::CallbackInfo& info, enum edhoc_message messageNumber) {
-    Napi::Env env = info.Env();
-    Napi::HandleScope scope(env);
-
-    if (info[0].IsArray()) {
-        try {
-            this->userContext->GetEadManager()->StoreEad(messageNumber, info[0].As<Napi::Array>());
-        }
-        catch (const Napi::Error &e) {
-            e.ThrowAsJavaScriptException();
-            return env.Null();
-        }
-    }
-
-    auto deferred = Napi::Promise::Deferred::New(env);
-
-    EdhocComposeAsyncWorker::CallbackType callback = [this, messageNumber](Napi::Env &env) {
-        this->userContext->GetEadManager()->ClearEadByMessage(messageNumber);
-    };
-
-    EdhocComposeAsyncWorker* worker = new EdhocComposeAsyncWorker(env, deferred, this->context, messageNumber, callback);
-    worker->Queue();
-
-    return deferred.Promise();
-}
-
-Napi::Value LibEDHOC::ProcessMessage(const Napi::CallbackInfo &info, enum edhoc_message messageNumber) {
-    Napi::Env env = info.Env();
-    Napi::HandleScope scope(env);
-
-    if (info.Length() < 1 || !info[0].IsBuffer()) {
-        Napi::TypeError::New(env, "Expected first argument to be a Buffer")
-            .ThrowAsJavaScriptException();
-        return env.Null();
-    }
-
-    Napi::Buffer<uint8_t> inputBuffer = info[0].As<Napi::Buffer<uint8_t>>();
-
-    auto deferred = Napi::Promise::Deferred::New(env);
-
-    EdhocProcessAsyncWorker::CallbackType callback = [userContext = this->userContext, messageNumber](Napi::Env &env) {
-        Napi::Array EADs = userContext->GetEadManager()->GetEadByMessage(env, messageNumber);
+  EdhocProcessAsyncWorker::CallbackType callback =
+      [this, messageNumber](Napi::Env& env) {
+        Napi::Array EADs =
+            userContext->GetEadManager()->GetEadByMessage(env, messageNumber);
         userContext->GetEadManager()->ClearEadByMessage(messageNumber);
         return EADs;
-    };
+      };
 
-    EdhocProcessAsyncWorker* worker = new EdhocProcessAsyncWorker(env, deferred, this->context, messageNumber, inputBuffer, callback);
-    worker->Queue();
+  EdhocProcessAsyncWorker* worker = new EdhocProcessAsyncWorker(
+      env, deferred, context, messageNumber, inputBuffer, callback);
+  worker->Queue();
 
-    return deferred.Promise();
+  return deferred.Promise();
 }
 
 Napi::Value LibEDHOC::ComposeMessage1(const Napi::CallbackInfo& info) {
-    return ComposeMessage(info, EDHOC_MSG_1);
+  return ComposeMessage(info, EDHOC_MSG_1);
 }
 
-Napi::Value LibEDHOC::ProcessMessage1(const Napi::CallbackInfo &info) {
-    return ProcessMessage(info, EDHOC_MSG_1);
+Napi::Value LibEDHOC::ProcessMessage1(const Napi::CallbackInfo& info) {
+  return ProcessMessage(info, EDHOC_MSG_1);
 }
 
-Napi::Value LibEDHOC::ComposeMessage2(const Napi::CallbackInfo &info) {
-    return ComposeMessage(info, EDHOC_MSG_2);
+Napi::Value LibEDHOC::ComposeMessage2(const Napi::CallbackInfo& info) {
+  return ComposeMessage(info, EDHOC_MSG_2);
 }
 
-Napi::Value LibEDHOC::ProcessMessage2(const Napi::CallbackInfo &info) {
-    return ProcessMessage(info, EDHOC_MSG_2);
+Napi::Value LibEDHOC::ProcessMessage2(const Napi::CallbackInfo& info) {
+  return ProcessMessage(info, EDHOC_MSG_2);
 }
 
-Napi::Value LibEDHOC::ComposeMessage3(const Napi::CallbackInfo &info) {
-    return ComposeMessage(info, EDHOC_MSG_3);
+Napi::Value LibEDHOC::ComposeMessage3(const Napi::CallbackInfo& info) {
+  return ComposeMessage(info, EDHOC_MSG_3);
 }
 
-Napi::Value LibEDHOC::ProcessMessage3(const Napi::CallbackInfo &info) {
-    return ProcessMessage(info, EDHOC_MSG_3);
+Napi::Value LibEDHOC::ProcessMessage3(const Napi::CallbackInfo& info) {
+  return ProcessMessage(info, EDHOC_MSG_3);
 }
 
-Napi::Value LibEDHOC::ComposeMessage4(const Napi::CallbackInfo &info) {
-    return ComposeMessage(info, EDHOC_MSG_4);
+Napi::Value LibEDHOC::ComposeMessage4(const Napi::CallbackInfo& info) {
+  return ComposeMessage(info, EDHOC_MSG_4);
 }
 
-Napi::Value LibEDHOC::ProcessMessage4(const Napi::CallbackInfo &info) {
-    return ProcessMessage(info, EDHOC_MSG_4);
+Napi::Value LibEDHOC::ProcessMessage4(const Napi::CallbackInfo& info) {
+  return ProcessMessage(info, EDHOC_MSG_4);
 }
 
-Napi::Value LibEDHOC::ExportOSCORE(const Napi::CallbackInfo &info) {
-    Napi::Env env = info.Env();
-    Napi::HandleScope scope(env);
+Napi::Value LibEDHOC::ExportOSCORE(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  Napi::HandleScope scope(env);
 
-    auto deferred = Napi::Promise::Deferred::New(env);
+  auto deferred = Napi::Promise::Deferred::New(env);
 
-    EdhocExportAsyncWorker* worker = new EdhocExportAsyncWorker(env, deferred, this->context);
-    worker->Queue();
+  EdhocExportAsyncWorker* worker =
+      new EdhocExportAsyncWorker(env, deferred, context);
+  worker->Queue();
 
-    return deferred.Promise();
+  return deferred.Promise();
 }
 
 Napi::Object LibEDHOC::Init(Napi::Env env, Napi::Object exports) {
-    Napi::HandleScope scope(env);
-    Napi::Function func = DefineClass(env, "LibEDHOC", {
-        InstanceAccessor("connectionID", &LibEDHOC::GetCID, &LibEDHOC::SetCID),
-        InstanceAccessor<&LibEDHOC::GetPeerCID>("peerConnectionID"),
-        InstanceAccessor("method", &LibEDHOC::GetMethod, &LibEDHOC::SetMethod),
-        InstanceAccessor("cipherSuites", &LibEDHOC::GetCipherSuites, &LibEDHOC::SetCipherSuites),
-        InstanceAccessor("logger", &LibEDHOC::GetLogger, &LibEDHOC::SetLogger),
-        InstanceMethod("composeMessage1", &LibEDHOC::ComposeMessage1),
-        InstanceMethod("processMessage1", &LibEDHOC::ProcessMessage1),
-        InstanceMethod("composeMessage2", &LibEDHOC::ComposeMessage2),
-        InstanceMethod("processMessage2", &LibEDHOC::ProcessMessage2),
-        InstanceMethod("composeMessage3", &LibEDHOC::ComposeMessage3),
-        InstanceMethod("processMessage3", &LibEDHOC::ProcessMessage3),
-        InstanceMethod("composeMessage4", &LibEDHOC::ComposeMessage4),
-        InstanceMethod("processMessage4", &LibEDHOC::ProcessMessage4),
-        InstanceMethod("exportOSCORE", &LibEDHOC::ExportOSCORE),
-    });
+  Napi::HandleScope scope(env);
+  Napi::Function func = DefineClass(
+      env,
+      kClassNameLibEDHOC,
+      {
+          InstanceAccessor(
+              kJsPropertyConnectionID, &LibEDHOC::GetCID, &LibEDHOC::SetCID),
+          InstanceAccessor<&LibEDHOC::GetPeerCID>(kJsPropertyPeerConnectionID),
+          InstanceAccessor(
+              kJsPropertyMethod, &LibEDHOC::GetMethod, &LibEDHOC::SetMethod),
+          InstanceAccessor(kJsPropertyCipherSuites,
+                           &LibEDHOC::GetCipherSuites,
+                           &LibEDHOC::SetCipherSuites),
+          InstanceAccessor(
+              kJsPropertyLogger, &LibEDHOC::GetLogger, &LibEDHOC::SetLogger),
+          InstanceMethod(kMethodComposeMessage1, &LibEDHOC::ComposeMessage1),
+          InstanceMethod(kMethodProcessMessage1, &LibEDHOC::ProcessMessage1),
+          InstanceMethod(kMethodComposeMessage2, &LibEDHOC::ComposeMessage2),
+          InstanceMethod(kMethodProcessMessage2, &LibEDHOC::ProcessMessage2),
+          InstanceMethod(kMethodComposeMessage3, &LibEDHOC::ComposeMessage3),
+          InstanceMethod(kMethodProcessMessage3, &LibEDHOC::ProcessMessage3),
+          InstanceMethod(kMethodComposeMessage4, &LibEDHOC::ComposeMessage4),
+          InstanceMethod(kMethodProcessMessage4, &LibEDHOC::ProcessMessage4),
+          InstanceMethod(kMethodExportOSCORE, &LibEDHOC::ExportOSCORE),
+      });
 
-    Napi::FunctionReference* constructor = new Napi::FunctionReference();
-    *constructor = Napi::Persistent(func);
-    env.SetInstanceData(constructor);
+  Napi::FunctionReference* constructor = new Napi::FunctionReference();
+  *constructor = Napi::Persistent(func);
+  env.SetInstanceData(constructor);
 
-    exports.Set("LibEDHOC", func);
-    return exports;
+  exports.Set(kClassNameLibEDHOC, func);
+  return exports;
 }

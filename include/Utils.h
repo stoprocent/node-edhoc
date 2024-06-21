@@ -1,8 +1,8 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include <cstdint>
 #include <napi.h>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -19,8 +19,7 @@ extern "C" {
  * resources and converting between JavaScript and native types.
  */
 class Utils {
-
-public:
+ public:
   /**
    * Resets a JavaScript function reference and releases a thread-safe function.
    * This helper function is designed to encapsulate the cleanup logic for N-API
@@ -35,8 +34,8 @@ public:
    * JavaScript functions asynchronously from native threads. This thread-safe
    * function will be released and set to nullptr.
    */
-  static void ResetAndRelease(Napi::FunctionReference &funcRef,
-                              Napi::ThreadSafeFunction &tsfn);
+  static void ResetAndRelease(Napi::FunctionReference& funcRef,
+                              Napi::ThreadSafeFunction& tsfn);
 
   /**
    * Invokes a JavaScript function with promise handling.
@@ -51,8 +50,9 @@ public:
    * function call.
    */
   static void InvokeJSFunctionWithPromiseHandling(
-      Napi::Env env, Napi::Function jsCallback,
-      const std::vector<napi_value> &args,
+      Napi::Env env,
+      Napi::Function jsCallback,
+      const std::vector<napi_value>& args,
       std::function<void(Napi::Env, Napi::Value)> callbackLambda);
 
   /**
@@ -73,8 +73,8 @@ public:
    * @param value The EDHOC connection ID structure.
    * @return A N-API value representing the connection ID.
    */
-  static Napi::Value
-  CreateJsValueFromEdhocCid(Napi::Env env, struct edhoc_connection_id value);
+  static Napi::Value CreateJsValueFromEdhocCid(
+      Napi::Env env, struct edhoc_connection_id value);
 
   /**
    * Converts a JavaScript number to a strongly typed enum.
@@ -84,7 +84,7 @@ public:
    * @return The enum value cast from the input number.
    */
   template <typename EnumType>
-  static EnumType ConvertToEnum(const Napi::Value &value) {
+  static EnumType ConvertToEnum(const Napi::Value& value) {
     if (!value.IsNumber()) {
       throw Napi::TypeError::New(value.Env(), "Input value must be a number");
     }
@@ -100,8 +100,9 @@ public:
    * @param length Pointer to a size_t variable where the length of the encoded
    * data will be stored.
    */
-  static void EncodeInt64ToBuffer(int64_t value, uint8_t *buffer,
-                                  size_t *length);
+  static void EncodeInt64ToBuffer(int64_t value,
+                                  uint8_t* buffer,
+                                  size_t* length);
 };
 
-#endif // UTILS_H
+#endif  // UTILS_H
