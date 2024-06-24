@@ -7,8 +7,8 @@
 #include "UserContext.h"
 #include "Utils.h"
 
-static constexpr const char* kLabel = "label";
-static constexpr const char* kPrivateKeyId = "privateKeyId";
+static constexpr const char* kFormat = "format";
+static constexpr const char* kPrivateKeyId = "privateKeyID";
 static constexpr const char* kPublicKey = "publicKey";
 static constexpr const char* kKid = "kid";
 static constexpr const char* kIsCBOR = "isCBOR";
@@ -191,11 +191,11 @@ int EdhocCredentialManager::callFetchCredentials(
         arguments,
         [&promise, &credentials](Napi::Env env, Napi::Value result) {
           auto credsObj = result.As<Napi::Object>();
-          if (credsObj.IsObject() == false || credsObj.Has(kLabel) == false) {
+          if (credsObj.IsObject() == false || credsObj.Has(kFormat) == false) {
             promise.set_value(EDHOC_ERROR_CREDENTIALS_FAILURE);
             throw Napi::Error::New(env, kInvalidInputCredentialTypeError);
           }
-          int label = credsObj.Get(kLabel).As<Napi::Number>().Int32Value();
+          int label = credsObj.Get(kFormat).As<Napi::Number>().Int32Value();
 
           switch (label) {
             case EDHOC_COSE_HEADER_KID:
@@ -243,7 +243,7 @@ int EdhocCredentialManager::callVerifyCredentials(
                            &public_key_length](Napi::Env env,
                                                Napi::Function jsCallback) {
     Napi::Object resultObject = Napi::Object::New(env);
-    resultObject.Set(kLabel, Napi::Number::New(env, credentials->label));
+    resultObject.Set(kFormat, Napi::Number::New(env, credentials->label));
 
     switch (credentials->label) {
       case EDHOC_COSE_HEADER_KID:
@@ -280,7 +280,7 @@ int EdhocCredentialManager::callVerifyCredentials(
             throw Napi::Error::New(env, kInvalidInputCredentialTypeError);
           }
 
-          int label = credsObj.Get(kLabel).As<Napi::Number>().Int32Value();
+          int label = credsObj.Get(kFormat).As<Napi::Number>().Int32Value();
           switch (label) {
             case EDHOC_COSE_HEADER_KID:
               convert_js_to_edhoc_kid(credsObj, credentials);

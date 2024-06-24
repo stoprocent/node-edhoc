@@ -2,30 +2,36 @@
   "name": "edhoc",
   "description": "",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
-    "install": "npx node-gyp-build",
     "debug": "npx node-gyp build --debug",
-    "prebuildify": "prebuildify --napi --target 16.0.0 --force --strip --verbose"
+    "install": "node-gyp-build && npx tsc",
+    "lint": "eslint \"**/*.js\"",
+    "lint-fix": "eslint \"**/*.js\" --fix",
+    "prebuildify": "prebuildify --napi --target 16.0.0 --force --strip --verbose",
+    "prebuildify-cross": "prebuildify-cross --napi --target 16.0.0 --force --strip --verbose",
+    "semantic-release": "semantic-release",
+    "pretest": "npm run rebuild",
+    "rebuild": "node-gyp rebuild"
   },
   "private": false,
   "gypfile": true,
   "license": "MIT",
   "dependencies": {
-    "bindings": "~1.2.1",
+    "bindings": "^1.5.0",
     "elliptic": "^6.5.5",
     "futoin-hkdf": "^1.5.3",
-    "node-addon-api": "^4.3.0",
-    "node-gyp-build": "^4.6.1"
+    "node-addon-api": "^8.0.0",
+    "node-gyp-build": "^4.8.1"
   },
   "devDependencies": {
-    "@commitlint/cli": "^18.6.0",
-    "@commitlint/config-conventional": "^18.6.0",
+    "@commitlint/cli": "^19.3.0",
+    "@commitlint/config-conventional": "^19.2.2",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
-    "@semantic-release/gitlab": "^13.0.2",
-    "prebuildify": "^5.0.1",
-    "semantic-release": "^23.0.0",
-    "semantic-release-jira-notes": "^3.0.0"
+    "@semantic-release/gitlab": "^13.1.0",
+    "@types/elliptic": "^6.4.18",
+    "prebuildify": "^6.0.1",
+    "semantic-release": "^24.0.0"
   }
 }

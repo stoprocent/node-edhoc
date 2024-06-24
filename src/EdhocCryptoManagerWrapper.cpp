@@ -29,6 +29,12 @@ EdhocCryptoManagerWrapper::EdhocCryptoManagerWrapper(
     const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<EdhocCryptoManagerWrapper>(info) {
   manager = std::make_shared<EdhocCryptoManager>();
+  Napi::Value make = info.This().As<Napi::Object>().Get(kMakeKeyPairAccessor);
+  if (make.IsFunction()) {
+    printf("make is a function\n");
+  }
+
+  SetFunctionAndTsfn(make.As<Napi::Function>(), kTsfnNameMakeKeyPair, manager->makeKeyPairFuncRef, manager->makeKeyPairTsfn);
 }
 
 EdhocCryptoManagerWrapper::~EdhocCryptoManagerWrapper() {}
@@ -210,9 +216,9 @@ Napi::Object EdhocCryptoManagerWrapper::Init(Napi::Env env,
        InstanceAccessor(kDestroyKeyAccessor,
                         &EdhocCryptoManagerWrapper::GetDestroyKey,
                         &EdhocCryptoManagerWrapper::SetDestroyKey),
-       InstanceAccessor(kMakeKeyPairAccessor,
-                        &EdhocCryptoManagerWrapper::GetMakeKeyPair,
-                        &EdhocCryptoManagerWrapper::SetMakeKeyPair),
+      //  InstanceAccessor(kMakeKeyPairAccessor,
+      //                   &EdhocCryptoManagerWrapper::GetMakeKeyPair,
+      //                   &EdhocCryptoManagerWrapper::SetMakeKeyPair),
        InstanceAccessor(kKeyAgreementAccessor,
                         &EdhocCryptoManagerWrapper::GetKeyAgreement,
                         &EdhocCryptoManagerWrapper::SetKeyAgreement),

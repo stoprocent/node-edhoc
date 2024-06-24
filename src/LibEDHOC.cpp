@@ -25,7 +25,7 @@ static constexpr const char* kErrorFailedToSetCipherSuites =
 static constexpr const char* kErrorExpectedFirstArgumentToBeBuffer =
     "Expected first argument to be a Buffer";
 static constexpr const char* kErrorExpectedAFunction = "Expected a function";
-static constexpr const char* kClassNameLibEDHOC = "LibEDHOC";
+static constexpr const char* kClassNameLibEDHOC = "EDHOC";
 static constexpr const char* kMethodComposeMessage1 = "composeMessage1";
 static constexpr const char* kMethodProcessMessage1 = "processMessage1";
 static constexpr const char* kMethodComposeMessage2 = "composeMessage2";
@@ -39,6 +39,7 @@ static constexpr const char* kJsPropertyConnectionID = "connectionID";
 static constexpr const char* kJsPropertyPeerConnectionID = "peerConnectionID";
 static constexpr const char* kJsPropertyMethod = "method";
 static constexpr const char* kJsPropertyCipherSuites = "cipherSuites";
+static constexpr const char* kJsPropertySelectedCipherSuite = "selectedSuite";
 static constexpr const char* kJsPropertyLogger = "logger";
 static constexpr const char* kLogggerFunctionName = "Logger";
 
@@ -82,8 +83,7 @@ LibEDHOC::LibEDHOC(const Napi::CallbackInfo& info)
   std::shared_ptr<EdhocCredentialManager> credentialManager =
       credentialWrapper->GetInternalManager();
 
-  ret = edhoc_bind_credentials(&context,
-                               credentialManager.get()->credentials);
+  ret = edhoc_bind_credentials(&context, credentialManager.get()->credentials);
 
   // EAD
   std::shared_ptr<EdhocEadManager> eadManager =
@@ -99,8 +99,7 @@ LibEDHOC::LibEDHOC(const Napi::CallbackInfo& info)
   userContext->parent =
       Reference<Napi::Object>::New(info.This().As<Napi::Object>());
 
-  ret = edhoc_set_user_context(&context,
-                               static_cast<void*>(userContext.get()));
+  ret = edhoc_set_user_context(&context, static_cast<void*>(userContext.get()));
 
   if (ret != EDHOC_SUCCESS) {
     Napi::TypeError::New(env, kErrorFailedToInitializeEdhocContext)
@@ -127,8 +126,8 @@ void LibEDHOC::SetCID(const Napi::CallbackInfo& info,
 }
 
 Napi::Value LibEDHOC::GetPeerCID(const Napi::CallbackInfo& info) {
-  return Utils::CreateJsValueFromEdhocCid(
-      info.Env(), context.EDHOC_PRIVATE(peer_cid));
+  return Utils::CreateJsValueFromEdhocCid(info.Env(),
+                                          context.EDHOC_PRIVATE(peer_cid));
 }
 
 Napi::Value LibEDHOC::GetMethod(const Napi::CallbackInfo& info) {
@@ -137,8 +136,7 @@ Napi::Value LibEDHOC::GetMethod(const Napi::CallbackInfo& info) {
 
 void LibEDHOC::SetMethod(const Napi::CallbackInfo& info,
                          const Napi::Value& value) {
-  method =
-      static_cast<edhoc_method>(value.As<Napi::Number>().Int32Value());
+  method = static_cast<edhoc_method>(value.As<Napi::Number>().Int32Value());
   int result = edhoc_set_method(&context, method);
   if (result != EDHOC_SUCCESS) {
     Napi::TypeError::New(info.Env(), kErrorFailedToSetEdhocMethod)
@@ -181,14 +179,21 @@ void LibEDHOC::SetCipherSuites(const Napi::CallbackInfo& info,
 
 Napi::Value LibEDHOC::GetCipherSuites(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
-  Napi::Array result =
-      Napi::Array::New(env, context.EDHOC_PRIVATE(csuite_len));
+  Napi::Array result = Napi::Array::New(env, context.EDHOC_PRIVATE(csuite_len));
   for (size_t i = 0; i < context.EDHOC_PRIVATE(csuite_len); i++) {
-    result.Set(
-        i,
-        Napi::Number::New(env, context.EDHOC_PRIVATE(csuite)[i].value));
+    result.Set(i,
+               Napi::Number::New(env, context.EDHOC_PRIVATE(csuite)[i].value));
   }
   return result;
+}
+
+Napi::Value LibEDHOC::GetSelectedCipherSuite(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  Napi::Number suite = Napi::Number::New(
+      env,
+      context.EDHOC_PRIVATE(csuite)[context.EDHOC_PRIVATE(chosen_csuite_idx)]
+          .value);
+  return suite;
 }
 
 Napi::Value LibEDHOC::GetLogger(const Napi::CallbackInfo& info) {
@@ -231,7 +236,7 @@ Napi::Value LibEDHOC::ComposeMessage(const Napi::CallbackInfo& info,
   if (info[0].IsArray()) {
     try {
       userContext->GetEadManager()->StoreEad(messageNumber,
-                                                   info[0].As<Napi::Array>());
+                                             info[0].As<Napi::Array>());
     } catch (const Napi::Error& e) {
       e.ThrowAsJavaScriptException();
       return env.Null();
@@ -341,6 +346,8 @@ Napi::Object LibEDHOC::Init(Napi::Env env, Napi::Object exports) {
           InstanceAccessor(kJsPropertyCipherSuites,
                            &LibEDHOC::GetCipherSuites,
                            &LibEDHOC::SetCipherSuites),
+          InstanceAccessor<&LibEDHOC::GetSelectedCipherSuite>(
+              kJsPropertySelectedCipherSuite),
           InstanceAccessor(
               kJsPropertyLogger, &LibEDHOC::GetLogger, &LibEDHOC::SetLogger),
           InstanceMethod(kMethodComposeMessage1, &LibEDHOC::ComposeMessage1),

@@ -15,15 +15,6 @@ static constexpr const char* kErrorExpectUint8ArrayOrNumber =
     "Function must return a Uint8Array or a Number.";
 static constexpr const char* kErrorExpectBoolean =
     "Expected boolean return value from destroyKey function";
-static constexpr const char* kErrorExpectArray = "Expected an array";
-static constexpr const char* kErrorArrayTooShort =
-    "Array must contain at least two elements";
-static constexpr const char* kErrorFirstElementBuffer =
-    "First element must be a Buffer";
-static constexpr const char* kErrorKeyLengthExceeds =
-    "Returned private key length exceeds buffer length.";
-static constexpr const char* kErrorPublicKeyBuffer =
-    "Second element must be a Buffer";
 static constexpr const char* kErrorPublicKeyLengthExceeds =
     "Returned public key length exceeds buffer length.";
 static constexpr const char* kErrorExpectBuffer =
@@ -44,6 +35,12 @@ static constexpr const char* kErrorPseudoRandpmLengthExceeds =
     "Returned pseudo random key length exceeds buffer length.";
 static constexpr const char* kErrorKeyingMaterialLengthExceeds =
     "Returned output keying material length exceeds buffer length.";
+static constexpr const char* kErrorObjectExpected =
+    "Expected result to be an object.";
+static constexpr const char* kErrorKeysExpectedAsBuffers =
+    "Expected keys to be buffers.";
+static constexpr const char* kErrorPrivateKeyLengthExceeds =
+    "Private key length exceeds buffer size.";
 
 EdhocCryptoManager::EdhocCryptoManager() {
   keys.generate_key = &EdhocCryptoManager::GenerateKey;
@@ -353,7 +350,7 @@ int EdhocCryptoManager::callMakeKeyPair(const void* user_context,
                                         size_t* public_key_length) {
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
-
+  
   makeKeyPairTsfn.BlockingCall([&user_context,
                                 &promise,
                                 &key_id,
@@ -370,6 +367,7 @@ int EdhocCryptoManager::callMakeKeyPair(const void* user_context,
             env, static_cast<const uint8_t*>(key_id), EDHOC_KID_LEN),
         Napi::Number::New(env, static_cast<size_t>(private_key_size)),
         Napi::Number::New(env, static_cast<size_t>(public_key_size))};
+
     Utils::InvokeJSFunctionWithPromiseHandling(
         env,
         jsCallback,
@@ -381,50 +379,38 @@ int EdhocCryptoManager::callMakeKeyPair(const void* user_context,
          &public_key,
          public_key_size,
          &public_key_length](Napi::Env env, Napi::Value result) {
-          if (!result.IsArray()) {
+          if (!result.IsObject()) {
             promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-            throw Napi::TypeError::New(env, kErrorExpectArray);
+            throw Napi::TypeError::New(env, kErrorObjectExpected);
           }
 
-          Napi::Array resultArray = result.As<Napi::Array>();
+          Napi::Object resultObject = result.As<Napi::Object>();
+          Napi::Value privateKeyValue = resultObject.Get("privateKey");
+          Napi::Value publicKeyValue = resultObject.Get("publicKey");
 
-          if (resultArray.Length() < 2) {
+          if (!privateKeyValue.IsBuffer() || !publicKeyValue.IsBuffer()) {
             promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-            throw Napi::TypeError::New(env, kErrorArrayTooShort);
-          }
-
-          Napi::Value privateKeyValue = resultArray.Get((uint32_t)0);
-          if (!privateKeyValue.IsBuffer()) {
-            promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-            throw Napi::TypeError::New(env, kErrorFirstElementBuffer);
+            throw Napi::TypeError::New(env, kErrorKeysExpectedAsBuffers);
           }
 
           Napi::Buffer<uint8_t> privateKeyBuffer =
               privateKeyValue.As<Napi::Buffer<uint8_t>>();
+          Napi::Buffer<uint8_t> publicKeyBuffer =
+              publicKeyValue.As<Napi::Buffer<uint8_t>>();
 
           if (privateKeyBuffer.Length() > private_key_size) {
             promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-            throw Napi::TypeError::New(env, kErrorKeyLengthExceeds);
+            throw Napi::TypeError::New(env, kErrorPrivateKeyLengthExceeds);
           }
-
-          memcpy(
-              private_key, privateKeyBuffer.Data(), privateKeyBuffer.Length());
-          *private_key_length = privateKeyBuffer.Length();
-
-          Napi::Value publicKeyValue = resultArray.Get((uint32_t)1);
-          if (!publicKeyValue.IsBuffer()) {
-            promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-            throw Napi::TypeError::New(env, kErrorPublicKeyBuffer);
-          }
-
-          Napi::Buffer<uint8_t> publicKeyBuffer =
-              publicKeyValue.As<Napi::Buffer<uint8_t>>();
 
           if (publicKeyBuffer.Length() > public_key_size) {
             promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
             throw Napi::TypeError::New(env, kErrorPublicKeyLengthExceeds);
           }
 
+          memcpy(
+              private_key, privateKeyBuffer.Data(), privateKeyBuffer.Length());
+          *private_key_length = privateKeyBuffer.Length();
           memcpy(public_key, publicKeyBuffer.Data(), publicKeyBuffer.Length());
           *public_key_length = publicKeyBuffer.Length();
 
@@ -432,7 +418,6 @@ int EdhocCryptoManager::callMakeKeyPair(const void* user_context,
         });
   });
 
-  future.wait();
   return future.get();
 }
 

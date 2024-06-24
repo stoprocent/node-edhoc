@@ -125,6 +125,17 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
   Napi::Value GetCipherSuites(const Napi::CallbackInfo& info);
 
   /**
+   * @brief Gets the selected cipher suite.
+   *
+   * This method returns the selected cipher suite associated with the LibEDHOC
+   * object.
+   *
+   * @param info The Napi::CallbackInfo representing the callback information.
+   * @return Napi::Value The selected cipher suite.
+   */
+  Napi::Value GetSelectedCipherSuite(const Napi::CallbackInfo& info);
+
+  /**
    * @brief Gets the logger function.
    *
    * This method returns the logger function associated with the LibEDHOC

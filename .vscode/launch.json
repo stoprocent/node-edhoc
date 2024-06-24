@@ -29,7 +29,7 @@
         "preLaunchTask": "npm: debug",
         "program": "node",
         "args": [
-           "./lib/test.js"
+           "./example/simple.js"
         ]
       },
       {

@@ -1,3 +1,3 @@
 [submodule "external/libedhoc"]
 	path = external/libedhoc
-	url = https://github.com/kamil-kielbasa/libedhoc.git
+	url = git@github.com:kamil-kielbasa/libedhoc.git
