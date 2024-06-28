@@ -8,5 +8,3 @@ const path_1 = require("path");
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const binding = (0, node_gyp_build_1.default)((0, path_1.join)(__dirname, '../'));
 exports.EDHOC = binding.EDHOC;
-exports.EdhocCryptoManager = binding.EdhocCryptoManager;
-exports.EdhocCredentialManager = binding.EdhocCredentialManager;

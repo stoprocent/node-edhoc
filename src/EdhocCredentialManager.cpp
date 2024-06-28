@@ -29,6 +29,10 @@ static constexpr const char* kInvalidInputDataErrorX509Chain =
     "Invalid input data for X.509 chain";
 static constexpr const char* kInvalidInputDataErrorX509Hash =
     "Invalid input data for X.509 hash";
+static constexpr const char* kErrorObjectExpected = "Object expected";
+static constexpr const char* kErrorFunctionExpected = "Function expected";
+static constexpr const char* kFetch = "fetch";
+static constexpr const char* kVerify = "verify";
 
 void convert_js_to_edhoc_kid(const Napi::Object& jsObject,
                              struct edhoc_auth_creds* credentials) {
@@ -148,14 +152,36 @@ Napi::Object convert_edhoc_x5t_to_js(
   return obj;
 }
 
-EdhocCredentialManager::EdhocCredentialManager() {
+EdhocCredentialManager::EdhocCredentialManager(
+    Napi::Object& jsCredentialManager) {
+  if (!jsCredentialManager.IsObject()) {
+    Napi::Error::New(jsCredentialManager.Env(), kErrorObjectExpected)
+        .ThrowAsJavaScriptException();
+  }
+  credentialManagerRef = Napi::Persistent(jsCredentialManager);
+  SetFunction(kFetch, fetchTsfn);
+  SetFunction(kVerify, verifyTsfn);
+
   credentials.fetch = FetchCredentials;
   credentials.verify = VerifyCredentials;
 }
 
 EdhocCredentialManager::~EdhocCredentialManager() {
-  Utils::ResetAndRelease(fetchFuncRef, fetchTsfn);
-  Utils::ResetAndRelease(verifyFuncRef, verifyTsfn);
+  credentialManagerRef.Reset();
+  fetchTsfn.Release();
+  verifyTsfn.Release();
+}
+
+void EdhocCredentialManager::SetFunction(const char* name,
+                                         Napi::ThreadSafeFunction& tsfn) {
+  Napi::Env env = credentialManagerRef.Env();
+  Napi::HandleScope scope(env);
+  Napi::Function jsFunction =
+      credentialManagerRef.Value().Get(name).As<Napi::Function>();
+  if (!jsFunction.IsFunction()) {
+    Napi::Error::New(env, kErrorFunctionExpected).ThrowAsJavaScriptException();
+  }
+  tsfn = Napi::ThreadSafeFunction::New(env, jsFunction, name, 0, 1);
 }
 
 int EdhocCredentialManager::FetchCredentials(

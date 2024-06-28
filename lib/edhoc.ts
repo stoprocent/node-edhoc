@@ -61,13 +61,13 @@ export enum EdhocCredentialsCertificateHashAlgorithm {
 /**
  * Provides methods for managing EDHOC credentials.
  */
-export declare class EdhocCredentialManager {
+export interface EdhocCredentialManager {
     /**
      * Fetches EDHOC credentials based on the provided EDHOC context.
      * @param edhoc The EDHOC context for which to fetch credentials.
      * @return A promise that resolves to the fetched EdhocCredentials or throws an error if not successful.
      */
-    public fetch: (edhoc: EDHOC) => Promise<EdhocCredentials> | never;
+    fetch(edhoc: EDHOC): Promise<EdhocCredentials> | never;
 
     /**
      * Verifies EDHOC credentials based on the provided EDHOC context and credentials.
@@ -75,7 +75,7 @@ export declare class EdhocCredentialManager {
      * @param credentials The credentials to verify.
      * @return A promise that resolves to the verified EdhocCredentials or throws an error if not successful.
      */
-    public verify: (edhoc: EDHOC, credentials: EdhocCredentials) => Promise<EdhocCredentials> | never;
+    verify(edhoc: EDHOC, credentials: EdhocCredentials): Promise<EdhocCredentials> | never;
 }
 
 /**
@@ -113,7 +113,7 @@ export interface PublicPrivateTuple {
 /**
  * Manages cryptographic functions necessary for the operation of EDHOC protocols.
  */
-export declare class EdhocCryptoManager {
+export interface EdhocCryptoManager {
 
     /**
      * Generates a cryptographic key of the specified type.
@@ -122,7 +122,7 @@ export declare class EdhocCryptoManager {
      * @param key Optional buffer containing seed or related data if necessary.
      * @return A promise resolving to a Buffer containing the generated key.
      */
-    public generateKey: (edhoc: EDHOC, keyType: EdhocKeyType, key: Buffer) => Promise<Buffer> | never;
+    generateKey(edhoc: EDHOC, keyType: EdhocKeyType, key: Buffer): Promise<Buffer> | never;
 
     /**
      * Destroys a cryptographic key identified by the keyID.
@@ -130,7 +130,7 @@ export declare class EdhocCryptoManager {
      * @param keyID Buffer identifying the key to destroy.
      * @return A promise resolving to true if the key was successfully destroyed.
      */
-    public destroyKey: (edhoc: EDHOC, keyID: Buffer) => Promise<boolean> | never;
+    destroyKey(edhoc: EDHOC, keyID: Buffer): Promise<boolean> | never;
 
     /**
      * Generates a public-private key pair.
@@ -140,7 +140,7 @@ export declare class EdhocCryptoManager {
      * @param publicKeySize Size in bytes for the public key.
      * @return A promise resolving to a PublicPrivateTuple containing both keys.
     //  */
-    // public makeKeyPair: (edhoc: EDHOC, keyID: Buffer, privateKeySize: number, publicKeySize: number) => Promise<PublicPrivateTuple> | never;
+    makeKeyPair(edhoc: EDHOC, keyID: Buffer, privateKeySize: number, publicKeySize: number): Promise<PublicPrivateTuple> | never;
 
     /**
      * Performs a key agreement operation using a public and a private key.
@@ -150,7 +150,7 @@ export declare class EdhocCryptoManager {
      * @param privateKeySize Size of the private key used in the key agreement.
      * @return A promise resolving to the resultant private key.
      */
-    public keyAgreement: (edhoc: EDHOC, keyID: Buffer, publicKey: EdhocPublicKey, privateKeySize: number) => Promise<EdhocPrivateKey> | never;
+    keyAgreement(edhoc: EDHOC, keyID: Buffer, publicKey: EdhocPublicKey, privateKeySize: number): Promise<EdhocPrivateKey> | never;
 
     /**
      * Signs data using a specified key.
@@ -160,7 +160,7 @@ export declare class EdhocCryptoManager {
      * @param signatureSize The desired size of the signature.
      * @return A promise resolving to the signature.
      */
-    public sign: (edhoc: EDHOC, keyID: Buffer, input: Buffer, signatureSize: number) => Promise<Buffer> | never;
+    sign(edhoc: EDHOC, keyID: Buffer, input: Buffer, signatureSize: number): Promise<Buffer> | never;
 
     /**
      * Verifies a signature against the provided data.
@@ -170,7 +170,7 @@ export declare class EdhocCryptoManager {
      * @param signature Buffer containing the signature to verify.
      * @return A promise resolving to true if the signature is valid.
      */
-    public verify: (edhoc: EDHOC, keyID: Buffer, input: Buffer, signature: Buffer) => Promise<boolean> | never;
+    verify(edhoc: EDHOC, keyID: Buffer, input: Buffer, signature: Buffer): Promise<boolean> | never;
 
     /**
      * Extracts a key using a salt.
@@ -180,7 +180,7 @@ export declare class EdhocCryptoManager {
      * @param keySize The desired size of the key to extract.
      * @return A promise resolving to the extracted key.
      */
-    public extract: (edhoc: EDHOC, keyID: Buffer, salt: Buffer, keySize: number) => Promise<Buffer> | never;
+    extract(edhoc: EDHOC, keyID: Buffer, salt: Buffer, keySize: number): Promise<Buffer> | never;
 
     /**
      * Expands a key using provided information.
@@ -190,7 +190,7 @@ export declare class EdhocCryptoManager {
      * @param keySize The desired size of the key after expansion.
      * @return A promise resolving to the expanded key.
      */
-    public expand: (edhoc: EDHOC, keyID: Buffer, info: Buffer, keySize: number) => Promise<Buffer> | never;
+    expand(edhoc: EDHOC, keyID: Buffer, info: Buffer, keySize: number): Promise<Buffer> | never;
 
     /**
      * Encrypts plaintext using a specified key and nonce.
@@ -202,7 +202,7 @@ export declare class EdhocCryptoManager {
      * @param size The size of the output buffer.
      * @return A promise resolving to the ciphertext.
      */
-    public encrypt: (edhoc: EDHOC, keyID: Buffer, nonce: Buffer, aad: Buffer, plaintext: Buffer, size: number) => Promise<Buffer> | never;
+    encrypt(edhoc: EDHOC, keyID: Buffer, nonce: Buffer, aad: Buffer, plaintext: Buffer, size: number): Promise<Buffer> | never;
 
     /**
      * Decrypts ciphertext using a specified key and nonce.
@@ -214,7 +214,7 @@ export declare class EdhocCryptoManager {
      * @param size The size of the output buffer.
      * @return A promise resolving to the plaintext.
      */
-    public decrypt: (edhoc: EDHOC, keyID: Buffer, nonce: Buffer, aad: Buffer, ciphertext: Buffer, size: number) => Promise<Buffer> | never;
+    decrypt(edhoc: EDHOC, keyID: Buffer, nonce: Buffer, aad: Buffer, ciphertext: Buffer, size: number): Promise<Buffer> | never;
 
     /**
      * Computes a hash of the given data.
@@ -223,7 +223,7 @@ export declare class EdhocCryptoManager {
      * @param hashSize The size of the hash to compute.
      * @return A promise resolving to the hash.
      */
-    public hash: (edhoc: EDHOC, data: Buffer, hashSize: number) => Promise<Buffer> | never;
+    hash(edhoc: EDHOC, data: Buffer, hashSize: number): Promise<Buffer> | never;
 }
 
 /**

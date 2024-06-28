@@ -35,14 +35,45 @@ static constexpr const char* kErrorPseudoRandpmLengthExceeds =
     "Returned pseudo random key length exceeds buffer length.";
 static constexpr const char* kErrorKeyingMaterialLengthExceeds =
     "Returned output keying material length exceeds buffer length.";
-static constexpr const char* kErrorObjectExpected =
+static constexpr const char* kErrorResultObjectExpected =
     "Expected result to be an object.";
 static constexpr const char* kErrorKeysExpectedAsBuffers =
     "Expected keys to be buffers.";
 static constexpr const char* kErrorPrivateKeyLengthExceeds =
     "Private key length exceeds buffer size.";
+static constexpr const char* kErrorObjectExpected = "Object expected";
+static constexpr const char* kErrorFunctionExpected = "Function expected";
 
-EdhocCryptoManager::EdhocCryptoManager() {
+static constexpr const char* kGenerateKey = "generateKey";
+static constexpr const char* kDestroyKey = "destroyKey";
+static constexpr const char* kMakeKeyPair = "makeKeyPair";
+static constexpr const char* kKeyAgreement = "keyAgreement";
+static constexpr const char* kSign = "sign";
+static constexpr const char* kVerify = "verify";
+static constexpr const char* kExtract = "extract";
+static constexpr const char* kExpand = "expand";
+static constexpr const char* kEncrypt = "encrypt";
+static constexpr const char* kDecrypt = "decrypt";
+static constexpr const char* kHash = "hash";
+
+EdhocCryptoManager::EdhocCryptoManager(Napi::Object& jsCryptoManager) {
+  if (!jsCryptoManager.IsObject()) {
+    Napi::Error::New(jsCryptoManager.Env(), kErrorObjectExpected)
+        .ThrowAsJavaScriptException();
+  }
+  cryptoManagerRef = Napi::Persistent(jsCryptoManager);
+  SetFunction(kGenerateKey, generateTsfn);
+  SetFunction(kDestroyKey, destroyTsfn);
+  SetFunction(kMakeKeyPair, makeKeyPairTsfn);
+  SetFunction(kKeyAgreement, keyAgreementTsfn);
+  SetFunction(kSign, signTsfn);
+  SetFunction(kVerify, verifyTsfn);
+  SetFunction(kExtract, extractTsfn);
+  SetFunction(kExpand, expandTsfn);
+  SetFunction(kEncrypt, encryptTsfn);
+  SetFunction(kDecrypt, decryptTsfn);
+  SetFunction(kHash, hashTsfn);
+
   keys.generate_key = &EdhocCryptoManager::GenerateKey;
   keys.destroy_key = &EdhocCryptoManager::DestroyKey;
   crypto.make_key_pair = &EdhocCryptoManager::MakeKeyPair;
@@ -57,17 +88,30 @@ EdhocCryptoManager::EdhocCryptoManager() {
 }
 
 EdhocCryptoManager::~EdhocCryptoManager() {
-  Utils::ResetAndRelease(generateKeyFuncRef, generateTsfn);
-  Utils::ResetAndRelease(destroyKeyFuncRef, destroyTsfn);
-  Utils::ResetAndRelease(makeKeyPairFuncRef, makeKeyPairTsfn);
-  Utils::ResetAndRelease(keyAgreementFuncRef, keyAgreementTsfn);
-  Utils::ResetAndRelease(signFuncRef, signTsfn);
-  Utils::ResetAndRelease(verifyFuncRef, verifyTsfn);
-  Utils::ResetAndRelease(extractFuncRef, extractTsfn);
-  Utils::ResetAndRelease(expandFuncRef, expandTsfn);
-  Utils::ResetAndRelease(encryptFuncRef, encryptTsfn);
-  Utils::ResetAndRelease(decryptFuncRef, decryptTsfn);
-  Utils::ResetAndRelease(hashFuncRef, hashTsfn);
+  cryptoManagerRef.Reset();
+  generateTsfn.Release();
+  destroyTsfn.Release();
+  makeKeyPairTsfn.Release();
+  keyAgreementTsfn.Release();
+  signTsfn.Release();
+  verifyTsfn.Release();
+  extractTsfn.Release();
+  expandTsfn.Release();
+  encryptTsfn.Release();
+  decryptTsfn.Release();
+  hashTsfn.Release();
+}
+
+void EdhocCryptoManager::SetFunction(const char* name,
+                                     Napi::ThreadSafeFunction& tsfn) {
+  Napi::Env env = cryptoManagerRef.Env();
+  Napi::HandleScope scope(env);
+  Napi::Function jsFunction =
+      cryptoManagerRef.Value().Get(name).As<Napi::Function>();
+  if (!jsFunction.IsFunction()) {
+    Napi::Error::New(env, kErrorFunctionExpected).ThrowAsJavaScriptException();
+  }
+  tsfn = Napi::ThreadSafeFunction::New(env, jsFunction, name, 0, 1);
 }
 
 int EdhocCryptoManager::GenerateKey(void* user_context,
@@ -350,7 +394,7 @@ int EdhocCryptoManager::callMakeKeyPair(const void* user_context,
                                         size_t* public_key_length) {
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
-  
+
   makeKeyPairTsfn.BlockingCall([&user_context,
                                 &promise,
                                 &key_id,
@@ -381,7 +425,7 @@ int EdhocCryptoManager::callMakeKeyPair(const void* user_context,
          &public_key_length](Napi::Env env, Napi::Value result) {
           if (!result.IsObject()) {
             promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-            throw Napi::TypeError::New(env, kErrorObjectExpected);
+            throw Napi::TypeError::New(env, kErrorResultObjectExpected);
           }
 
           Napi::Object resultObject = result.As<Napi::Object>();

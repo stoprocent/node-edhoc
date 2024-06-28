@@ -35,7 +35,7 @@ class EdhocCryptoManager {
   /**
    * @brief Constructs an EdhocCryptoManager object.
    */
-  EdhocCryptoManager();
+  EdhocCryptoManager(Napi::Object& jsCryptoManager);
 
   /**
    * @brief Destroys the EdhocCryptoManager object.
@@ -483,16 +483,19 @@ class EdhocCryptoManager {
                size_t* hash_length);
 
  private:
-  /* Functions references */
-  Napi::FunctionReference generateKeyFuncRef, destroyKeyFuncRef,
-      makeKeyPairFuncRef, keyAgreementFuncRef, signFuncRef, verifyFuncRef,
-      extractFuncRef, expandFuncRef, encryptFuncRef, decryptFuncRef,
-      hashFuncRef;
+  Napi::ObjectReference cryptoManagerRef;  ///< Reference to the JS object
 
   /* Thread-safe functions */
   Napi::ThreadSafeFunction generateTsfn, destroyTsfn, makeKeyPairTsfn,
       keyAgreementTsfn, signTsfn, verifyTsfn, extractTsfn, expandTsfn,
       encryptTsfn, decryptTsfn, hashTsfn;
+
+  /**
+   * @brief Assosciates the thread-safe function with the JS object function.
+   * @param name The name of the function in the JS credential manager object.
+   * @param tsfn The thread-safe function.
+   */
+  void SetFunction(const char* name, Napi::ThreadSafeFunction& tsfn);
 };
 
 #endif  // EDHOC_CRYPTO_MANAGER_H

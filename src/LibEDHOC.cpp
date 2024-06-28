@@ -2,8 +2,6 @@
 #include <thread>
 
 #include "EdhocComposeAsyncWorker.h"
-#include "EdhocCredentialManagerWrapper.h"
-#include "EdhocCryptoManagerWrapper.h"
 #include "EdhocExportAsyncWorker.h"
 #include "EdhocProcessAsyncWorker.h"
 #include "LibEDHOC.h"
@@ -64,11 +62,8 @@ LibEDHOC::LibEDHOC(const Napi::CallbackInfo& info)
   SetCipherSuites(info, info[2]);
 
   // Crypto Manager
-  EdhocCryptoManagerWrapper* cryptoWrapper =
-      Napi::ObjectWrap<EdhocCryptoManagerWrapper>::Unwrap(
-          info[4].As<Napi::Object>());
-  std::shared_ptr<EdhocCryptoManager> cryptoManager =
-      cryptoWrapper->GetInternalManager();
+  Napi::Object jsCryptoManager = info[4].As<Napi::Object>();
+  std::shared_ptr<EdhocCryptoManager> cryptoManager = std::make_shared<EdhocCryptoManager>(jsCryptoManager);
 
   // Keys
   ret = edhoc_bind_keys(&context, cryptoManager.get()->keys);
@@ -77,12 +72,9 @@ LibEDHOC::LibEDHOC(const Napi::CallbackInfo& info)
   ret = edhoc_bind_crypto(&context, cryptoManager.get()->crypto);
 
   // Credentials
-  EdhocCredentialManagerWrapper* credentialWrapper =
-      Napi::ObjectWrap<EdhocCredentialManagerWrapper>::Unwrap(
-          info[3].As<Napi::Object>());
-  std::shared_ptr<EdhocCredentialManager> credentialManager =
-      credentialWrapper->GetInternalManager();
-
+  Napi::Object jsCredentialManager = info[3].As<Napi::Object>();
+  std::shared_ptr<EdhocCredentialManager> credentialManager = std::make_shared<EdhocCredentialManager>(jsCredentialManager);
+  
   ret = edhoc_bind_credentials(&context, credentialManager.get()->credentials);
 
   // EAD
@@ -368,3 +360,5 @@ Napi::Object LibEDHOC::Init(Napi::Env env, Napi::Object exports) {
   exports.Set(kClassNameLibEDHOC, func);
   return exports;
 }
+
+NODE_API_NAMED_ADDON(addon, LibEDHOC);

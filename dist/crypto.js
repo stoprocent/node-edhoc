@@ -1,48 +1,51 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DefaultEdhocCryptoManager = void 0;
-const edhoc_1 = require("./edhoc");
-class DefaultEdhocCryptoManager extends edhoc_1.EdhocCryptoManager {
-    constructor() {
-        super();
-        this.generateKey = this.generateKey2;
-    }
-    generateKey2 = async (edhoc, keyType, key) => {
+class DefaultEdhocCryptoManager {
+    generateKey(edhoc, keyType, key) {
         console.log(edhoc, edhoc.selectedSuite);
+        console.log(edhoc);
         return Promise.resolve(Buffer.alloc(key.length));
-    };
-    destroyKey = async (edhoc, keyID) => {
+    }
+    destroyKey(edhoc, keyID) {
+        console.log(edhoc);
         return Promise.resolve(true);
-    };
+    }
     makeKeyPair(edhoc, keyID, privateKeySize, publicKeySize) {
+        console.log(edhoc);
         return Promise.resolve({ publicKey: Buffer.alloc(publicKeySize), privateKey: Buffer.alloc(privateKeySize) });
     }
-    // public makeKeyPair = async (edhoc: EDHOC, keyID: Buffer, privateKeySize: number, publicKeySize: number) => {
-    //     return Promise.resolve({ publicKey: Buffer.alloc(publicKeySize), privateKey: Buffer.alloc(privateKeySize) });
-    // }
-    keyAgreement = async (edhoc, keyID, publicKey, privateKeySize) => {
+    keyAgreement(edhoc, keyID, publicKey, privateKeySize) {
+        console.log(edhoc);
         return Promise.resolve(Buffer.alloc(privateKeySize));
-    };
-    sign = async (edhoc, keyID, input, signatureSize) => {
+    }
+    sign(edhoc, keyID, input, signatureSize) {
+        console.log(edhoc);
         return Promise.resolve(Buffer.alloc(signatureSize));
-    };
-    verify = async (edhoc, keyID, input, signature) => {
+    }
+    verify(edhoc, keyID, input, signature) {
+        console.log(edhoc);
         return Promise.resolve(true);
-    };
-    extract = async (edhoc, keyID, salt, keySize) => {
+    }
+    extract(edhoc, keyID, salt, keySize) {
+        console.log(edhoc);
         return Promise.resolve(Buffer.alloc(keySize));
-    };
-    expand = async (edhoc, keyID, info, keySize) => {
+    }
+    expand(edhoc, keyID, info, keySize) {
+        console.log(edhoc);
         return Promise.resolve(Buffer.alloc(keySize));
-    };
-    encrypt = async (edhoc, keyID, plaintext) => {
+    }
+    encrypt(edhoc, keyID, plaintext) {
+        console.log(edhoc);
         return Promise.resolve(Buffer.alloc(plaintext.length));
-    };
-    decrypt = async (edhoc, keyID, ciphertext) => {
+    }
+    decrypt(edhoc, keyID, ciphertext) {
+        console.log(edhoc);
         return Promise.resolve(Buffer.alloc(ciphertext.length));
-    };
-    hash = async (edhoc, data, hashSize) => {
+    }
+    hash(edhoc, data, hashSize) {
+        console.log(edhoc);
         return Promise.resolve(Buffer.alloc(hashSize));
-    };
+    }
 }
 exports.DefaultEdhocCryptoManager = DefaultEdhocCryptoManager;

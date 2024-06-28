@@ -25,7 +25,7 @@ class EdhocCredentialManager {
   /**
    * @brief Constructs an EdhocCredentialManager object.
    */
-  EdhocCredentialManager();
+  EdhocCredentialManager(Napi::Object& jsCredentialManager);
 
   /**
    * @brief Destroys the EdhocCredentialManager object.
@@ -83,14 +83,18 @@ class EdhocCredentialManager {
  private:
   std::vector<Napi::Buffer<uint8_t>>
       credentialBuffers;  ///< Vector to hold credential buffers
+  Napi::ObjectReference credentialManagerRef;  ///< Reference to the JS object
   Napi::ThreadSafeFunction
       fetchTsfn;  ///< Thread-safe function for FetchCredentials
   Napi::ThreadSafeFunction
       verifyTsfn;  ///< Thread-safe function for VerifyCredentials
-  Napi::FunctionReference
-      fetchFuncRef;  ///< Reference to FetchCredentials function
-  Napi::FunctionReference
-      verifyFuncRef;  ///< Reference to VerifyCredentials function
+
+  /**
+   * @brief Assosciates the thread-safe function with the JS object function.
+   * @param name The name of the function in the JS credential manager object.
+   * @param tsfn The thread-safe function.
+   */
+  void SetFunction(const char* name, Napi::ThreadSafeFunction& tsfn);
 };
 
 #endif  // EDHOC_CREDENTIAL_MANAGER_H

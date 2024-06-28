@@ -1,14 +1,12 @@
-import { EDHOC, EdhocCredentialManager, EdhocCredentials } from './edhoc';
+import { EDHOC, EdhocCredentialManager, EdhocCredentials, EdhocCredentialsFormat } from './edhoc';
 
-export class DefaultEdhocCredentialManager extends EdhocCredentialManager {
+export class DefaultEdhocCredentialManager implements EdhocCredentialManager {
     
-
-    public fetch = async (edhoc: EDHOC) => {
-        return Promise.resolve({ format: 0, privateKeyID: Buffer.alloc(0) });
+    fetch(edhoc: EDHOC): Promise<EdhocCredentials> {
+        return Promise.resolve({ format: EdhocCredentialsFormat.kid, privateKeyID: Buffer.alloc(0) });
     }
 
-    public verify = async (edhoc: EDHOC, credentials: EdhocCredentials) => {
+    verify(edhoc: EDHOC, credentials: EdhocCredentials): Promise<EdhocCredentials> {
         return Promise.resolve(credentials);
     }
-
 }

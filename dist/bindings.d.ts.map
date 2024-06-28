@@ -1,1 +1,1 @@
-{"version":3,"file":"bindings.d.ts","sourceRoot":"","sources":["../lib/bindings.ts"],"names":[],"mappings":"AACA,OAAO,EAAE,KAAK,EAAE,sBAAsB,EAAE,kBAAkB,EAAE,MAAM,SAAS,CAAA;AAG3E,MAAM,WAAW,cAAc;IAC3B,KAAK,EAAE,KAAK,CAAA;IACZ,kBAAkB,EAAE,kBAAkB,CAAA;IACtC,sBAAsB,EAAE,sBAAsB,CAAA;CACjD"}
+{"version":3,"file":"bindings.d.ts","sourceRoot":"","sources":["../lib/bindings.ts"],"names":[],"mappings":"AACA,OAAO,EAAE,KAAK,EAA8C,MAAM,SAAS,CAAA;AAG3E,MAAM,WAAW,cAAc;IAC3B,KAAK,EAAE,KAAK,CAAA;CACf"}
