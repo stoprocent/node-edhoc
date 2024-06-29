@@ -52,10 +52,10 @@ var EdhocKeyType;
  */
 var EdhocMethod;
 (function (EdhocMethod) {
-    EdhocMethod[EdhocMethod["Method0"] = 1] = "Method0";
-    EdhocMethod[EdhocMethod["Method1"] = 2] = "Method1";
-    EdhocMethod[EdhocMethod["Method2"] = 3] = "Method2";
-    EdhocMethod[EdhocMethod["Method3"] = 4] = "Method3";
+    EdhocMethod[EdhocMethod["Method0"] = 0] = "Method0";
+    EdhocMethod[EdhocMethod["Method1"] = 1] = "Method1";
+    EdhocMethod[EdhocMethod["Method2"] = 2] = "Method2";
+    EdhocMethod[EdhocMethod["Method3"] = 3] = "Method3";
 })(EdhocMethod || (exports.EdhocMethod = EdhocMethod = {}));
 /**
  * Enumerates the cipher suites available for EDHOC protocol operations.

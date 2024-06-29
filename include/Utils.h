@@ -43,6 +43,7 @@ class Utils {
    * passed to a callback function.
    *
    * @param env The N-API environment handle.
+   * @param jsObject The N-API object representing the JavaScript class.
    * @param jsCallback The N-API function object to call.
    * @param args A vector of N-API values representing the arguments to pass to
    * the function.
@@ -51,6 +52,7 @@ class Utils {
    */
   static void InvokeJSFunctionWithPromiseHandling(
       Napi::Env env,
+      Napi::Object jsObject,
       Napi::Function jsCallback,
       const std::vector<napi_value>& args,
       std::function<void(Napi::Env, Napi::Value)> callbackLambda);

@@ -81,8 +81,8 @@ class EdhocCredentialManager {
                             size_t* public_key_length);
 
  private:
-  std::vector<Napi::Buffer<uint8_t>>
-      credentialBuffers;  ///< Vector to hold credential buffers
+  std::vector<Napi::Reference<Napi::Object>>
+      credentialReferences;                    ///< References to the JS objects
   Napi::ObjectReference credentialManagerRef;  ///< Reference to the JS object
   Napi::ThreadSafeFunction
       fetchTsfn;  ///< Thread-safe function for FetchCredentials

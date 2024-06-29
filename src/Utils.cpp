@@ -23,12 +23,13 @@ void Utils::ResetAndRelease(Napi::FunctionReference& funcRef,
 
 void Utils::InvokeJSFunctionWithPromiseHandling(
     Napi::Env env,
+    Napi::Object jsObject,
     Napi::Function jsCallback,
     const std::vector<napi_value>& args,
     std::function<void(Napi::Env, Napi::Value)> callbackLambda) {
   auto deferred = Napi::Promise::Deferred::New(env);
   try {
-    Napi::Value result = jsCallback.Call(args);
+    Napi::Value result = jsCallback.Call(jsObject, args);
     deferred.Resolve(result);
   } catch (const Napi::Error& e) {
     deferred.Reject(e.Value());
@@ -39,6 +40,7 @@ void Utils::InvokeJSFunctionWithPromiseHandling(
   auto thenCallback = Napi::Function::New(
       env, [callbackLambda](const Napi::CallbackInfo& info) {
         Napi::Env env = info.Env();
+        Napi::HandleScope scope(env);
         Napi::Value result = info[0];
         Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(env);
         try {

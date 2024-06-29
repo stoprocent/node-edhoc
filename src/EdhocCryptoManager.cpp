@@ -100,6 +100,10 @@ EdhocCryptoManager::~EdhocCryptoManager() {
   encryptTsfn.Release();
   decryptTsfn.Release();
   hashTsfn.Release();
+  for (auto& ref : bufferReferences) {
+    ref.Reset();
+  }
+  bufferReferences.clear();
 }
 
 void EdhocCryptoManager::SetFunction(const char* name,
@@ -305,13 +309,15 @@ int EdhocCryptoManager::callGenerateKey(const void* user_context,
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
 
-  generateTsfn.BlockingCall([&user_context,
+  generateTsfn.BlockingCall([this,
+                             &user_context,
                              &promise,
                              key_type,
                              &raw_key,
                              raw_key_length,
                              &key_id_ptr](Napi::Env env,
                                           Napi::Function jsCallback) {
+    Napi::HandleScope scope(env);
     std::vector<napi_value> arguments = {
         static_cast<const UserContext*>(user_context)->parent.Value(),
         Napi::Number::New(env, static_cast<int>(key_type)),
@@ -319,9 +325,11 @@ int EdhocCryptoManager::callGenerateKey(const void* user_context,
             env, const_cast<uint8_t*>(raw_key), raw_key_length)};
     Utils::InvokeJSFunctionWithPromiseHandling(
         env,
+        cryptoManagerRef.Value(),
         jsCallback,
         arguments,
         [&promise, &key_id_ptr](Napi::Env env, Napi::Value result) {
+          Napi::HandleScope scope(env);
           uint8_t* key_id = static_cast<uint8_t*>(key_id_ptr);
           if (result.IsTypedArray()) {
             Napi::Uint8Array resultArray = result.As<Napi::Uint8Array>();
@@ -359,17 +367,20 @@ int EdhocCryptoManager::callDestroyKey(const void* user_context, void* key_id) {
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
 
-  destroyTsfn.BlockingCall([&user_context, &promise, &key_id](
+  destroyTsfn.BlockingCall([this, &user_context, &promise, &key_id](
                                Napi::Env env, Napi::Function jsCallback) {
+    Napi::HandleScope scope(env);
     std::vector<napi_value> arguments = {
         static_cast<const UserContext*>(user_context)->parent.Value(),
         Napi::Buffer<uint8_t>::Copy(
             env, static_cast<uint8_t*>(key_id), EDHOC_KID_LEN)};
     Utils::InvokeJSFunctionWithPromiseHandling(
         env,
+        cryptoManagerRef.Value(),
         jsCallback,
         arguments,
         [&promise](Napi::Env env, Napi::Value result) {
+          Napi::HandleScope scope(env);
           if (!result.IsBoolean()) {
             promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
             throw Napi::TypeError::New(env, kErrorExpectBoolean);
@@ -395,7 +406,8 @@ int EdhocCryptoManager::callMakeKeyPair(const void* user_context,
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
 
-  makeKeyPairTsfn.BlockingCall([&user_context,
+  makeKeyPairTsfn.BlockingCall([this,
+                                &user_context,
                                 &promise,
                                 &key_id,
                                 &private_key,
@@ -405,6 +417,7 @@ int EdhocCryptoManager::callMakeKeyPair(const void* user_context,
                                 public_key_size,
                                 &public_key_length](Napi::Env env,
                                                     Napi::Function jsCallback) {
+    Napi::HandleScope scope(env);
     std::vector<napi_value> arguments = {
         static_cast<const UserContext*>(user_context)->parent.Value(),
         Napi::Buffer<uint8_t>::Copy(
@@ -414,6 +427,7 @@ int EdhocCryptoManager::callMakeKeyPair(const void* user_context,
 
     Utils::InvokeJSFunctionWithPromiseHandling(
         env,
+        cryptoManagerRef.Value(),
         jsCallback,
         arguments,
         [&promise,
@@ -423,6 +437,7 @@ int EdhocCryptoManager::callMakeKeyPair(const void* user_context,
          &public_key,
          public_key_size,
          &public_key_length](Napi::Env env, Napi::Value result) {
+          Napi::HandleScope scope(env);
           if (!result.IsObject()) {
             promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
             throw Napi::TypeError::New(env, kErrorResultObjectExpected);
@@ -475,7 +490,8 @@ int EdhocCryptoManager::callKeyAgreement(const void* user_context,
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
 
-  keyAgreementTsfn.BlockingCall([&user_context,
+  keyAgreementTsfn.BlockingCall([this,
+                                 &user_context,
                                  &promise,
                                  &key_id,
                                  &peer_public_key,
@@ -484,6 +500,7 @@ int EdhocCryptoManager::callKeyAgreement(const void* user_context,
                                  shared_secret_size,
                                  &shared_secret_length](
                                     Napi::Env env, Napi::Function jsCallback) {
+    Napi::HandleScope scope(env);
     std::vector<napi_value> arguments = {
         static_cast<const UserContext*>(user_context)->parent.Value(),
         Napi::Buffer<uint8_t>::Copy(
@@ -495,10 +512,12 @@ int EdhocCryptoManager::callKeyAgreement(const void* user_context,
 
     Utils::InvokeJSFunctionWithPromiseHandling(
         env,
+        cryptoManagerRef.Value(),
         jsCallback,
         arguments,
         [&promise, &shared_secret, shared_secret_size, &shared_secret_length](
             Napi::Env env, Napi::Value result) {
+          Napi::HandleScope scope(env);
           if (!result.IsBuffer()) {
             promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
             throw Napi::TypeError::New(env, kErrorExpectBuffer);
@@ -537,7 +556,8 @@ int EdhocCryptoManager::callSign(const void* user_context,
 
   const uint8_t* kid = static_cast<const uint8_t*>(key_id);
 
-  signTsfn.BlockingCall([&user_context,
+  signTsfn.BlockingCall([this,
+                         &user_context,
                          &promise,
                          kid,
                          &input,
@@ -546,6 +566,7 @@ int EdhocCryptoManager::callSign(const void* user_context,
                          signature_size,
                          &signature_length](Napi::Env env,
                                             Napi::Function jsCallback) {
+    Napi::HandleScope scope(env);
     std::vector<napi_value> arguments = {
         static_cast<const UserContext*>(user_context)->parent.Value(),
         Napi::Buffer<uint8_t>::Copy(
@@ -554,10 +575,12 @@ int EdhocCryptoManager::callSign(const void* user_context,
         Napi::Number::New(env, static_cast<size_t>(signature_size))};
     Utils::InvokeJSFunctionWithPromiseHandling(
         env,
+        cryptoManagerRef.Value(),
         jsCallback,
         arguments,
         [&promise, &signature, signature_size, &signature_length](
             Napi::Env env, Napi::Value result) {
+          Napi::HandleScope scope(env);
           if (!result.IsBuffer()) {
             promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
             throw Napi::TypeError::New(env, kErrorExpectBuffer);
@@ -592,13 +615,15 @@ int EdhocCryptoManager::callVerify(const void* user_context,
   std::future<int> future = promise.get_future();
 
   verifyTsfn.BlockingCall(
-      [&user_context,
+      [this,
+       &user_context,
        &promise,
        &key_id,
        &input,
        input_length,
        &signature,
        signature_length](Napi::Env env, Napi::Function jsCallback) {
+        Napi::HandleScope scope(env);
         std::vector<napi_value> arguments = {
             static_cast<const UserContext*>(user_context)->parent.Value(),
             Napi::Buffer<uint8_t>::Copy(
@@ -608,9 +633,11 @@ int EdhocCryptoManager::callVerify(const void* user_context,
         };
         Utils::InvokeJSFunctionWithPromiseHandling(
             env,
+            cryptoManagerRef.Value(),
             jsCallback,
             arguments,
             [&promise](Napi::Env env, Napi::Value result) {
+              Napi::HandleScope scope(env);
               if (!result.IsBoolean()) {
                 promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
                 throw Napi::TypeError::New(env, kErrorExpectBooleanVerify);
@@ -635,7 +662,8 @@ int EdhocCryptoManager::callExtract(const void* user_context,
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
 
-  extractTsfn.BlockingCall([&user_context,
+  extractTsfn.BlockingCall([this,
+                            &user_context,
                             &promise,
                             &key_id,
                             &salt,
@@ -644,6 +672,7 @@ int EdhocCryptoManager::callExtract(const void* user_context,
                             pseudo_random_key_size,
                             &pseudo_random_key_length](
                                Napi::Env env, Napi::Function jsCallback) {
+    Napi::HandleScope scope(env);
     std::vector<napi_value> arguments = {
         static_cast<const UserContext*>(user_context)->parent.Value(),
         Napi::Buffer<uint8_t>::Copy(
@@ -652,12 +681,14 @@ int EdhocCryptoManager::callExtract(const void* user_context,
         Napi::Number::New(env, static_cast<size_t>(pseudo_random_key_size))};
     Utils::InvokeJSFunctionWithPromiseHandling(
         env,
+        cryptoManagerRef.Value(),
         jsCallback,
         arguments,
         [&promise,
          &pseudo_random_key,
          pseudo_random_key_size,
          &pseudo_random_key_length](Napi::Env env, Napi::Value result) {
+          Napi::HandleScope scope(env);
           if (!result.IsBuffer()) {
             promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
             throw Napi::TypeError::New(env, kErrorExpectBuffer);
@@ -693,7 +724,8 @@ int EdhocCryptoManager::callExpand(const void* user_context,
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
 
-  expandTsfn.BlockingCall([&user_context,
+  expandTsfn.BlockingCall([this,
+                           &user_context,
                            &promise,
                            &key_id,
                            &info,
@@ -701,6 +733,7 @@ int EdhocCryptoManager::callExpand(const void* user_context,
                            &output_keying_material,
                            output_keying_material_length](
                               Napi::Env env, Napi::Function jsCallback) {
+    Napi::HandleScope scope(env);
     std::vector<napi_value> arguments = {
         static_cast<const UserContext*>(user_context)->parent.Value(),
         Napi::Buffer<uint8_t>::Copy(
@@ -710,10 +743,12 @@ int EdhocCryptoManager::callExpand(const void* user_context,
                           static_cast<size_t>(output_keying_material_length))};
     Utils::InvokeJSFunctionWithPromiseHandling(
         env,
+        cryptoManagerRef.Value(),
         jsCallback,
         arguments,
         [&promise, &output_keying_material, output_keying_material_length](
             Napi::Env env, Napi::Value result) {
+          Napi::HandleScope scope(env);
           if (!result.IsBuffer()) {
             promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
             throw Napi::TypeError::New(env, kErrorExpectBuffer);
@@ -752,7 +787,8 @@ int EdhocCryptoManager::callEncrypt(const void* user_context,
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
 
-  encryptTsfn.BlockingCall([&user_context,
+  encryptTsfn.BlockingCall([this,
+                            &user_context,
                             &promise,
                             &key_id,
                             &nonce,
@@ -765,6 +801,7 @@ int EdhocCryptoManager::callEncrypt(const void* user_context,
                             ciphertext_size,
                             &ciphertext_length](Napi::Env env,
                                                 Napi::Function jsCallback) {
+    Napi::HandleScope scope(env);
     std::vector<napi_value> arguments = {
         static_cast<const UserContext*>(user_context)->parent.Value(),
         Napi::Buffer<uint8_t>::Copy(
@@ -776,10 +813,12 @@ int EdhocCryptoManager::callEncrypt(const void* user_context,
         Napi::Number::New(env, static_cast<size_t>(ciphertext_size))};
     Utils::InvokeJSFunctionWithPromiseHandling(
         env,
+        cryptoManagerRef.Value(),
         jsCallback,
         arguments,
         [&promise, &ciphertext, ciphertext_size, &ciphertext_length](
             Napi::Env env, Napi::Value result) {
+          Napi::HandleScope scope(env);
           if (!result.IsBuffer()) {
             promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
             throw Napi::TypeError::New(env, kErrorExpectBuffer);
@@ -818,7 +857,8 @@ int EdhocCryptoManager::callDecrypt(const void* user_context,
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
 
-  decryptTsfn.BlockingCall([&user_context,
+  decryptTsfn.BlockingCall([this,
+                            &user_context,
                             &promise,
                             &key_id,
                             &nonce,
@@ -831,6 +871,7 @@ int EdhocCryptoManager::callDecrypt(const void* user_context,
                             plaintext_size,
                             plaintext_length](Napi::Env env,
                                               Napi::Function jsCallback) {
+    Napi::HandleScope scope(env);
     std::vector<napi_value> arguments = {
         static_cast<const UserContext*>(user_context)->parent.Value(),
         Napi::Buffer<uint8_t>::Copy(
@@ -842,10 +883,12 @@ int EdhocCryptoManager::callDecrypt(const void* user_context,
         Napi::Number::New(env, static_cast<size_t>(plaintext_size))};
     Utils::InvokeJSFunctionWithPromiseHandling(
         env,
+        cryptoManagerRef.Value(),
         jsCallback,
         arguments,
         [&promise, &plaintext, plaintext_size, plaintext_length](
             Napi::Env env, Napi::Value result) {
+          Napi::HandleScope scope(env);
           if (!result.IsBuffer()) {
             promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
             throw Napi::TypeError::New(env, kErrorExpectBuffer);
@@ -878,7 +921,8 @@ int EdhocCryptoManager::callHash(const void* user_context,
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
 
-  hashTsfn.BlockingCall([&user_context,
+  hashTsfn.BlockingCall([this,
+                         &user_context,
                          &promise,
                          &input,
                          input_length,
@@ -886,6 +930,7 @@ int EdhocCryptoManager::callHash(const void* user_context,
                          hash_size,
                          &hash_length](Napi::Env env,
                                        Napi::Function jsCallback) {
+    Napi::HandleScope scope(env);
     std::vector<napi_value> arguments = {
         static_cast<const UserContext*>(user_context)->parent.Value(),
         Napi::Buffer<uint8_t>::Copy(env, input, input_length),
@@ -893,10 +938,12 @@ int EdhocCryptoManager::callHash(const void* user_context,
     };
     Utils::InvokeJSFunctionWithPromiseHandling(
         env,
+        cryptoManagerRef.Value(),
         jsCallback,
         arguments,
         [&promise, &hash, hash_size, &hash_length](Napi::Env env,
                                                    Napi::Value result) {
+          Napi::HandleScope scope(env);
           if (!result.IsBuffer()) {
             promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
             throw Napi::TypeError::New(env, kErrorExpectBuffer);

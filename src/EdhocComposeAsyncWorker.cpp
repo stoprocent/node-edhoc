@@ -62,7 +62,7 @@ void EdhocComposeAsyncWorker::Execute() {
       std::snprintf(errorMessage,
                     kErrorBufferSize,
                     kErrorMessageFormat,
-                    messageNumber,
+                    messageNumber + 1,
                     ret);
       SetError(errorMessage);
     }

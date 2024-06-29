@@ -1,4 +1,4 @@
-import { EDHOC } from '@/edhoc';
+import { EDHOC } from './edhoc';
 export interface NodeGypBinding {
     EDHOC: EDHOC;
 }

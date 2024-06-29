@@ -3,8 +3,8 @@
  * Enumerates the types of credential formats that can be used with EDHOC.
  */
 export declare enum EdhocCredentialsFormat {
-    kid = 4,// Represents a key identifier.
-    x5chain = 33,// Represents an X.509 certificate chain.
+    kid = 4,
+    x5chain = 33,
     x5t = 34
 }
 /**
@@ -50,7 +50,7 @@ export interface EdhocCredentialsCertificateHash extends EdhocCredentials {
  * Enumerates the types of hash algorithms that can be used with hashed X.509 certificates.
  */
 export declare enum EdhocCredentialsCertificateHashAlgorithm {
-    Sha256 = -16,// SHA-256 hash algorithm.
+    Sha256 = -16,
     Sha256_64 = -15
 }
 /**
@@ -62,26 +62,26 @@ export interface EdhocCredentialManager {
      * @param edhoc The EDHOC context for which to fetch credentials.
      * @return A promise that resolves to the fetched EdhocCredentials or throws an error if not successful.
      */
-    fetch(edhoc: EDHOC): Promise<EdhocCredentials> | never;
+    fetch(edhoc: EDHOC): Promise<EdhocCredentials> | EdhocCredentials | never;
     /**
      * Verifies EDHOC credentials based on the provided EDHOC context and credentials.
      * @param edhoc The EDHOC context against which to verify credentials.
      * @param credentials The credentials to verify.
      * @return A promise that resolves to the verified EdhocCredentials or throws an error if not successful.
      */
-    verify(edhoc: EDHOC, credentials: EdhocCredentials): Promise<EdhocCredentials> | never;
+    verify(edhoc: EDHOC, credentials: EdhocCredentials): Promise<EdhocCredentials> | EdhocCredentials | never;
 }
 /**
  * Enumerates the types of cryptographic operations that can be performed with EDHOC.
  */
 export declare enum EdhocKeyType {
-    MakeKeyPair = 0,// Used to generate a key pair.
-    KeyAgreement = 1,// Used for key agreement operations.
-    Signature = 2,// Used for creating digital signatures.
-    Verify = 3,// Used for verifying digital signatures.
-    Extract = 4,// Used for extracting key material.
-    Expand = 5,// Used for expanding key material.
-    Encrypt = 6,// Used for encrypting data.
+    MakeKeyPair = 0,
+    KeyAgreement = 1,
+    Signature = 2,
+    Verify = 3,
+    Extract = 4,
+    Expand = 5,
+    Encrypt = 6,
     Decrypt = 7
 }
 /**
@@ -110,14 +110,14 @@ export interface EdhocCryptoManager {
      * @param key Optional buffer containing seed or related data if necessary.
      * @return A promise resolving to a Buffer containing the generated key.
      */
-    generateKey(edhoc: EDHOC, keyType: EdhocKeyType, key: Buffer): Promise<Buffer> | never;
+    generateKey(edhoc: EDHOC, keyType: EdhocKeyType, key: Buffer): Promise<Buffer> | Buffer | never;
     /**
      * Destroys a cryptographic key identified by the keyID.
      * @param edhoc The EDHOC session context.
      * @param keyID Buffer identifying the key to destroy.
      * @return A promise resolving to true if the key was successfully destroyed.
      */
-    destroyKey(edhoc: EDHOC, keyID: Buffer): Promise<boolean> | never;
+    destroyKey(edhoc: EDHOC, keyID: Buffer): Promise<boolean> | boolean | never;
     /**
      * Generates a public-private key pair.
      * @param edhoc The EDHOC session context.
@@ -126,7 +126,7 @@ export interface EdhocCryptoManager {
      * @param publicKeySize Size in bytes for the public key.
      * @return A promise resolving to a PublicPrivateTuple containing both keys.
     //  */
-    makeKeyPair(edhoc: EDHOC, keyID: Buffer, privateKeySize: number, publicKeySize: number): Promise<PublicPrivateTuple> | never;
+    makeKeyPair(edhoc: EDHOC, keyID: Buffer, privateKeySize: number, publicKeySize: number): Promise<PublicPrivateTuple> | PublicPrivateTuple | never;
     /**
      * Performs a key agreement operation using a public and a private key.
      * @param edhoc The EDHOC session context.
@@ -135,7 +135,7 @@ export interface EdhocCryptoManager {
      * @param privateKeySize Size of the private key used in the key agreement.
      * @return A promise resolving to the resultant private key.
      */
-    keyAgreement(edhoc: EDHOC, keyID: Buffer, publicKey: EdhocPublicKey, privateKeySize: number): Promise<EdhocPrivateKey> | never;
+    keyAgreement(edhoc: EDHOC, keyID: Buffer, publicKey: EdhocPublicKey, privateKeySize: number): Promise<Buffer> | Buffer | never;
     /**
      * Signs data using a specified key.
      * @param edhoc The EDHOC session context.
@@ -144,7 +144,7 @@ export interface EdhocCryptoManager {
      * @param signatureSize The desired size of the signature.
      * @return A promise resolving to the signature.
      */
-    sign(edhoc: EDHOC, keyID: Buffer, input: Buffer, signatureSize: number): Promise<Buffer> | never;
+    sign(edhoc: EDHOC, keyID: Buffer, input: Buffer, signatureSize: number): Promise<Buffer> | Buffer | never;
     /**
      * Verifies a signature against the provided data.
      * @param edhoc The EDHOC session context.
@@ -153,7 +153,7 @@ export interface EdhocCryptoManager {
      * @param signature Buffer containing the signature to verify.
      * @return A promise resolving to true if the signature is valid.
      */
-    verify(edhoc: EDHOC, keyID: Buffer, input: Buffer, signature: Buffer): Promise<boolean> | never;
+    verify(edhoc: EDHOC, keyID: Buffer, input: Buffer, signature: Buffer): Promise<boolean> | boolean | never;
     /**
      * Extracts a key using a salt.
      * @param edhoc The EDHOC session context.
@@ -162,7 +162,7 @@ export interface EdhocCryptoManager {
      * @param keySize The desired size of the key to extract.
      * @return A promise resolving to the extracted key.
      */
-    extract(edhoc: EDHOC, keyID: Buffer, salt: Buffer, keySize: number): Promise<Buffer> | never;
+    extract(edhoc: EDHOC, keyID: Buffer, salt: Buffer, keySize: number): Promise<Buffer> | Buffer | never;
     /**
      * Expands a key using provided information.
      * @param edhoc The EDHOC session context.
@@ -171,7 +171,7 @@ export interface EdhocCryptoManager {
      * @param keySize The desired size of the key after expansion.
      * @return A promise resolving to the expanded key.
      */
-    expand(edhoc: EDHOC, keyID: Buffer, info: Buffer, keySize: number): Promise<Buffer> | never;
+    expand(edhoc: EDHOC, keyID: Buffer, info: Buffer, keySize: number): Promise<Buffer> | Buffer | never;
     /**
      * Encrypts plaintext using a specified key and nonce.
      * @param edhoc The EDHOC session context.
@@ -182,7 +182,7 @@ export interface EdhocCryptoManager {
      * @param size The size of the output buffer.
      * @return A promise resolving to the ciphertext.
      */
-    encrypt(edhoc: EDHOC, keyID: Buffer, nonce: Buffer, aad: Buffer, plaintext: Buffer, size: number): Promise<Buffer> | never;
+    encrypt(edhoc: EDHOC, keyID: Buffer, nonce: Buffer, aad: Buffer, plaintext: Buffer, size: number): Promise<Buffer> | Buffer | never;
     /**
      * Decrypts ciphertext using a specified key and nonce.
      * @param edhoc The EDHOC session context.
@@ -193,7 +193,7 @@ export interface EdhocCryptoManager {
      * @param size The size of the output buffer.
      * @return A promise resolving to the plaintext.
      */
-    decrypt(edhoc: EDHOC, keyID: Buffer, nonce: Buffer, aad: Buffer, ciphertext: Buffer, size: number): Promise<Buffer> | never;
+    decrypt(edhoc: EDHOC, keyID: Buffer, nonce: Buffer, aad: Buffer, ciphertext: Buffer, size: number): Promise<Buffer> | Buffer | never;
     /**
      * Computes a hash of the given data.
      * @param edhoc The EDHOC session context.
@@ -201,7 +201,7 @@ export interface EdhocCryptoManager {
      * @param hashSize The size of the hash to compute.
      * @return A promise resolving to the hash.
      */
-    hash(edhoc: EDHOC, data: Buffer, hashSize: number): Promise<Buffer> | never;
+    hash(edhoc: EDHOC, data: Buffer, hashSize: number): Promise<Buffer> | Buffer | never;
 }
 /**
  * Represents an EDHOC connection identifier which can be either a number or a Buffer.
@@ -212,10 +212,10 @@ export type EdhocConnectionID = number | Buffer;
  * Each method corresponds to different authentication mechanisms.
  */
 export declare enum EdhocMethod {
-    Method0 = 1,
-    Method1 = 2,
-    Method2 = 3,
-    Method3 = 4
+    Method0 = 0,
+    Method1 = 1,
+    Method2 = 2,
+    Method3 = 3
 }
 /**
  * Enumerates the cipher suites available for EDHOC protocol operations.

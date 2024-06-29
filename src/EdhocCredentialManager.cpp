@@ -170,6 +170,10 @@ EdhocCredentialManager::~EdhocCredentialManager() {
   credentialManagerRef.Reset();
   fetchTsfn.Release();
   verifyTsfn.Release();
+  for (auto& ref : credentialReferences) {
+    ref.Reset();
+  }
+  credentialReferences.clear();
 }
 
 void EdhocCredentialManager::SetFunction(const char* name,
@@ -207,16 +211,21 @@ int EdhocCredentialManager::callFetchCredentials(
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
 
-  fetchTsfn.BlockingCall([&user_context, &promise, &credentials](
+  fetchTsfn.BlockingCall([this, &user_context, &promise, &credentials](
                              Napi::Env env, Napi::Function jsCallback) {
+    Napi::HandleScope scope(env);
     std::vector<napi_value> arguments = {
         static_cast<const UserContext*>(user_context)->parent.Value()};
     Utils::InvokeJSFunctionWithPromiseHandling(
         env,
+        credentialManagerRef.Value(),
         jsCallback,
         arguments,
-        [&promise, &credentials](Napi::Env env, Napi::Value result) {
+        [this, &promise, &credentials](Napi::Env env, Napi::Value result) {
+          Napi::HandleScope scope(env);
           auto credsObj = result.As<Napi::Object>();
+          credentialReferences.push_back(Napi::Persistent(credsObj));
+
           if (credsObj.IsObject() == false || credsObj.Has(kFormat) == false) {
             promise.set_value(EDHOC_ERROR_CREDENTIALS_FAILURE);
             throw Napi::Error::New(env, kInvalidInputCredentialTypeError);
@@ -236,7 +245,7 @@ int EdhocCredentialManager::callFetchCredentials(
             default:
               throw Napi::Error::New(env, kUnsupportedCredentialTypeError);
           }
-
+          
           if (credsObj.Has(kPrivateKeyId) &&
               !credsObj.Get(kPrivateKeyId).IsNull()) {
             Napi::Buffer<uint8_t> privKeyIdBuffer =
@@ -262,12 +271,14 @@ int EdhocCredentialManager::callVerifyCredentials(
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
 
-  verifyTsfn.BlockingCall([&user_context,
+  verifyTsfn.BlockingCall([this,
+                           &user_context,
                            &promise,
                            &credentials,
                            &public_key_reference,
                            &public_key_length](Napi::Env env,
                                                Napi::Function jsCallback) {
+    Napi::HandleScope scope(env);
     Napi::Object resultObject = Napi::Object::New(env);
     resultObject.Set(kFormat, Napi::Number::New(env, credentials->label));
 
@@ -295,12 +306,14 @@ int EdhocCredentialManager::callVerifyCredentials(
 
     Utils::InvokeJSFunctionWithPromiseHandling(
         env,
+        credentialManagerRef.Value(),
         jsCallback,
         arguments,
-        [&promise, &credentials, &public_key_reference, &public_key_length](
+        [this, &promise, &credentials, &public_key_reference, &public_key_length](
             Napi::Env env, Napi::Value result) {
+          Napi::HandleScope scope(env);
           Napi::Object credsObj = result.As<Napi::Object>();
-
+          credentialReferences.push_back(Napi::Persistent(credsObj));
           if (credsObj.IsObject() == false) {
             promise.set_value(EDHOC_ERROR_CREDENTIALS_FAILURE);
             throw Napi::Error::New(env, kInvalidInputCredentialTypeError);

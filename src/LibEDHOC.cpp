@@ -210,13 +210,18 @@ void LibEDHOC::Logger(void* usercontext,
                       size_t buffer_length) {
   UserContext* context = static_cast<UserContext*>(usercontext);
   if (context->logger == nullptr) {
-    return;
+    return;  // No logger available, nothing to do
   }
+
+  // Make a copy of the buffer to ensure safety across asynchronous operations
+  std::vector<uint8_t> bufferCopy(buffer, buffer + buffer_length);
+
   context->logger.NonBlockingCall(
-      [name, buffer, buffer_length](Napi::Env env, Napi::Function jsCallback) {
+      [name, bufferCopy](Napi::Env env, Napi::Function jsCallback) mutable {
+        // Transfer the buffer copy into the JavaScript environment
         jsCallback.Call(
             {Napi::String::New(env, name),
-             Napi::Buffer<uint8_t>::Copy(env, buffer, buffer_length)});
+             Napi::Buffer<uint8_t>::Copy(env, bufferCopy.data(), bufferCopy.size())});
       });
 }
 

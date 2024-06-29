@@ -485,6 +485,9 @@ class EdhocCryptoManager {
  private:
   Napi::ObjectReference cryptoManagerRef;  ///< Reference to the JS object
 
+  std::vector<Napi::Reference<Napi::Buffer<uint8_t>>>
+      bufferReferences;  ///< References to the JS buffers
+
   /* Thread-safe functions */
   Napi::ThreadSafeFunction generateTsfn, destroyTsfn, makeKeyPairTsfn,
       keyAgreementTsfn, signTsfn, verifyTsfn, extractTsfn, expandTsfn,
