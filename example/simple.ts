@@ -42,8 +42,8 @@ const method = EdhocMethod.Method0;
 const initiator = new EDHOC(10, method, [ EdhocSuite.Suite0 ], credentialManagerI, cryptoManagerI);
 const responder = new EDHOC(20, method, [ EdhocSuite.Suite0 ], credentialManagerR, cryptoManagerR);
 
-initiator.logger = (name, value) => console.log("INITIATOR", name, value.toString('hex'));
-responder.logger = (name, value) => console.log("RESPONDER", name, value.toString('hex'));
+// initiator.logger = (name, value) => console.log("INITIATOR", name, value.toString('hex'));
+// responder.logger = (name, value) => console.log("RESPONDER", name, value.toString('hex'));
 
 async function run() {
     try {

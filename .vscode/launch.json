@@ -29,7 +29,7 @@
         "preLaunchTask": "npm: debug",
         "program": "node",
         "args": [
-           "./example/simple.js"
+           "./example/coap-server.js"
         ]
       },
       {

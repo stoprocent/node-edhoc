@@ -19,8 +19,8 @@ credentialManagerR.addTrustRoot(rootCertificate);
 const method = index_1.EdhocMethod.Method0;
 const initiator = new index_1.EDHOC(10, method, [index_1.EdhocSuite.Suite0], credentialManagerI, cryptoManagerI);
 const responder = new index_1.EDHOC(20, method, [index_1.EdhocSuite.Suite0], credentialManagerR, cryptoManagerR);
-initiator.logger = (name, value) => console.log("INITIATOR", name, value.toString('hex'));
-responder.logger = (name, value) => console.log("RESPONDER", name, value.toString('hex'));
+// initiator.logger = (name, value) => console.log("INITIATOR", name, value.toString('hex'));
+// responder.logger = (name, value) => console.log("RESPONDER", name, value.toString('hex'));
 async function run() {
     try {
         let message_1 = await initiator.composeMessage1([{ label: 1, value: Buffer.from('Hello') }]);

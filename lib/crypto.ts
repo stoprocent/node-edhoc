@@ -159,6 +159,8 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
             throw new Error('Unsupported suite');
         }
         
+        console.log(signature.toString('hex'), input.toString('hex'), this.keys[kid])
+
         if (!curveSIG.verify!(new Uint8Array(signature), sha256(input), new Uint8Array(this.keys[kid]))) {
             throw new Error('Signature not verified');
         }
