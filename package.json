@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "debug": "npx node-gyp build --debug",
-    "install": "node-gyp-build && npx tsc",
+    "install": "node-gyp-build",
     "postinstall": "patch-package",
     "lint": "eslint .",
     "prebuildify": "prebuildify --napi --target 17.0.0 --force --strip --verbose",
@@ -22,7 +22,9 @@
     "@noble/curves": "^1.4.0",
     "bindings": "^1.5.0",
     "cbor": "^9.0.2",
-    "coap": "^1.3.0"
+    "coap": "^1.3.0",
+    "node-addon-api": "^8.0.0",
+    "node-gyp-build": "^4.8.1"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.3.0",
@@ -36,8 +38,6 @@
     "@types/eslint__js": "^8.42.3",
     "eslint": "^8.57.0",
     "mocha": "^10.7.0",
-    "node-addon-api": "^8.0.0",
-    "node-gyp-build": "^4.8.1",
     "nyc": "^17.0.0",
     "patch-package": "^8.0.0",
     "prebuildify": "^6.0.1",

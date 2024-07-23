@@ -16,7 +16,7 @@
           "assets": [
             {
               "path": "prebuilds-*.tar.gz",
-              "label": "Binary modules (from npm @stoprocent/noble)"
+              "label": "Binary modules"
             }
           ]
         }
