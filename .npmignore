@@ -4,13 +4,12 @@
 .github
 .clang-format
 *.md
-*.gyp
 eslint.config.*
 build
 docs
-src
-include
 external
+!external/**/*.c
+!external/**/*.h
 npm-debug.log
 tsconfig.json
 lib
