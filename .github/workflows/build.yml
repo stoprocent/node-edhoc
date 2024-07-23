@@ -12,12 +12,12 @@ jobs:
     strategy:
       matrix:
         include:
-          - name: darwin
+          - name: darwin-x64
             os: macos-12 
             node: x64
             command: prebuildify
             args: --arch x64
-          - name: darwin
+          - name: darwin-arm64
             os: macos-12 
             node: x64
             command: prebuildify
