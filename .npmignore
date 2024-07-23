@@ -7,7 +7,7 @@
 eslint.config.*
 build
 docs
-external
+external/**/*
 !external/**/*.c
 !external/**/*.h
 npm-debug.log
