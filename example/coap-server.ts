@@ -1,6 +1,7 @@
 import { createServer } from 'coap'
 import { EDHOC, DefaultEdhocCredentialManager, DefaultEdhocCryptoManager, EdhocMethod, EdhocSuite, X509Credentials } from '../dist/index'
 import { randomBytes } from 'crypto'
+import { decodeAll } from 'cbor'
 
 const server = createServer({ type: 'udp4' });
 const sessions = new Map<string, EDHOC>();
@@ -20,12 +21,26 @@ credentialManager.addTrustRoot(rootCertificate);
 
 server.on('request', async (req, res) => {
     if (req.method === 'POST' && req.url === '/.well-known/edhoc') {
-        const isTrue = req.payload.subarray(0, 1).equals(Buffer.from([0xf5]));
+        // Handle Initialization
+        let isTrue = false;
+        let method = EdhocMethod.Method0;
+
+        try {
+            const payload = await decodeAll(req.payload);
+            isTrue = (typeof payload[0] == "boolean") && payload[0] === true;
+            method = payload[1] as EdhocMethod;
+        }
+        catch {
+            // Do nothing
+        }
+
         if (isTrue) {
             // Responder creates a new session
             const connectionID = randomBytes(4);
-            const responder = new EDHOC(connectionID, EdhocMethod.Method0, [ EdhocSuite.Suite2 ], credentialManager, cryptoManager);
-            responder.logger = (name, value) => console.log(">>>>\n", name, value.toString('hex'), '\n<<<<');
+            const responder = new EDHOC(connectionID, method, [ EdhocSuite.Suite2 ], credentialManager, cryptoManager);
+            
+            responder.logger = (name, value) => console.log(name, value.toString('hex'), `\n`);
+
             // Process message 1
             const message1 = req.payload.subarray(1);
             console.log("message1", message1.toString('hex'));
@@ -36,29 +51,35 @@ server.on('request', async (req, res) => {
             const message2 = await responder.composeMessage2([{ label: 1245, value: Buffer.from('00112233445566', 'hex') }]);
             console.log("message2", message2.toString('hex'));
             
+            // Store Sesssion
             sessions.set(connectionID.toString('hex'), responder);
 
             // Respond with message 2
             res.end(message2);
         }
         else {
-            // Process message 3
-            const connectionID = req.payload.subarray(0, 4);
-            const responder = sessions.get(connectionID.toString('hex'));
-            console.log("=");
-            console.log("=");
-            console.log(req.payload.toString('hex'))
-            console.log("=");
-            console.log("=");
+            try {
+                // Decode CBOR
+                const payload = await decodeAll(req.payload);
+                const responder = sessions.get(payload[0].toString('hex'));
+                
+                // Check Session
+                if (responder === undefined) {
+                    throw new Error('Session does not exist')
+                }
 
-            if (responder) {
-                const message3 = req.payload.subarray(4);
-                console.log("message3", message3.toString('hex'));
+                // Message 3
+                const message3 = req.payload.slice(payload[0].length + 1);               
                 const ead_3 = await responder.processMessage3(message3);
                 console.log("ead_3", ead_3);
-                res.end();
-                console.log("ead_3", ead_3);
                 console.log("OSCORE Context", await responder.exportOSCORE());
+
+                // Respond
+                res.end();
+            }
+            catch (error) {
+                res.code = '5.00';
+                res.end(error);
             }
         }
 
