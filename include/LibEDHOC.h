@@ -2,6 +2,7 @@
 #define LIB_EDHOC_H
 
 #include <napi.h>
+
 #include "UserContext.h"
 
 extern "C" {
@@ -88,20 +89,30 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
    * associated with the LibEDHOC object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
-   * @return Napi::Value The Method used in EDHOC.
+   * @return Napi::Value The supported methods used in EDHOC.
    */
-  Napi::Value GetMethod(const Napi::CallbackInfo& info);
+  Napi::Value GetMethods(const Napi::CallbackInfo& info);
 
   /**
    * @brief Sets the Method (RFC 9528: 3.2.) used in EDHOC.
    *
-   * This method sets the Method (RFC 9528: 3.2.) used in EDHOC for the LibEDHOC
-   * object.
+   * This method sets the supported methods (RFC 9528: 3.2.) used in EDHOC for
+   * the LibEDHOC object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
-   * @param value The Napi::Value representing the Method used in EDHOC.
+   * @param value The Napi::Value representing the supported methods used in EDHOC.
    */
-  void SetMethod(const Napi::CallbackInfo& info, const Napi::Value& value);
+  void SetMethods(const Napi::CallbackInfo& info, const Napi::Value& value);
+
+  /**
+   * @brief Gets the selected method.
+   *
+   * This method returns the selected method associated with the LibEDHOC object.
+   *
+   * @param info The Napi::CallbackInfo representing the callback information.
+   * @return Napi::Value The selected method.
+   */
+  Napi::Value GetSelectedMethod(const Napi::CallbackInfo& info);
 
   /**
    * @brief Sets the cipher suites.
@@ -111,8 +122,7 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
    * @param info The Napi::CallbackInfo representing the callback information.
    * @param value The Napi::Value representing the cipher suites.
    */
-  void SetCipherSuites(const Napi::CallbackInfo& info,
-                       const Napi::Value& value);
+  void SetCipherSuites(const Napi::CallbackInfo& info, const Napi::Value& value);
 
   /**
    * @brief Gets the cipher suites.
@@ -247,13 +257,32 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
    */
   Napi::Value ExportOSCORE(const Napi::CallbackInfo& info);
 
+  /**
+   * @brief Exports keying material using the EDHOC_Exporter interface.
+   *
+   * This method derives keying material using the EDHOC_Exporter, which
+   * utilizes an `exporter_label`, `context`, and `length` to generate the
+   * key.
+   *
+   * @param info The Napi::CallbackInfo representing the callback information.
+   * @return Napi::Value The derived keying material.
+   */
+  Napi::Value ExportKey(const Napi::CallbackInfo& info);
+
+  /**
+   * @brief Performs a key update.
+   *
+   * This method performs a key update for the LibEDHOC object.
+   *
+   * @param info The Napi::CallbackInfo representing the callback information.
+   * @return Napi::Value void.
+   */
+  Napi::Value KeyUpdate(const Napi::CallbackInfo& info);
+
  private:
   struct edhoc_context context;  ///< The EDHOC context.
 
-  struct edhoc_connection_id
-      cid;  ///< RFC 9528: 3.3.2. Representation of Byte String Identifiers.
-
-  enum edhoc_method method;  ///< RFC 9528: 3.2. Method.
+  struct edhoc_connection_id cid;  ///< RFC 9528: 3.3.2. Representation of Byte String Identifiers.
 
   Napi::FunctionReference logger;  ///< N-API reference to the logger function
 
@@ -271,10 +300,7 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
    * @param buffer The buffer containing the log message.
    * @param buffer_length The length of the log message buffer.
    */
-  static void Logger(void* user_context,
-                     const char* name,
-                     const uint8_t* buffer,
-                     size_t buffer_length);
+  static void Logger(void* user_context, const char* name, const uint8_t* buffer, size_t buffer_length);
 
   /**
    * @brief Composes an EDHOC message.
@@ -285,8 +311,7 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
    * @param message The EDHOC message to compose.
    * @return Napi::Value The composed EDHOC message.
    */
-  Napi::Value ComposeMessage(const Napi::CallbackInfo& info,
-                             enum edhoc_message message);
+  Napi::Value ComposeMessage(const Napi::CallbackInfo& info, enum edhoc_message message);
 
   /**
    * @brief Processes an EDHOC message.
@@ -297,8 +322,7 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
    * @param message The EDHOC message to process.
    * @return Napi::Value The EAD data or Null for given EDHOC message.
    */
-  Napi::Value ProcessMessage(const Napi::CallbackInfo& info,
-                             enum edhoc_message message);
+  Napi::Value ProcessMessage(const Napi::CallbackInfo& info, enum edhoc_message message);
 };
 
 #endif  // LIB_EDHOC_H

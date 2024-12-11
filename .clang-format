@@ -1,111 +1,79 @@
----
-Language:        Cpp
-# BasedOnStyle:  Google
-AccessModifierOffset: -1
-AlignAfterOpenBracket: Align
-AlignConsecutiveAssignments: false
-AlignConsecutiveDeclarations: false
-AlignEscapedNewlines: Right
-AlignOperands:   true
-AlignTrailingComments: true
-AllowAllParametersOfDeclarationOnNextLine: true
-AllowShortBlocksOnASingleLine: false
-AllowShortCaseLabelsOnASingleLine: false
-AllowShortFunctionsOnASingleLine: Inline
-AllowShortIfStatementsOnASingleLine: true
-AllowShortLoopsOnASingleLine: true
-AlwaysBreakAfterDefinitionReturnType: None
-AlwaysBreakAfterReturnType: None
-AlwaysBreakBeforeMultilineStrings: false
-AlwaysBreakTemplateDeclarations: true
-BinPackArguments: false
-BinPackParameters: false
-BraceWrapping:
-  AfterClass:      false
-  AfterControlStatement: false
-  AfterEnum:       false
-  AfterFunction:   false
-  AfterNamespace:  false
-  AfterObjCDeclaration: false
-  AfterStruct:     false
-  AfterUnion:      false
-  AfterExternBlock: false
-  BeforeCatch:     false
-  BeforeElse:      false
-  IndentBraces:    false
-  SplitEmptyFunction: true
-  SplitEmptyRecord: true
-  SplitEmptyNamespace: true
-BreakBeforeBinaryOperators: None
-BreakBeforeBraces: Attach
-BreakBeforeInheritanceComma: false
-BreakBeforeTernaryOperators: true
-BreakConstructorInitializersBeforeComma: false
-BreakConstructorInitializers: BeforeColon
-BreakAfterJavaFieldAnnotations: false
-BreakStringLiterals: true
-ColumnLimit:      80
-CommentPragmas:  '^ IWYU pragma:'
-CompactNamespaces: false
-ConstructorInitializerAllOnOneLineOrOnePerLine: true
-ConstructorInitializerIndentWidth: 4
-ContinuationIndentWidth: 4
-Cpp11BracedListStyle: true
-DerivePointerAlignment: false
-DisableFormat:   false
-ExperimentalAutoDetectBinPacking: false
-FixNamespaceComments: true
-ForEachMacros:
-  - foreach
-  - Q_FOREACH
-  - BOOST_FOREACH
-IncludeBlocks:   Preserve
+# Defines the Chromium style for automatic reformatting.
+# http://clang.llvm.org/docs/ClangFormatStyleOptions.html
+BasedOnStyle: Chromium
+# This defaults to 'Auto'. Explicitly set it for a while, so that
+# 'vector<vector<int> >' in existing files gets formatted to
+# 'vector<vector<int>>'. ('Auto' means that clang-format will only use
+# 'int>>' if the file already contains at least one such instance.)
+ColumnLimit: 120
+Standard: Cpp11
+# TODO(crbug.com/1392808): Remove when InsertBraces has been upstreamed into
+# the Chromium style (is implied by BasedOnStyle: Chromium).
+InsertBraces: true
+InsertNewlineAtEOF: true
+# Sort #includes by following
+# https://google.github.io/styleguide/cppguide.html#Names_and_Order_of_Includes
+#
+# ref: https://clang.llvm.org/docs/ClangFormatStyleOptions.html#includeblocks
+IncludeBlocks: Regroup
+# ref: https://clang.llvm.org/docs/ClangFormatStyleOptions.html#includecategories
 IncludeCategories:
-  - Regex:           '^<ext/.*\.h>'
-    Priority:        2
-  - Regex:           '^<.*\.h>'
+  # The win32 api has all sorts of implicit include order dependencies :-/
+  # Give a few headers special priorities that make sure they appear before
+  # all other headers.
+  # Sync this with SerializeIncludes in tools/add_header.py.
+  # TODO(crbug.com/329138753): remove include sorting from tools/add_header.py
+  # after confirming clang-format sort works well.
+  # LINT.IfChange(winheader)
+  - Regex:           '^<objbase\.h>' # This has to be before initguid.h.
     Priority:        1
-  - Regex:           '^<.*'
+  - Regex:           '^<(atlbase|initguid|mmdeviceapi|ocidl|ole2|shobjidl|tchar|unknwn|windows|winsock2|winternl|ws2tcpip)\.h>'
     Priority:        2
-  - Regex:           '.*'
+  # LINT.ThenChange(/tools/add_header.py:winheader)
+  # UIAutomation*.h needs to be after base/win/atl.h.
+  # Note the low priority number.
+  - Regex:           '^<UIAutomation.*\.h>'
+    Priority:        6
+  # Other C system headers.
+  - Regex:           '^<.*\.h>'
     Priority:        3
-IncludeIsMainRegex: '([-_](test|unittest))?$'
-IndentCaseLabels: true
-IndentPPDirectives: None
-IndentWidth:     2
-IndentWrappedFunctionNames: false
-JavaScriptQuotes: Leave
-JavaScriptWrapImports: true
-KeepEmptyLinesAtTheStartOfBlocks: false
-MacroBlockBegin: ''
-MacroBlockEnd:   ''
-MaxEmptyLinesToKeep: 1
-NamespaceIndentation: None
-ObjCBlockIndentWidth: 2
-ObjCSpaceAfterProperty: false
-ObjCSpaceBeforeProtocolList: false
-PenaltyBreakAssignment: 2
-PenaltyBreakBeforeFirstCallParameter: 1
-PenaltyBreakComment: 300
-PenaltyBreakFirstLessLess: 120
-PenaltyBreakString: 1000
-PenaltyExcessCharacter: 1000000
-PenaltyReturnTypeOnItsOwnLine: 200
-PointerAlignment: Left
-ReflowComments:  true
-SortIncludes:    true
-SortUsingDeclarations: true
-SpaceAfterCStyleCast: false
-SpaceAfterTemplateKeyword: true
-SpaceBeforeAssignmentOperators: true
-SpaceBeforeParens: ControlStatements
-SpaceInEmptyParentheses: false
-SpacesBeforeTrailingComments: 2
-SpacesInAngles:  false
-SpacesInContainerLiterals: true
-SpacesInCStyleCastParentheses: false
-SpacesInParentheses: false
-SpacesInSquareBrackets: false
-Standard:        Auto
-TabWidth:        8
-UseTab:          Never
+  # C++ standard library headers.
+  - Regex:           '^<.*>'
+    Priority:        4
+  # windows_h_disallowed.h should appear last. Note the low priority number.
+  - Regex:           '"(.*/)?windows_h_disallowed\.h"'
+    Priority:        7
+  # Other libraries.
+  - Regex:           '.*'
+    Priority:        5
+# ref: https://clang.llvm.org/docs/ClangFormatStyleOptions.html#includeismainregex
+IncludeIsMainRegex: "\
+(_(32|64|android|apple|chromeos|freebsd|fuchsia|fuzzer|ios|linux|mac|nacl|openbsd|posix|stubs?|win))?\
+(_(unit|browser|perf)?tests?)?$"
+# Make sure code like:
+# IPC_BEGIN_MESSAGE_MAP()
+#   IPC_MESSAGE_HANDLER(WidgetHostViewHost_Update, OnUpdate)
+# IPC_END_MESSAGE_MAP()
+# gets correctly indented.
+MacroBlockBegin: "^\
+BEGIN_MSG_MAP|\
+BEGIN_MSG_MAP_EX|\
+BEGIN_SAFE_MSG_MAP_EX|\
+CR_BEGIN_MSG_MAP_EX|\
+IPC_BEGIN_MESSAGE_MAP|\
+IPC_BEGIN_MESSAGE_MAP_WITH_PARAM|\
+IPC_PROTOBUF_MESSAGE_TRAITS_BEGIN|\
+IPC_STRUCT_BEGIN|\
+IPC_STRUCT_BEGIN_WITH_PARENT|\
+IPC_STRUCT_TRAITS_BEGIN|\
+POLPARAMS_BEGIN|\
+PPAPI_BEGIN_MESSAGE_MAP$"
+MacroBlockEnd: "^\
+CR_END_MSG_MAP|\
+END_MSG_MAP|\
+IPC_END_MESSAGE_MAP|\
+IPC_PROTOBUF_MESSAGE_TRAITS_END|\
+IPC_STRUCT_END|\
+IPC_STRUCT_TRAITS_END|\
+POLPARAMS_END|\
+PPAPI_END_MESSAGE_MAP$"

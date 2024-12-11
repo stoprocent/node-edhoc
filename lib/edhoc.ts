@@ -22,7 +22,7 @@ export interface EdhocCredentials {
 export interface EdhocCredentialsKID extends EdhocCredentials {
     format: EdhocCredentialsFormat.kid,  // Fixed format set to 'kid' for Key Identifier.
     kid: {
-        kid: number,                    // The numeric key identifier.
+        kid: number | Buffer,           // The numeric key identifier or buffer containing the key identifier.
         credentials?: Buffer,           // Optional buffer containing credential data (e.g. CCS, CWT).
         isCBOR?: boolean                // Optional flag indicating if the credentials are in CBOR format.
     }
@@ -75,7 +75,7 @@ export interface EdhocCredentialManager {
      * @param credentials The credentials to verify.
      * @return A promise that resolves to the verified EdhocCredentials or throws an error if not successful.
      */
-    verify(edhoc: EDHOC, credentials: EdhocCredentials): Promise<EdhocCredentials> | EdhocCredentials | never;
+    verify(edhoc: EDHOC, credentials: EdhocCredentials, callback: (error: Error | null, credentials: EdhocCredentials) => void): void;
 }
 
 /**
@@ -116,13 +116,13 @@ export interface PublicPrivateTuple {
 export interface EdhocCryptoManager {
 
     /**
-     * Generates a cryptographic key of the specified type.
+     * Imports a cryptographic key of the specified type.
      * @param edhoc The EDHOC session context.
-     * @param keyType The type of key to generate, as defined in EdhocKeyType.
+     * @param keyType The type of key to import, as defined in EdhocKeyType.
      * @param key Optional buffer containing seed or related data if necessary.
-     * @return A promise resolving to a Buffer containing the generated key.
+     * @return A promise resolving to a Buffer containing the imported key.
      */
-    generateKey(edhoc: EDHOC, keyType: EdhocKeyType, key: Buffer): Promise<Buffer> | Buffer | never;
+    importKey(edhoc: EDHOC, keyType: EdhocKeyType, key: Buffer): Promise<Buffer> | Buffer | never;
 
     /**
      * Destroys a cryptographic key identified by the keyID.
@@ -278,7 +278,7 @@ export interface EdhocOscoreContext {
     masterSecret: Buffer,
     masterSalt: Buffer,
     senderId: Buffer,
-    recipientId: Buffer 
+    recipientId: Buffer
 }
 
 /**
@@ -296,9 +296,14 @@ export declare class EDHOC {
     public readonly peerConnectionID: EdhocConnectionID;
 
     /**
-     * The method of authentication to be used in this EDHOC session, as defined in EdhocMethod.
+     * The methods of authentication to be used in this EDHOC session, as defined in EdhocMethod.
      */
-    public method: EdhocMethod;
+    public methods: EdhocMethod[];
+
+    /**
+     * The selected method of authentication to be used in this EDHOC session, as defined in EdhocMethod.
+     */
+    public selectedMethod: EdhocMethod;
 
     /**
      * A list of cipher suites supported by this session, providing flexibility in cryptographic negotiations.
@@ -325,7 +330,7 @@ export declare class EDHOC {
      * @param credentials A manager for handling credentials related to EDHOC.
      * @param crypto A crypto manager to handle cryptographic functions.
      */
-    constructor(connectionID: EdhocConnectionID, method: EdhocMethod, suite: EdhocSuite[], credentials: EdhocCredentialManager, crypto: EdhocCryptoManager);
+    constructor(connectionID: EdhocConnectionID, methods: EdhocMethod[], suites: EdhocSuite[], credentials: EdhocCredentialManager, crypto: EdhocCryptoManager);
 
     /**
      * Composes the first EDHOC message.
@@ -338,6 +343,7 @@ export declare class EDHOC {
      * Processes the received first EDHOC message.
      * @param message The received message buffer.
      * @return A promise that resolves to an array of EAD objects extracted from the message.
+     * @throws Error if processing fails, optionally including peerCipherSuites.
      */
     public processMessage1(message: Buffer): Promise<EdhocEAD[]> | never;
 
@@ -352,6 +358,7 @@ export declare class EDHOC {
      * Processes the received second EDHOC message.
      * @param message The received message buffer.
      * @return A promise that resolves to an array of EAD objects extracted from the message.
+     * @throws Error if processing fails, optionally including peerCipherSuites.
      */
     public processMessage2(message: Buffer): Promise<EdhocEAD[]> | never;
 
@@ -366,6 +373,7 @@ export declare class EDHOC {
      * Processes the received third EDHOC message.
      * @param message The received message buffer.
      * @return A promise that resolves to an array of EAD objects extracted from the message.
+     * @throws Error if processing fails, optionally including peerCipherSuites.
      */
     public processMessage3(message: Buffer): Promise<EdhocEAD[]> | never;
 
@@ -380,6 +388,7 @@ export declare class EDHOC {
      * Processes the received fourth EDHOC message.
      * @param message The received message buffer.
      * @return A promise that resolves to an array of EAD objects extracted from the message.
+     * @throws Error if processing fails, optionally including peerCipherSuites.
      */
     public processMessage4(message: Buffer): Promise<EdhocEAD[]> | never;
 
@@ -388,6 +397,22 @@ export declare class EDHOC {
      * @return A promise that resolves to the OSCORE context used for secured communication in constrained environments.
      */
     public exportOSCORE(): Promise<EdhocOscoreContext> | never;
+
+    /**
+     * Exports the key derived from the EDHOC session using the EDHOC_Exporter interface.
+     * @param exporterLabel The label of the key to export, as a registered uint from the "EDHOC Exporter Labels" registry.
+     * @param length The desired length of the key to export.
+     * @return A promise that resolves to the exported key.
+     */
+    public exportKey(exporterLabel: number, length: number): Promise<Buffer> | never;
+
+    /**
+     * Key update for the new OSCORE security session
+     * Read Appendix H of RFC 9528 - https://www.rfc-editor.org/rfc/rfc9528.html#appendix-H
+     * @param context Buffer containing the entropy for key update.
+     * @return A promise that resolves to void.
+     */
+    public keyUpdate(context: Buffer): Promise<void> | never;
 }
 
 export * from './bindings';

@@ -1,7 +1,8 @@
-#ifndef EDHOC_EXPORT_ASYNC_WORKER_H
-#define EDHOC_EXPORT_ASYNC_WORKER_H
+#ifndef EDHOC_EXPORT_OSCORE_ASYNC_WORKER_H
+#define EDHOC_EXPORT_OSCORE_ASYNC_WORKER_H
 
 #include <napi.h>
+
 #include <functional>
 #include <vector>
 
@@ -10,36 +11,32 @@ extern "C" {
 }
 
 /**
- * @class EdhocExportAsyncWorker
+ * @class EdhocExportOscoreAsyncWorker
  * @brief A class that represents an asynchronous worker for exporting Edhoc
  * context.
  *
  * This class inherits from Napi::AsyncWorker and provides methods for executing
  * the export operation asynchronously and handling the result or error.
  */
-class EdhocExportAsyncWorker : public Napi::AsyncWorker {
+class EdhocExportOscoreAsyncWorker : public Napi::AsyncWorker {
  public:
   /**
    * @brief The type definition for the callback function.
    */
-  using CallbackType = std::function<void(Napi::Env)>;
+  using CallbackType = std::function<void(Napi::Env&)>;
 
   /**
-   * @brief Constructs a new EdhocExportAsyncWorker object.
+   * @brief Constructs a new EdhocExportOscoreAsyncWorker object.
    *
    * @param env The Napi::Env object representing the current environment.
-   * @param deferred The Napi::Promise::Deferred object representing the
-   * deferred promise.
    * @param context The reference to the edhoc_context structure.
    */
-  EdhocExportAsyncWorker(Napi::Env& env,
-                         Napi::Promise::Deferred deferred,
-                         struct edhoc_context& context);
+  EdhocExportOscoreAsyncWorker(Napi::Env& env, struct edhoc_context& context, CallbackType callback);
 
   /**
-   * @brief Destroys the EdhocExportAsyncWorker object.
+   * @brief Destroys the EdhocExportOscoreAsyncWorker object.
    */
-  ~EdhocExportAsyncWorker() override;
+  ~EdhocExportOscoreAsyncWorker() override;
 
   /**
    * @brief Executes the asynchronous worker task.
@@ -58,14 +55,20 @@ class EdhocExportAsyncWorker : public Napi::AsyncWorker {
    */
   void OnError(const Napi::Error& error) override;
 
+  /**
+   * @brief Returns the promise object.
+   * @return The promise object.
+   */
+  Napi::Promise GetPromise();
+
  private:
-  Napi::Promise::Deferred deferred;  ///< The deferred promise object.
-  struct edhoc_context&
-      context;  ///< The reference to the edhoc_context structure.
+  Napi::Promise::Deferred deferred;   ///< The deferred promise object.
+  struct edhoc_context& context;      ///< The reference to the edhoc_context structure.
   std::vector<uint8_t> masterSecret;  ///< The master secret.
   std::vector<uint8_t> masterSalt;    ///< The master salt.
   std::vector<uint8_t> senderId;      ///< The sender ID.
   std::vector<uint8_t> recipientId;   ///< The recipient ID.
+  CallbackType callback;              ///< The callback function to be executed.
 };
 
-#endif  // EDHOC_EXPORT_ASYNC_WORKER_H
+#endif  // EDHOC_EXPORT_OSCORE_ASYNC_WORKER_H

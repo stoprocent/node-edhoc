@@ -1,11 +1,10 @@
 import { EDHOC, EdhocCryptoManager, EdhocKeyType, EdhocSuite } from './edhoc';
-import { ed25519, ed25519ph, ed25519ctx, x25519, edwardsToMontgomeryPriv } from '@noble/curves/ed25519';
-import { ed448, ed448ph, x448 } from '@noble/curves/ed448';
+import { ed25519, x25519 } from '@noble/curves/ed25519';
 import { p256 } from '@noble/curves/p256';
 import { sha256 } from '@noble/hashes/sha256';
 import { extract, expand } from '@noble/hashes/hkdf';
 import { RecoveredSignatureType } from '@noble/curves/abstract/weierstrass';
-import { createCipheriv, createDecipheriv, CipherCCM, CipherGCM, DecipherCCM, DecipherGCM } from 'crypto';
+import { createCipheriv, createDecipheriv, CipherCCM, CipherGCM, DecipherCCM, DecipherGCM, CipherCCMOptions, CipherGCMOptions } from 'crypto';
 
 type KeyEntry = {
     [key: string]: Buffer;
@@ -33,32 +32,17 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
         this.keys[kid] = key;
     }
 
-    async generateKey(edhoc: EDHOC, keyType: EdhocKeyType, key: Buffer) {
-
-        // Key Identifier
+    async importKey(edhoc: EDHOC, keyType: EdhocKeyType, key: Buffer) {
         const keyBuffer = Buffer.alloc(4);
         keyBuffer.writeInt32LE(this.keyIdentifier++);
         const keyID = keyBuffer.toString('hex');
 
-        // Key Exchange Curve
-        const curveKE: KeyUtils | null = 
-            [EdhocSuite.Suite2, EdhocSuite.Suite3, EdhocSuite.Suite5].includes(edhoc.selectedSuite) ? p256 : 
-            [EdhocSuite.Suite0, EdhocSuite.Suite1, EdhocSuite.Suite4, EdhocSuite.Suite6].includes(edhoc.selectedSuite) ? x25519 : null;
-
-        // Signature Curve
-        const curveSIG: KeyUtils | null = 
-            [EdhocSuite.Suite2, EdhocSuite.Suite3, EdhocSuite.Suite5, EdhocSuite.Suite6].includes(edhoc.selectedSuite) ? p256 :
-            [EdhocSuite.Suite0, EdhocSuite.Suite1, EdhocSuite.Suite4].includes(edhoc.selectedSuite) ? ed25519 : null;
-
-        if (null == curveKE || null == curveSIG) {
-            throw new Error('Unsupported suite');
-        }
+        const curveKE: KeyUtils = this.getCurveForKeyAgreement(edhoc.selectedSuite);
+        const curveSIG: KeyUtils = this.getCurveForSignature(edhoc.selectedSuite);
 
         switch (keyType) {
-            case EdhocKeyType.MakeKeyPair:
-                this.keys[keyID] = curveKE.utils.randomPrivateKey();
-                break;
             case EdhocKeyType.KeyAgreement:
+            case EdhocKeyType.MakeKeyPair:
                 this.keys[keyID] = key.byteLength > 0 ? Buffer.from(key) : curveKE.utils.randomPrivateKey();
                 break;
             case EdhocKeyType.Signature:
@@ -80,18 +64,12 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
     }
 
     makeKeyPair(edhoc: EDHOC, keyID: Buffer, privateKeySize: number, publicKeySize: number) {
-        const kid = keyID.toString('hex');
-        if (kid in this.keys === false) {
-            throw new Error(`Key '${kid}' not found`);
-        }
-        
+        const key = this.getKey(keyID);
         try {
-            const curveKE: KeyUtils | null = 
-                [EdhocSuite.Suite2, EdhocSuite.Suite3, EdhocSuite.Suite5].includes(edhoc.selectedSuite) ? p256 : 
-                [EdhocSuite.Suite0, EdhocSuite.Suite1, EdhocSuite.Suite4, EdhocSuite.Suite6].includes(edhoc.selectedSuite) ? x25519 : null;
+            const curveKE: KeyUtils = this.getCurveForKeyAgreement(edhoc.selectedSuite);
             return {
-                privateKey: Buffer.from(this.keys[kid]),
-                publicKey: Buffer.from(curveKE!.getPublicKey(this.keys[kid])).subarray(curveKE === p256 ? 1 : 0)
+                privateKey: Buffer.from(key),
+                publicKey: Buffer.from(curveKE!.getPublicKey(key)).subarray(curveKE === p256 ? 1 : 0)
             };
         }
         catch (error) {
@@ -100,38 +78,18 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
     }
 
     keyAgreement(edhoc: EDHOC, keyID: Buffer, publicKey: Buffer, privateKeySize: number) {
-        
-        const kid = keyID.toString('hex');
-        if (kid in this.keys === false) {
-            throw new Error(`Key '${kid}' not found`);
-        }
-                
-        // Key Exchange Curve
-        const curveKE: KeyUtils | null = 
-        [EdhocSuite.Suite2, EdhocSuite.Suite3, EdhocSuite.Suite5].includes(edhoc.selectedSuite) ? p256 : 
-        [EdhocSuite.Suite0, EdhocSuite.Suite1, EdhocSuite.Suite4, EdhocSuite.Suite6].includes(edhoc.selectedSuite) ? x25519 : null;
-        
-        const publicKeyBuffer = (curveKE === p256) ? Buffer.concat([Buffer.from([publicKey.byteLength == 64 ? 0x04 : 0x02]), publicKey]) : publicKey;
-        const sharedSecrect = Buffer.from(curveKE!.getSharedSecret!(this.keys[kid], new Uint8Array(publicKeyBuffer)));
+        const key = this.getKey(keyID);
+        const curveKE: KeyUtils = this.getCurveForKeyAgreement(edhoc.selectedSuite);
+        const publicKeyBuffer = this.formatPublicKey(curveKE, publicKey);
+        const sharedSecrect = Buffer.from(curveKE!.getSharedSecret!(key, new Uint8Array(publicKeyBuffer)));
         return sharedSecrect.subarray(curveKE === p256 ? 1 : 0);
     }
 
     sign(edhoc: EDHOC, keyID: Buffer, input: Buffer, signatureSize: number) {
-        const kid = keyID.toString('hex');
-        if (kid in this.keys === false) {
-            throw new Error(`Key '${kid}' not found`);
-        }
-
-        // Signature Curve
-        const curveSIG: KeyUtils | null = 
-            [EdhocSuite.Suite2, EdhocSuite.Suite3, EdhocSuite.Suite5, EdhocSuite.Suite6].includes(edhoc.selectedSuite) ? p256 :
-            [EdhocSuite.Suite0, EdhocSuite.Suite1, EdhocSuite.Suite4].includes(edhoc.selectedSuite) ? ed25519 : null;
-
-        if (null === curveSIG) {
-            throw new Error('Unsupported suite');
-        }
-
-        const signature = curveSIG.sign!(sha256(input), new Uint8Array(this.keys[kid]));
+        const key = this.getKey(keyID);
+        const curveSIG: KeyUtils = this.getCurveForSignature(edhoc.selectedSuite);
+        const payload = this.formatToBeSigned(curveSIG, input);
+        const signature = curveSIG.sign!(payload, new Uint8Array(key));
         
         if (signature instanceof Uint8Array) {
             return Buffer.from(signature);
@@ -144,24 +102,13 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
         }
     }
 
-    verify(edhoc: EDHOC, keyID: Buffer, input: Buffer, signature: Buffer) {
-        const kid = keyID.toString('hex');
-        if (kid in this.keys === false) {
-            throw new Error(`Key '${kid}' not found`);
-        }
-
-        // Signature Curve
-        const curveSIG: KeyUtils | null = 
-            [EdhocSuite.Suite2, EdhocSuite.Suite3, EdhocSuite.Suite5, EdhocSuite.Suite6].includes(edhoc.selectedSuite) ? p256 :
-            [EdhocSuite.Suite0, EdhocSuite.Suite1, EdhocSuite.Suite4].includes(edhoc.selectedSuite) ? ed25519 : null;
-
-        if (null === curveSIG) {
-            throw new Error('Unsupported suite');
-        }
-        const publicKey = this.keys[kid];
-        const publicKeyBuffer = (curveSIG === p256) ? Buffer.concat([Buffer.from([publicKey.byteLength == 64 ? 0x04 : 0x02]), publicKey]) : publicKey;
-
-        if (!curveSIG.verify!(new Uint8Array(signature), sha256(input), new Uint8Array(publicKeyBuffer))) {
+    async verify(edhoc: EDHOC, keyID: Buffer, input: Buffer, signature: Buffer): Promise<boolean> {
+        const key = this.getKey(keyID);
+        const curveSIG: KeyUtils = this.getCurveForSignature(edhoc.selectedSuite);
+        const publicKeyBuffer = this.formatPublicKey(curveSIG, key);
+        const payload = this.formatToBeSigned(curveSIG, input);
+        
+        if (!curveSIG.verify!(new Uint8Array(signature), payload, new Uint8Array(publicKeyBuffer))) {
             throw new Error('Signature not verified');
         }
         
@@ -169,37 +116,29 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
     }
 
     extract(edhoc: EDHOC, keyID: Buffer, salt: Buffer, keySize: number) {
-        const kid = keyID.toString('hex');
-        if (kid in this.keys === false) {
-            throw new Error(`Key '${kid}' not found`);
-        }
-        return Buffer.from(extract(sha256, new Uint8Array(this.keys[kid]), new Uint8Array(salt)));
+        const key = this.getKey(keyID);
+        return Buffer.from(extract(sha256, new Uint8Array(key), new Uint8Array(salt)));
     }
 
     expand(edhoc: EDHOC, keyID: Buffer, info: Buffer, keySize: number) {
-        const kid = keyID.toString('hex');
-        if (kid in this.keys === false) {
-            throw new Error(`Key '${kid}' not found`);
-        }
-        const expanded =  Buffer.from(expand(sha256, new Uint8Array(this.keys[kid]), new Uint8Array(info), keySize));
+        const key = this.getKey(keyID);
+        const expanded =  Buffer.from(expand(sha256, new Uint8Array(key), new Uint8Array(info), keySize));
         return expanded;
     }
 
     encrypt(edhoc: EDHOC, keyID: Buffer, nonce: Buffer, aad: Buffer, plaintext: Buffer, size: number) {
-        const kid = keyID.toString('hex');
-        if (kid in this.keys === false) {
-            throw new Error(`Key '${kid}' not found`);
-        }
+        const key = this.getKey(keyID);
+        const algorithm = this.getAlgorithm(edhoc.selectedSuite);
+        const options: CipherCCMOptions | CipherGCMOptions = { 
+            authTagLength: this.getTagLength(edhoc.selectedSuite) 
+        };
         
-        const tagLength = [EdhocSuite.Suite0, EdhocSuite.Suite2].includes(edhoc.selectedSuite) ? 8 : 16;
-        const algorithm = [EdhocSuite.Suite4, EdhocSuite.Suite5].includes(edhoc.selectedSuite) ? 'chacha20-poly1305' : 
-            [EdhocSuite.Suite6].includes(edhoc.selectedSuite) ? 'aes-128-gcm' : 'aes-128-ccm';
-
-        const cipher = createCipheriv(algorithm, this.keys[kid], nonce, { authTagLength: tagLength } as any) as CipherCCM | CipherGCM; 
+        const cipher = createCipheriv(algorithm, key, nonce, options) as CipherCCM | CipherGCM; 
         cipher.setAAD(aad, { plaintextLength: Buffer.byteLength(plaintext) });
 
+        const update = Buffer.byteLength(plaintext) === 0 ? Buffer.alloc(0) : plaintext;
         const encrypted = Buffer.concat([
-            cipher.update(plaintext), 
+            cipher.update(update), 
             cipher.final(), 
             cipher.getAuthTag()
         ]);
@@ -207,21 +146,17 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
     }
 
     decrypt(edhoc: EDHOC, keyID: Buffer, nonce: Buffer, aad: Buffer, ciphertext: Buffer, size: number) {
-        const kid = keyID.toString('hex');
-        if (kid in this.keys === false) {
-            throw new Error(`Key '${kid}' not found`);
-        }
-        
-        const tagLength = [EdhocSuite.Suite0, EdhocSuite.Suite2].includes(edhoc.selectedSuite) ? 8 : 16;
-        const algorithm = [EdhocSuite.Suite4, EdhocSuite.Suite5].includes(edhoc.selectedSuite) ? 'chacha20-poly1305' : 
-            [EdhocSuite.Suite6].includes(edhoc.selectedSuite) ? 'aes-128-gcm' : 'aes-128-ccm';
+        const key = this.getKey(keyID);
+        const tagLength = this.getTagLength(edhoc.selectedSuite);
+        const algorithm = this.getAlgorithm(edhoc.selectedSuite);
 
-        const decipher = createDecipheriv(algorithm, this.keys[kid], nonce, { authTagLength: tagLength } as any) as DecipherCCM | DecipherGCM; 
+        const options: CipherCCMOptions | CipherGCMOptions = { authTagLength: tagLength };
+        const decipher = createDecipheriv(algorithm, key, nonce, options) as DecipherCCM | DecipherGCM; 
         
         decipher.setAuthTag(ciphertext.subarray(ciphertext.length - tagLength));
         decipher.setAAD(aad, { plaintextLength: ciphertext.length - tagLength });
         
-        let decrypted = decipher.update(ciphertext.subarray(0, ciphertext.length - tagLength));
+        const decrypted = decipher.update(ciphertext.subarray(0, ciphertext.length - tagLength));
         decipher.final();
 
         return decrypted;
@@ -229,5 +164,84 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
 
     async hash(edhoc: EDHOC, data: Buffer, hashSize: number) {
         return Buffer.from(sha256(data));
+    }
+
+    private getKey(keyID: Buffer): Buffer {
+        const kid = keyID.toString('hex');
+        if (kid in this.keys === false) {
+            throw new Error(`Key '${kid}' not found`);
+        }
+        return this.keys[kid];
+    }
+
+    private formatToBeSigned(curve: KeyUtils, payload: Buffer): Buffer {
+        if (curve === p256) {
+            return Buffer.from(sha256(payload));
+        }
+        else if (curve === ed25519) {
+            return payload;
+        }
+        else {
+            throw new Error(`Unsupported curve ${curve}`);
+        }
+    }
+
+    private formatPublicKey(curve: KeyUtils, key: Buffer): Buffer {
+        if (curve === p256) {
+            const prefix = key.byteLength === 64 ? 0x04 : (key[key.length - 1] & 1) ? 0x03 : 0x02;
+            return Buffer.concat([Buffer.from([prefix]), key]);
+        }
+        else if (curve === ed25519 || curve === x25519) {
+            return key;
+        }
+        else {
+            throw new Error(`Unsupported curve ${curve}`);
+        }
+    }
+
+    private getCurveForSignature(suite: EdhocSuite): KeyUtils {
+        if ([EdhocSuite.Suite2, EdhocSuite.Suite3, EdhocSuite.Suite5, EdhocSuite.Suite6].includes(suite)) {
+            return p256;
+        }
+        else if ([EdhocSuite.Suite0, EdhocSuite.Suite1, EdhocSuite.Suite4].includes(suite)) {
+            return ed25519;
+        }
+        else {
+            throw new Error(`Unsupported EDHOC suite ${suite} for signature.`);
+        }
+    }
+
+    private getCurveForKeyAgreement(suite: EdhocSuite): KeyUtils {
+        if ([EdhocSuite.Suite2, EdhocSuite.Suite3, EdhocSuite.Suite5].includes(suite)) {
+            return p256;
+        }
+        else if ([EdhocSuite.Suite0, EdhocSuite.Suite1, EdhocSuite.Suite4, EdhocSuite.Suite6].includes(suite)) {
+            return x25519;
+        }
+        else {
+            throw new Error(`Unsupported EDHOC suite ${suite} for key agreement.`);
+        }
+    }
+
+    private getTagLength(suite: EdhocSuite): number {
+        return [EdhocSuite.Suite0, EdhocSuite.Suite2].includes(suite) ? 8 : 16;
+    }
+
+    private getAlgorithm(suite: EdhocSuite): string {
+        if ([EdhocSuite.Suite4, EdhocSuite.Suite5, EdhocSuite.Suite25].includes(suite)) {
+            return 'chacha20-poly1305';
+        }
+        else if ([EdhocSuite.Suite6].includes(suite)) {
+            return 'aes-128-gcm';
+        }
+        else if ([EdhocSuite.Suite24].includes(suite)) {
+            return 'aes-256-gcm';
+        }
+        else if ([EdhocSuite.Suite0, EdhocSuite.Suite1, EdhocSuite.Suite2, EdhocSuite.Suite3].includes(suite)) {
+            return 'aes-128-ccm';
+        }
+        else {
+            throw new Error(`Unsupported EDHOC suite ${suite} for encryption.`);
+        }
     }
 }

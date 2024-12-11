@@ -43,20 +43,20 @@ class EdhocCryptoManager {
   ~EdhocCryptoManager();
 
   /**
-   * @brief Generate a key.
+   * @brief Import a key.
    *
    * @param user_context The user context.
-   * @param key_type The type of the key to generate.
+   * @param key_type The type of the key to import.
    * @param raw_key The raw key data.
    * @param raw_key_length The length of the raw key data.
-   * @param key_id The generated key ID.
+   * @param key_id The imported key ID.
    * @return int The result code.
    */
-  static int GenerateKey(void* user_context,
-                         enum edhoc_key_type key_type,
-                         const uint8_t* raw_key,
-                         size_t raw_key_length,
-                         void* key_id);
+  static int ImportKey(void* user_context,
+                       enum edhoc_key_type key_type,
+                       const uint8_t* raw_key,
+                       size_t raw_key_length,
+                       void* key_id);
 
   /**
    * @brief Destroy a key.
@@ -263,20 +263,20 @@ class EdhocCryptoManager {
                   size_t* hash_length);
 
   /**
-   * @brief Calls the GenerateKey function.
+   * @brief Calls the ImportKey function.
    *
    * @param user_context The user context.
-   * @param key_type The type of the key to generate.
+   * @param key_type The type of the key to import.
    * @param raw_key The raw key data.
    * @param raw_key_length The length of the raw key data.
-   * @param key_id The generated key ID.
+   * @param key_id The imported key ID.
    * @return int The result code.
    */
-  int callGenerateKey(const void* user_context,
-                      enum edhoc_key_type key_type,
-                      const uint8_t* raw_key,
-                      size_t raw_key_length,
-                      void* key_id);
+  int callImportKey(const void* user_context,
+                    enum edhoc_key_type key_type,
+                    const uint8_t* raw_key,
+                    size_t raw_key_length,
+                    void* key_id);
 
   /**
    * @brief Calls the DestroyKey function.
@@ -481,17 +481,24 @@ class EdhocCryptoManager {
                uint8_t* hash,
                size_t hash_size,
                size_t* hash_length);
+  /**
+   * @brief Sets up the async functions.
+   */
+  void SetupAsyncFunctions();
+
+  /**
+   * @brief Releases the async functions.
+   */
+  void CleanupAsyncFunctions();
 
  private:
   Napi::ObjectReference cryptoManagerRef;  ///< Reference to the JS object
 
-  std::vector<Napi::Reference<Napi::Buffer<uint8_t>>>
-      bufferReferences;  ///< References to the JS buffers
+  std::vector<Napi::Reference<Napi::Buffer<uint8_t>>> bufferReferences;  ///< References to the JS buffers
 
   /* Thread-safe functions */
-  Napi::ThreadSafeFunction generateTsfn, destroyTsfn, makeKeyPairTsfn,
-      keyAgreementTsfn, signTsfn, verifyTsfn, extractTsfn, expandTsfn,
-      encryptTsfn, decryptTsfn, hashTsfn;
+  Napi::ThreadSafeFunction importTsfn, destroyTsfn, makeKeyPairTsfn, keyAgreementTsfn, signTsfn, verifyTsfn,
+      extractTsfn, expandTsfn, encryptTsfn, decryptTsfn, hashTsfn;
 
   /**
    * @brief Assosciates the thread-safe function with the JS object function.

@@ -2,6 +2,7 @@
 #define EDHOC_EAD_MANAGER_H
 
 #include <napi.h>
+
 #include <map>
 #include <vector>
 
@@ -50,9 +51,7 @@ class EdhocEadManager {
    * @param label The label associated with the EAD.
    * @param ead The EAD data to be stored.
    */
-  void StoreEad(enum edhoc_message message,
-                int label,
-                const std::vector<uint8_t>& ead);
+  void StoreEad(enum edhoc_message message, int label, const std::vector<uint8_t>& ead);
 
   /**
    * @brief Stores the EAD for a specific EDHOC message using a Napi::Array.
@@ -143,9 +142,7 @@ class EdhocEadManager {
    * @param ead_token_size The size of the EAD token structure.
    * @return The status of the process operation.
    */
-  int callProcessEad(enum edhoc_message message,
-                     const struct edhoc_ead_token* ead_token,
-                     size_t ead_token_size);
+  int callProcessEad(enum edhoc_message message, const struct edhoc_ead_token* ead_token, size_t ead_token_size);
 };
 
 #endif  // EDHOC_EAD_MANAGER_H

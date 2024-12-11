@@ -2,7 +2,9 @@
 #define USER_CONTEXT_H
 
 #include <napi.h>
+
 #include <memory>
+
 #include "EdhocCredentialManager.h"
 #include "EdhocCryptoManager.h"
 #include "EdhocEadManager.h"
@@ -61,19 +63,15 @@ class UserContext {
    *
    * @return A pointer to the EdhocCredentialManager.
    */
-  EdhocCredentialManager* GetCredentialManager() const {
-    return credentialManager.get();
-  }
+  EdhocCredentialManager* GetCredentialManager() const { return credentialManager.get(); }
 
   Napi::ThreadSafeFunction logger;  ///< The logger for the UserContext
-  Napi::ObjectReference
-      parent;  ///< The parent object reference for the UserContext
+  Napi::ObjectReference parent;     ///< The parent object reference for the UserContext
 
  protected:
-  std::shared_ptr<EdhocCryptoManager> cryptoManager;  ///< The crypto manager
-  std::shared_ptr<EdhocEadManager> eadManager;        ///< The EAD manager
-  std::shared_ptr<EdhocCredentialManager>
-      credentialManager;  ///< The credential manager
+  std::shared_ptr<EdhocCryptoManager> cryptoManager;          ///< The crypto manager
+  std::shared_ptr<EdhocEadManager> eadManager;                ///< The EAD manager
+  std::shared_ptr<EdhocCredentialManager> credentialManager;  ///< The credential manager
 };
 
 #endif  // USER_CONTEXT_H

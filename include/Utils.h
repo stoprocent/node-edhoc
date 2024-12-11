@@ -2,7 +2,9 @@
 #define UTILS_H
 
 #include <napi.h>
+
 #include <cstdint>
+#include <future>
 #include <string>
 #include <vector>
 
@@ -20,22 +22,8 @@ extern "C" {
  */
 class Utils {
  public:
-  /**
-   * Resets a JavaScript function reference and releases a thread-safe function.
-   * This helper function is designed to encapsulate the cleanup logic for N-API
-   * resources, ensuring that function references are reset and thread-safe
-   * functions are released properly. This prevents memory leaks and ensures
-   * that asynchronous operations using thread-safe functions do not attempt to
-   * call into JavaScript after the native resources have been disposed of.
-   *
-   * @param funcRef A reference to a N-API function that may be called from
-   * native code. This function reference will be reset if it is not empty.
-   * @param tsfn A N-API thread-safe function that facilitates calling
-   * JavaScript functions asynchronously from native threads. This thread-safe
-   * function will be released and set to nullptr.
-   */
-  static void ResetAndRelease(Napi::FunctionReference& funcRef,
-                              Napi::ThreadSafeFunction& tsfn);
+  using SuccessHandler = std::function<void(Napi::Env, Napi::Value)>;
+  using ErrorHandler = std::function<void(Napi::Env, Napi::Error)>;
 
   /**
    * Invokes a JavaScript function with promise handling.
@@ -50,12 +38,31 @@ class Utils {
    * @param callbackLambda A lambda function to handle the result of the
    * function call.
    */
-  static void InvokeJSFunctionWithPromiseHandling(
-      Napi::Env env,
-      Napi::Object jsObject,
-      Napi::Function jsCallback,
-      const std::vector<napi_value>& args,
-      std::function<void(Napi::Env, Napi::Value)> callbackLambda);
+  static void InvokeJSFunctionWithPromiseHandling(Napi::Env env,
+                                                  Napi::Object jsObject,
+                                                  Napi::Function jsCallback,
+                                                  const std::vector<napi_value>& args,
+                                                  SuccessHandler successLambda,
+                                                  ErrorHandler errorLambda);
+
+  /**
+   * Creates a promise error handler for a given promise.
+   *
+   * @tparam T The type of the promise.
+   * @param promise The promise to handle errors for.
+   * @return A lambda function that sets the exception on the promise.
+   */
+  template <typename T>
+  static ErrorHandler CreatePromiseErrorHandler(std::promise<T>& promise, T defaultValue) {
+    return [&promise, defaultValue](Napi::Env env, Napi::Error error) {
+      auto exception = std::current_exception();
+      if (exception) {
+        promise.set_exception(exception);
+      } else {
+        promise.set_value(defaultValue);
+      }
+    };
+  }
 
   /**
    * Converts a JavaScript value to an EDHOC connection ID structure.
@@ -75,8 +82,7 @@ class Utils {
    * @param value The EDHOC connection ID structure.
    * @return A N-API value representing the connection ID.
    */
-  static Napi::Value CreateJsValueFromEdhocCid(
-      Napi::Env env, struct edhoc_connection_id value);
+  static Napi::Value CreateJsValueFromEdhocCid(Napi::Env env, struct edhoc_connection_id value);
 
   /**
    * Converts a JavaScript number to a strongly typed enum.
@@ -102,9 +108,7 @@ class Utils {
    * @param length Pointer to a size_t variable where the length of the encoded
    * data will be stored.
    */
-  static void EncodeInt64ToBuffer(int64_t value,
-                                  uint8_t* buffer,
-                                  size_t* length);
+  static void EncodeInt64ToBuffer(int64_t value, uint8_t* buffer, size_t* length);
 };
 
 #endif  // UTILS_H

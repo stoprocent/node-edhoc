@@ -2,6 +2,7 @@
 #define EDHOC_COMPOSE_ASYNC_WORKER_H
 
 #include <napi.h>
+
 #include <vector>
 
 extern "C" {
@@ -22,16 +23,11 @@ class EdhocComposeAsyncWorker : public Napi::AsyncWorker {
   /**
    * @brief Constructor for EdhocComposeAsyncWorker.
    * @param env The Napi::Env object.
-   * @param deferred The deferred promise object.
    * @param context The EDHOC context.
    * @param messageNumber The message number.
    * @param callback The callback function.
    */
-  EdhocComposeAsyncWorker(Napi::Env& env,
-                          Napi::Promise::Deferred deferred,
-                          struct edhoc_context& context,
-                          int messageNumber,
-                          CallbackType callback);
+  EdhocComposeAsyncWorker(Napi::Env& env, struct edhoc_context& context, int messageNumber, CallbackType callback);
 
   /**
    * @brief Executes the asynchronous worker task.
@@ -49,6 +45,12 @@ class EdhocComposeAsyncWorker : public Napi::AsyncWorker {
    * @param error The Napi::Error object.
    */
   void OnError(const Napi::Error& error) override;
+
+  /**
+   * @brief Returns the promise object.
+   * @return The promise object.
+   */
+  Napi::Promise GetPromise();
 
  private:
   Napi::Promise::Deferred deferred;      ///< The deferred promise object.

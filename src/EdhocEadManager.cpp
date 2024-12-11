@@ -1,14 +1,14 @@
+#include "EdhocEadManager.h"
+
 #include <exception>
 #include <future>
 #include <iostream>
 #include <stdexcept>
 
-#include "EdhocEadManager.h"
 #include "UserContext.h"
 #include "Utils.h"
 
-static constexpr const char* kErrorExpectedObject =
-    "Expected an object as element in the input array";
+static constexpr const char* kErrorExpectedObject = "Expected an object as element in the input array";
 static constexpr const char* kErrorExpectedLabelNumberAndValueBuffer =
     "Expected 'label' to be a number and 'value' to be a buffer in the input "
     "array";
@@ -24,17 +24,14 @@ EdhocEadManager::~EdhocEadManager() {
   eadBuffers.clear();
 }
 
-void EdhocEadManager::StoreEad(enum edhoc_message message,
-                               int label,
-                               const std::vector<uint8_t>& ead) {
+void EdhocEadManager::StoreEad(enum edhoc_message message, int label, const std::vector<uint8_t>& ead) {
   auto& vecOfMaps = eadBuffers[message];
   EadMap newMap;
   newMap[label] = ead;
   vecOfMaps.push_back(std::move(newMap));
 }
 
-void EdhocEadManager::StoreEad(enum edhoc_message message,
-                               const Napi::Array& eadArray) {
+void EdhocEadManager::StoreEad(enum edhoc_message message, const Napi::Array& eadArray) {
   Napi::Env env = eadArray.Env();
   for (size_t i = 0; i < eadArray.Length(); i++) {
     Napi::Value element = eadArray.Get(i);
@@ -53,20 +50,17 @@ void EdhocEadManager::StoreEad(enum edhoc_message message,
     int label = labelValue.As<Napi::Number>().Int32Value();
     Napi::Buffer<uint8_t> buffer = bufferValue.As<Napi::Buffer<uint8_t>>();
 
-    std::vector<uint8_t> eadVector(buffer.Data(),
-                                   buffer.Data() + buffer.Length());
+    std::vector<uint8_t> eadVector(buffer.Data(), buffer.Data() + buffer.Length());
     StoreEad(message, label, eadVector);
   }
 }
 
-const EadMapVector* EdhocEadManager::GetEadByMessage(
-    enum edhoc_message message) const {
+const EadMapVector* EdhocEadManager::GetEadByMessage(enum edhoc_message message) const {
   auto it = eadBuffers.find(message);
   return it != eadBuffers.end() ? &it->second : nullptr;
 }
 
-Napi::Array EdhocEadManager::GetEadByMessage(Napi::Env& env,
-                                             enum edhoc_message message) const {
+Napi::Array EdhocEadManager::GetEadByMessage(Napi::Env& env, enum edhoc_message message) const {
   const EadMapVector* buffers = GetEadByMessage(message);
   if (!buffers) {
     return Napi::Array::New(env);
@@ -78,8 +72,7 @@ Napi::Array EdhocEadManager::GetEadByMessage(Napi::Env& env,
     Napi::Object obj = Napi::Object::New(env);
     for (auto const& [label, buffer] : map) {
       obj.Set(kPropLabel, Napi::Number::New(env, label));
-      obj.Set(kPropValue,
-              Napi::Buffer<uint8_t>::Copy(env, buffer.data(), buffer.size()));
+      obj.Set(kPropValue, Napi::Buffer<uint8_t>::Copy(env, buffer.data(), buffer.size()));
     }
     result.Set(i++, obj);
   }
@@ -98,8 +91,7 @@ int EdhocEadManager::ComposeEad(void* user_context,
                                 size_t* ead_token_len) {
   UserContext* context = static_cast<UserContext*>(user_context);
   EdhocEadManager* manager = context->GetEadManager();
-  return manager->callComposeEad(
-      message, ead_token, ead_token_size, ead_token_len);
+  return manager->callComposeEad(message, ead_token, ead_token_size, ead_token_len);
 }
 
 int EdhocEadManager::ProcessEad(void* user_context,

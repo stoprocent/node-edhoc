@@ -7,15 +7,16 @@
       "target_name": "bindings",
       'defines': [
         'NAPI_CPP_EXCEPTIONS=1',
-        'EDHOC_KID_LEN=4',
-        'EDHOC_MAX_CSUITES_LEN=9',
-        'EDHOC_MAX_CID_LEN=7',
-        'EDHOC_MAX_ECC_KEY_LEN=56',
-        'EDHOC_MAX_MAC_LEN=64',
-        'EDHOC_MAX_NR_OF_EAD_TOKENS=10',
-        'EDHOC_MAX_NR_OF_CERTS_IN_X509_CHAIN=5',
-        'EDHOC_CRED_KEY_ID_LEN=8',
-        'EDHOC_CRED_X509_HASH_ALG_LEN=1',
+        'CONFIG_LIBEDHOC_ENABLE=1',
+        'CONFIG_LIBEDHOC_MAX_NR_OF_CIPHER_SUITES=9',
+        'CONFIG_LIBEDHOC_MAX_LEN_OF_CONN_ID=7',
+        'CONFIG_LIBEDHOC_MAX_LEN_OF_ECC_KEY=56',
+        'CONFIG_LIBEDHOC_MAX_LEN_OF_MAC=64',
+        'CONFIG_LIBEDHOC_MAX_NR_OF_EAD_TOKENS=10',
+        'CONFIG_LIBEDHOC_MAX_LEN_OF_CRED_KEY_ID=1',
+        'CONFIG_LIBEDHOC_MAX_NR_OF_CERTS_IN_X509_CHAIN=5',
+        'CONFIG_LIBEDHOC_MAX_LEN_OF_HASH_ALG=1',
+        'CONFIG_LIBEDHOC_KEY_ID_LEN=4',
         'ZCBOR_CANONICAL=1'
       ],
       "sources": [ 
@@ -45,11 +46,12 @@
       'conditions': [
         ['OS=="win"', {
           'defines': [
-            '_Static_assert=static_assert'
+            '_Static_assert=static_assert',
+            '__attribute__(x)='
           ],
           'msvs_settings': {
             'VCCLCompilerTool': {
-              'AdditionalOptions': [ '-std:c++20', ],
+              'AdditionalOptions': [ '-std:c++20', "/D__attribute__(x)="],
               'ExceptionHandling': 1
             }
           }

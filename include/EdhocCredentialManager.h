@@ -39,8 +39,7 @@ class EdhocCredentialManager {
    * fetched credentials.
    * @return EDHOC_SUCCESS if successful, otherwise an error code.
    */
-  static int FetchCredentials(void* user_context,
-                              struct edhoc_auth_creds* credentials);
+  static int FetchCredentials(void* user_context, struct edhoc_auth_creds* credentials);
 
   /**
    * @brief Static function to verify the credentials.
@@ -63,8 +62,7 @@ class EdhocCredentialManager {
    * fetched credentials.
    * @return EDHOC_SUCCESS if successful, otherwise an error code.
    */
-  int callFetchCredentials(const void* user_context,
-                           struct edhoc_auth_creds* credentials);
+  int callFetchCredentials(const void* user_context, struct edhoc_auth_creds* credentials);
 
   /**
    * @brief Calls the VerifyCredentials function.
@@ -80,14 +78,21 @@ class EdhocCredentialManager {
                             const uint8_t** public_key_reference,
                             size_t* public_key_length);
 
+  /**
+   * @brief Sets up the async functions.
+   */
+  void SetupAsyncFunctions();
+
+  /**
+   * @brief Releases the async functions.
+   */
+  void CleanupAsyncFunctions();
+
  private:
-  std::vector<Napi::Reference<Napi::Object>>
-      credentialReferences;                    ///< References to the JS objects
-  Napi::ObjectReference credentialManagerRef;  ///< Reference to the JS object
-  Napi::ThreadSafeFunction
-      fetchTsfn;  ///< Thread-safe function for FetchCredentials
-  Napi::ThreadSafeFunction
-      verifyTsfn;  ///< Thread-safe function for VerifyCredentials
+  std::vector<Napi::Reference<Napi::Object>> credentialReferences;  ///< References to the JS objects
+  Napi::ObjectReference credentialManagerRef;                       ///< Reference to the JS object
+  Napi::ThreadSafeFunction fetchTsfn;                               ///< Thread-safe function for FetchCredentials
+  Napi::ThreadSafeFunction verifyTsfn;                              ///< Thread-safe function for VerifyCredentials
 
   /**
    * @brief Assosciates the thread-safe function with the JS object function.
