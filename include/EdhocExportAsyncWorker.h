@@ -22,7 +22,7 @@ class EdhocExportAsyncWorker : public Napi::AsyncWorker {
   /**
    * @brief The type definition for the callback function.
    */
-  using CallbackType = std::function<void(Napi::Env)>;
+  using CallbackType = std::function<void(Napi::Env&)>;
 
   /**
    * @brief Constructs a new EdhocExportAsyncWorker object.
@@ -34,7 +34,8 @@ class EdhocExportAsyncWorker : public Napi::AsyncWorker {
    */
   EdhocExportAsyncWorker(Napi::Env& env,
                          Napi::Promise::Deferred deferred,
-                         struct edhoc_context& context);
+                         struct edhoc_context& context,
+                         CallbackType callback);
 
   /**
    * @brief Destroys the EdhocExportAsyncWorker object.
@@ -66,6 +67,7 @@ class EdhocExportAsyncWorker : public Napi::AsyncWorker {
   std::vector<uint8_t> masterSalt;    ///< The master salt.
   std::vector<uint8_t> senderId;      ///< The sender ID.
   std::vector<uint8_t> recipientId;   ///< The recipient ID.
+  CallbackType callback;              ///< The callback function to be executed.
 };
 
 #endif  // EDHOC_EXPORT_ASYNC_WORKER_H

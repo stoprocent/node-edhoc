@@ -53,8 +53,8 @@ async function run() {
     keysContainer['01020304'] = ec.keyFromPrivate(Buffer.from('FB13ADEB6518CEE5F88417660841142E830A81FE334380A953406A1305E8706B', 'hex'));
     keysContainer['01020304'] = ec.keyFromPrivate(Buffer.from('FB13ADEB6518CEE5F88417660841142E830A81FE334380A953406A1305E8706B', 'hex'));
 
-    crypto.generateKey = async (edhoc, key_type, key) => {
-        console.log(`EDHOC(${edhoc.connectionID}) setGenerateKey`, key_type, key);
+    crypto.importKey = async (edhoc, key_type, key) => {
+        console.log(`EDHOC(${edhoc.connectionID}) setImportKey`, key_type, key);
         // throw new Error("Not implemented");
         // return []
         currentKey++;

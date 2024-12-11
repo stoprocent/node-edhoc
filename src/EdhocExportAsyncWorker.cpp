@@ -13,14 +13,16 @@ static constexpr size_t kConnectionIdSize = 7;
 
 EdhocExportAsyncWorker::EdhocExportAsyncWorker(Napi::Env& env,
                                                Napi::Promise::Deferred deferred,
-                                               struct edhoc_context& context)
+                                               struct edhoc_context& context,
+                                               CallbackType callback)
     : Napi::AsyncWorker(env),
       deferred(std::move(deferred)),
       context(context),
       masterSecret(kMasterSecrectSize),
       masterSalt(kMasterSaltSize),
       senderId(kConnectionIdSize),
-      recipientId(kConnectionIdSize) {}
+      recipientId(kConnectionIdSize),
+      callback(std::move(callback)) {}
 
 EdhocExportAsyncWorker::~EdhocExportAsyncWorker() {}
 
@@ -57,6 +59,10 @@ void EdhocExportAsyncWorker::Execute() {
 void EdhocExportAsyncWorker::OnOK() {
   Napi::Env env = Env();
   Napi::HandleScope scope(env);
+
+  if (callback) {
+    callback(env);
+  }
 
   auto masterSecretBuffer = Napi::Buffer<uint8_t>::Copy(
       env, masterSecret.data(), masterSecret.size());

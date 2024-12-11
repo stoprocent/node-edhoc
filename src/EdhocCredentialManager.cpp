@@ -169,21 +169,28 @@ EdhocCredentialManager::EdhocCredentialManager(
         .ThrowAsJavaScriptException();
   }
   credentialManagerRef = Napi::Persistent(jsCredentialManager);
-  SetFunction(kFetch, fetchTsfn);
-  SetFunction(kVerify, verifyTsfn);
 
   credentials.fetch = FetchCredentials;
   credentials.verify = VerifyCredentials;
 }
 
 EdhocCredentialManager::~EdhocCredentialManager() {
+  // Reset the persistent reference
   credentialManagerRef.Reset();
-  fetchTsfn.Release();
-  verifyTsfn.Release();
   for (auto& ref : credentialReferences) {
     ref.Reset();
   }
   credentialReferences.clear();
+}
+
+void EdhocCredentialManager::SetupAsyncFunctions() {
+  SetFunction(kFetch, fetchTsfn);
+  SetFunction(kVerify, verifyTsfn);
+}
+
+void EdhocCredentialManager::CleanupAsyncFunctions() {
+  fetchTsfn.Release();
+  verifyTsfn.Release();
 }
 
 void EdhocCredentialManager::SetFunction(const char* name,
@@ -252,6 +259,7 @@ int EdhocCredentialManager::callFetchCredentials(
             case EDHOC_COSE_HEADER_X509_HASH:
               convert_js_to_edhoc_x5t(credsObj, credentials);
               break;
+            case EDHOC_COSE_ANY:
             default:
               throw Napi::Error::New(env, kUnsupportedCredentialTypeError);
           }

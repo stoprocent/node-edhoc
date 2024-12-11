@@ -80,6 +80,16 @@ class EdhocCredentialManager {
                             const uint8_t** public_key_reference,
                             size_t* public_key_length);
 
+  /**
+   * @brief Sets up the async functions.
+   */
+  void SetupAsyncFunctions();
+
+  /**
+   * @brief Releases the async functions.
+   */
+  void CleanupAsyncFunctions();
+
  private:
   std::vector<Napi::Reference<Napi::Object>>
       credentialReferences;                    ///< References to the JS objects

@@ -4,6 +4,8 @@ static constexpr const char* kErrorInvalidMessageNumber =
     "Invalid message number";
 static constexpr const char* kErrorMessageFormat =
     "Failed to process EDHOC message %d. Error code: %d";
+static constexpr const char* kErrorWrongSelectedCipherSuite =
+    "Wrong selected cipher suite";
 static constexpr size_t kErrorBufferSize = 100;
 
 EdhocProcessAsyncWorker::EdhocProcessAsyncWorker(
@@ -45,12 +47,47 @@ void EdhocProcessAsyncWorker::Execute() {
     }
 
     if (ret != EDHOC_SUCCESS) {
+      enum edhoc_error_code error_code = EDHOC_ERROR_CODE_SUCCESS;
+      ret = edhoc_error_get_code(&context, &error_code);
+      switch (error_code) {
+        case EDHOC_ERROR_CODE_WRONG_SELECTED_CIPHER_SUITE: {
+          size_t csuites_len = 0;
+          int32_t csuites[10] = { 0 };
+          ret = edhoc_error_get_cipher_suites(&context,
+                                            csuites,
+                                            ARRAY_SIZE(csuites),
+                                            &csuites_len);
+          if (ret == EDHOC_SUCCESS) {
+            std::string suites_str = "[";
+            for (size_t i = 0; i < csuites_len; i++) {
+              suites_str += std::to_string(csuites[i]);
+              if (i < csuites_len - 1) {
+                suites_str += ",";
+              }
+            }
+            suites_str += "]";
+
+            char errorMessage[kErrorBufferSize];
+            std::snprintf(errorMessage,
+                         kErrorBufferSize,
+                         "%s %s",
+                         kErrorWrongSelectedCipherSuite,
+                         suites_str.c_str());
+            SetError(errorMessage);
+            return;
+          }
+          break;
+        }
+        default:
+          break;
+      }
+      
       char errorMessage[kErrorBufferSize];
       std::snprintf(errorMessage,
                     kErrorBufferSize,
                     kErrorMessageFormat,
                     messageNumber + 1,
-                    ret);
+                    error_code);
       SetError(errorMessage);
     }
 

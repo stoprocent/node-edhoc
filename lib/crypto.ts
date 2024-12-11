@@ -1,6 +1,5 @@
 import { EDHOC, EdhocCryptoManager, EdhocKeyType, EdhocSuite } from './edhoc';
-import { ed25519, ed25519ph, ed25519ctx, x25519, edwardsToMontgomeryPriv } from '@noble/curves/ed25519';
-import { ed448, ed448ph, x448 } from '@noble/curves/ed448';
+import { ed25519, x25519 } from '@noble/curves/ed25519';
 import { p256 } from '@noble/curves/p256';
 import { sha256 } from '@noble/hashes/sha256';
 import { extract, expand } from '@noble/hashes/hkdf';
@@ -33,8 +32,7 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
         this.keys[kid] = key;
     }
 
-    async generateKey(edhoc: EDHOC, keyType: EdhocKeyType, key: Buffer) {
-
+    async importKey(edhoc: EDHOC, keyType: EdhocKeyType, key: Buffer) {
         // Key Identifier
         const keyBuffer = Buffer.alloc(4);
         keyBuffer.writeInt32LE(this.keyIdentifier++);

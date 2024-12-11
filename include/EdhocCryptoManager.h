@@ -43,16 +43,16 @@ class EdhocCryptoManager {
   ~EdhocCryptoManager();
 
   /**
-   * @brief Generate a key.
+   * @brief Import a key.
    *
    * @param user_context The user context.
-   * @param key_type The type of the key to generate.
+   * @param key_type The type of the key to import.
    * @param raw_key The raw key data.
    * @param raw_key_length The length of the raw key data.
-   * @param key_id The generated key ID.
+   * @param key_id The imported key ID.
    * @return int The result code.
    */
-  static int GenerateKey(void* user_context,
+  static int ImportKey(void* user_context,
                          enum edhoc_key_type key_type,
                          const uint8_t* raw_key,
                          size_t raw_key_length,
@@ -263,16 +263,16 @@ class EdhocCryptoManager {
                   size_t* hash_length);
 
   /**
-   * @brief Calls the GenerateKey function.
+   * @brief Calls the ImportKey function.
    *
    * @param user_context The user context.
-   * @param key_type The type of the key to generate.
+   * @param key_type The type of the key to import.
    * @param raw_key The raw key data.
    * @param raw_key_length The length of the raw key data.
-   * @param key_id The generated key ID.
+   * @param key_id The imported key ID.
    * @return int The result code.
    */
-  int callGenerateKey(const void* user_context,
+  int callImportKey(const void* user_context,
                       enum edhoc_key_type key_type,
                       const uint8_t* raw_key,
                       size_t raw_key_length,
@@ -481,6 +481,15 @@ class EdhocCryptoManager {
                uint8_t* hash,
                size_t hash_size,
                size_t* hash_length);
+  /**
+   * @brief Sets up the async functions.
+   */
+  void SetupAsyncFunctions();
+
+  /**
+   * @brief Releases the async functions.
+   */
+  void CleanupAsyncFunctions();
 
  private:
   Napi::ObjectReference cryptoManagerRef;  ///< Reference to the JS object
@@ -489,7 +498,7 @@ class EdhocCryptoManager {
       bufferReferences;  ///< References to the JS buffers
 
   /* Thread-safe functions */
-  Napi::ThreadSafeFunction generateTsfn, destroyTsfn, makeKeyPairTsfn,
+  Napi::ThreadSafeFunction importTsfn, destroyTsfn, makeKeyPairTsfn,
       keyAgreementTsfn, signTsfn, verifyTsfn, extractTsfn, expandTsfn,
       encryptTsfn, decryptTsfn, hashTsfn;
 

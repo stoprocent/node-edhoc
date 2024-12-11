@@ -37,7 +37,7 @@ server.on('request', async (req, res) => {
         if (isTrue) {
             // Responder creates a new session
             const connectionID = randomBytes(4);
-            const responder = new EDHOC(connectionID, method, [ EdhocSuite.Suite2 ], credentialManager, cryptoManager);
+            const responder = new EDHOC(connectionID, [method], [ EdhocSuite.Suite2 ], credentialManager, cryptoManager);
             
             responder.logger = (name, value) => console.log(name, value.toString('hex'), `\n`);
 

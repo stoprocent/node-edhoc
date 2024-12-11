@@ -88,20 +88,30 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
    * associated with the LibEDHOC object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
-   * @return Napi::Value The Method used in EDHOC.
+   * @return Napi::Value The supported methods used in EDHOC.
    */
-  Napi::Value GetMethod(const Napi::CallbackInfo& info);
+  Napi::Value GetMethods(const Napi::CallbackInfo& info);
 
   /**
    * @brief Sets the Method (RFC 9528: 3.2.) used in EDHOC.
    *
-   * This method sets the Method (RFC 9528: 3.2.) used in EDHOC for the LibEDHOC
-   * object.
+   * This method sets the supported methods (RFC 9528: 3.2.) used in EDHOC for
+   * the LibEDHOC object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
-   * @param value The Napi::Value representing the Method used in EDHOC.
+   * @param value The Napi::Value representing the supported methods used in EDHOC.
    */
-  void SetMethod(const Napi::CallbackInfo& info, const Napi::Value& value);
+  void SetMethods(const Napi::CallbackInfo& info, const Napi::Value& value);
+
+  /**
+   * @brief Gets the selected method.
+   *
+   * This method returns the selected method associated with the LibEDHOC object.
+   *
+   * @param info The Napi::CallbackInfo representing the callback information.
+   * @return Napi::Value The selected method.
+   */
+  Napi::Value GetSelectedMethod(const Napi::CallbackInfo& info);
 
   /**
    * @brief Sets the cipher suites.
@@ -252,8 +262,6 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
 
   struct edhoc_connection_id
       cid;  ///< RFC 9528: 3.3.2. Representation of Byte String Identifiers.
-
-  enum edhoc_method method;  ///< RFC 9528: 3.2. Method.
 
   Napi::FunctionReference logger;  ///< N-API reference to the logger function
 
