@@ -22,7 +22,7 @@ export interface EdhocCredentials {
 export interface EdhocCredentialsKID extends EdhocCredentials {
     format: EdhocCredentialsFormat.kid,  // Fixed format set to 'kid' for Key Identifier.
     kid: {
-        kid: number,                    // The numeric key identifier.
+        kid: number | Buffer,           // The numeric key identifier or buffer containing the key identifier.
         credentials?: Buffer,           // Optional buffer containing credential data (e.g. CCS, CWT).
         isCBOR?: boolean                // Optional flag indicating if the credentials are in CBOR format.
     }
@@ -278,7 +278,7 @@ export interface EdhocOscoreContext {
     masterSecret: Buffer,
     masterSalt: Buffer,
     senderId: Buffer,
-    recipientId: Buffer 
+    recipientId: Buffer
 }
 
 /**
@@ -343,6 +343,7 @@ export declare class EDHOC {
      * Processes the received first EDHOC message.
      * @param message The received message buffer.
      * @return A promise that resolves to an array of EAD objects extracted from the message.
+     * @throws Error if processing fails, optionally including peerCipherSuites.
      */
     public processMessage1(message: Buffer): Promise<EdhocEAD[]> | never;
 
@@ -357,6 +358,7 @@ export declare class EDHOC {
      * Processes the received second EDHOC message.
      * @param message The received message buffer.
      * @return A promise that resolves to an array of EAD objects extracted from the message.
+     * @throws Error if processing fails, optionally including peerCipherSuites.
      */
     public processMessage2(message: Buffer): Promise<EdhocEAD[]> | never;
 
@@ -371,6 +373,7 @@ export declare class EDHOC {
      * Processes the received third EDHOC message.
      * @param message The received message buffer.
      * @return A promise that resolves to an array of EAD objects extracted from the message.
+     * @throws Error if processing fails, optionally including peerCipherSuites.
      */
     public processMessage3(message: Buffer): Promise<EdhocEAD[]> | never;
 
@@ -385,6 +388,7 @@ export declare class EDHOC {
      * Processes the received fourth EDHOC message.
      * @param message The received message buffer.
      * @return A promise that resolves to an array of EAD objects extracted from the message.
+     * @throws Error if processing fails, optionally including peerCipherSuites.
      */
     public processMessage4(message: Buffer): Promise<EdhocEAD[]> | never;
 
@@ -393,6 +397,22 @@ export declare class EDHOC {
      * @return A promise that resolves to the OSCORE context used for secured communication in constrained environments.
      */
     public exportOSCORE(): Promise<EdhocOscoreContext> | never;
+
+    /**
+     * Exports the key derived from the EDHOC session using the EDHOC_Exporter interface.
+     * @param exporterLabel The label of the key to export, as a registered uint from the "EDHOC Exporter Labels" registry.
+     * @param length The desired length of the key to export.
+     * @return A promise that resolves to the exported key.
+     */
+    public exportKey(exporterLabel: number, length: number): Promise<Buffer> | never;
+
+    /**
+     * Key update for the new OSCORE security session
+     * Read Appendix H of RFC 9528 - https://www.rfc-editor.org/rfc/rfc9528.html#appendix-H
+     * @param context Buffer containing the entropy for key update.
+     * @return A promise that resolves to void.
+     */
+    public keyUpdate(context: Buffer): Promise<void> | never;
 }
 
 export * from './bindings';

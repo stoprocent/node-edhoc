@@ -257,6 +257,28 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
    */
   Napi::Value ExportOSCORE(const Napi::CallbackInfo& info);
 
+  /**
+   * @brief Exports keying material using the EDHOC_Exporter interface.
+   *
+   * This method derives keying material using the EDHOC_Exporter, which
+   * utilizes an `exporter_label`, `context`, and `length` to generate the
+   * key.
+   *
+   * @param info The Napi::CallbackInfo representing the callback information.
+   * @return Napi::Value The derived keying material.
+   */
+  Napi::Value ExportKey(const Napi::CallbackInfo& info);
+
+  /**
+   * @brief Performs a key update.
+   *
+   * This method performs a key update for the LibEDHOC object.
+   *
+   * @param info The Napi::CallbackInfo representing the callback information.
+   * @return Napi::Value void.
+   */
+  Napi::Value KeyUpdate(const Napi::CallbackInfo& info);
+
  private:
   struct edhoc_context context;  ///< The EDHOC context.
 

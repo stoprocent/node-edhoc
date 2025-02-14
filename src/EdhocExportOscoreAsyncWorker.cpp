@@ -1,4 +1,4 @@
-#include "EdhocExportAsyncWorker.h"
+#include "EdhocExportOscoreAsyncWorker.h"
 
 static constexpr const char* kErrorMessageFormat =
     "Failed to export OSCORE. Error code: %d.";
@@ -11,10 +11,11 @@ static constexpr size_t kMasterSecrectSize = 16;
 static constexpr size_t kMasterSaltSize = 8;
 static constexpr size_t kConnectionIdSize = 7;
 
-EdhocExportAsyncWorker::EdhocExportAsyncWorker(Napi::Env& env,
-                                               Napi::Promise::Deferred deferred,
-                                               struct edhoc_context& context,
-                                               CallbackType callback)
+EdhocExportOscoreAsyncWorker::EdhocExportOscoreAsyncWorker(
+    Napi::Env& env,
+    Napi::Promise::Deferred deferred,
+    struct edhoc_context& context,
+    CallbackType callback)
     : Napi::AsyncWorker(env),
       deferred(std::move(deferred)),
       context(context),
@@ -24,9 +25,9 @@ EdhocExportAsyncWorker::EdhocExportAsyncWorker(Napi::Env& env,
       recipientId(kConnectionIdSize),
       callback(std::move(callback)) {}
 
-EdhocExportAsyncWorker::~EdhocExportAsyncWorker() {}
+EdhocExportOscoreAsyncWorker::~EdhocExportOscoreAsyncWorker() {}
 
-void EdhocExportAsyncWorker::Execute() {
+void EdhocExportOscoreAsyncWorker::Execute() {
   try {
     size_t sender_id_length, recipient_id_length;
 
@@ -56,13 +57,9 @@ void EdhocExportAsyncWorker::Execute() {
   }
 }
 
-void EdhocExportAsyncWorker::OnOK() {
+void EdhocExportOscoreAsyncWorker::OnOK() {
   Napi::Env env = Env();
   Napi::HandleScope scope(env);
-
-  if (callback) {
-    callback(env);
-  }
 
   auto masterSecretBuffer = Napi::Buffer<uint8_t>::Copy(
       env, masterSecret.data(), masterSecret.size());
@@ -80,9 +77,12 @@ void EdhocExportAsyncWorker::OnOK() {
   resultObj.Set(kPropRecipientId, recipientIdBuffer);
 
   deferred.Resolve(resultObj);
+  callback(env);
 }
 
-void EdhocExportAsyncWorker::OnError(const Napi::Error& error) {
-  Napi::HandleScope scope(Env());
+void EdhocExportOscoreAsyncWorker::OnError(const Napi::Error& error) {
+  Napi::Env env = Env();
+  Napi::HandleScope scope(env);
   deferred.Reject(error.Value());
+  callback(env);
 }

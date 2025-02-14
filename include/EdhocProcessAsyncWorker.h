@@ -71,6 +71,7 @@ class EdhocProcessAsyncWorker : public Napi::AsyncWorker {
   std::vector<uint8_t> messageBuffer;  ///< The message buffer.
   CallbackType
       callback;  ///< The callback function to be called after processing.
+  std::vector<uint8_t> peerCipherSuites;  ///< The peer cipher suites.
 };
 
 #endif  // EDHOC_PROCESS_ASYNC_WORKER_H

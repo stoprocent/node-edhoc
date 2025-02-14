@@ -1,5 +1,5 @@
-#ifndef EDHOC_EXPORT_ASYNC_WORKER_H
-#define EDHOC_EXPORT_ASYNC_WORKER_H
+#ifndef EDHOC_EXPORT_OSCORE_ASYNC_WORKER_H
+#define EDHOC_EXPORT_OSCORE_ASYNC_WORKER_H
 
 #include <napi.h>
 #include <functional>
@@ -10,14 +10,14 @@ extern "C" {
 }
 
 /**
- * @class EdhocExportAsyncWorker
+ * @class EdhocExportOscoreAsyncWorker
  * @brief A class that represents an asynchronous worker for exporting Edhoc
  * context.
  *
  * This class inherits from Napi::AsyncWorker and provides methods for executing
  * the export operation asynchronously and handling the result or error.
  */
-class EdhocExportAsyncWorker : public Napi::AsyncWorker {
+class EdhocExportOscoreAsyncWorker : public Napi::AsyncWorker {
  public:
   /**
    * @brief The type definition for the callback function.
@@ -25,22 +25,22 @@ class EdhocExportAsyncWorker : public Napi::AsyncWorker {
   using CallbackType = std::function<void(Napi::Env&)>;
 
   /**
-   * @brief Constructs a new EdhocExportAsyncWorker object.
+   * @brief Constructs a new EdhocExportOscoreAsyncWorker object.
    *
    * @param env The Napi::Env object representing the current environment.
    * @param deferred The Napi::Promise::Deferred object representing the
    * deferred promise.
    * @param context The reference to the edhoc_context structure.
    */
-  EdhocExportAsyncWorker(Napi::Env& env,
-                         Napi::Promise::Deferred deferred,
-                         struct edhoc_context& context,
-                         CallbackType callback);
+  EdhocExportOscoreAsyncWorker(Napi::Env& env,
+                               Napi::Promise::Deferred deferred,
+                               struct edhoc_context& context,
+                               CallbackType callback);
 
   /**
-   * @brief Destroys the EdhocExportAsyncWorker object.
+   * @brief Destroys the EdhocExportOscoreAsyncWorker object.
    */
-  ~EdhocExportAsyncWorker() override;
+  ~EdhocExportOscoreAsyncWorker() override;
 
   /**
    * @brief Executes the asynchronous worker task.
@@ -70,4 +70,4 @@ class EdhocExportAsyncWorker : public Napi::AsyncWorker {
   CallbackType callback;              ///< The callback function to be executed.
 };
 
-#endif  // EDHOC_EXPORT_ASYNC_WORKER_H
+#endif  // EDHOC_EXPORT_OSCORE_ASYNC_WORKER_H

@@ -2,7 +2,9 @@
 #include <thread>
 
 #include "EdhocComposeAsyncWorker.h"
-#include "EdhocExportAsyncWorker.h"
+#include "EdhocExportOscoreAsyncWorker.h"
+#include "EdhocKeyExporterAsyncWorker.h"
+#include "EdhocKeyUpdateAsyncWorker.h"
 #include "EdhocProcessAsyncWorker.h"
 #include "LibEDHOC.h"
 #include "Suites.h"
@@ -24,6 +26,8 @@ static constexpr const char* kErrorFailedToSetCipherSuites =
     "Failed to set cipher suites";
 static constexpr const char* kErrorExpectedFirstArgumentToBeBuffer =
     "Expected first argument to be a Buffer";
+static constexpr const char* kErrorExpectedArgumentToBeNumber =
+    "Expected argument to be a number";
 static constexpr const char* kErrorExpectedAFunction = "Expected a function";
 static constexpr const char* kClassNameLibEDHOC = "EDHOC";
 static constexpr const char* kMethodComposeMessage1 = "composeMessage1";
@@ -35,6 +39,8 @@ static constexpr const char* kMethodProcessMessage3 = "processMessage3";
 static constexpr const char* kMethodComposeMessage4 = "composeMessage4";
 static constexpr const char* kMethodProcessMessage4 = "processMessage4";
 static constexpr const char* kMethodExportOSCORE = "exportOSCORE";
+static constexpr const char* kMethodExportKey = "exportKey";
+static constexpr const char* kMethodKeyUpdate = "keyUpdate";
 static constexpr const char* kJsPropertyConnectionID = "connectionID";
 static constexpr const char* kJsPropertyPeerConnectionID = "peerConnectionID";
 static constexpr const char* kJsPropertyMethods = "methods";
@@ -227,7 +233,6 @@ void LibEDHOC::Logger(void* usercontext,
     return;
   }
 
-  // Use std::vector for RAII buffer management
   const std::vector<uint8_t> bufferCopy(buffer, buffer + buffer_length);
 
   context->logger.NonBlockingCall(
@@ -244,7 +249,8 @@ Napi::Value LibEDHOC::ComposeMessage(const Napi::CallbackInfo& info,
   Napi::Env env = info.Env();
   Napi::HandleScope scope(env);
 
-  // Setup the async functions
+  auto deferred = Napi::Promise::Deferred::New(env);
+
   userContext->GetCredentialManager()->SetupAsyncFunctions();
   userContext->GetCryptoManager()->SetupAsyncFunctions();
 
@@ -258,13 +264,9 @@ Napi::Value LibEDHOC::ComposeMessage(const Napi::CallbackInfo& info,
     }
   }
 
-  auto deferred = Napi::Promise::Deferred::New(env);
-
   EdhocComposeAsyncWorker::CallbackType callback =
       [this, messageNumber](Napi::Env& env) {
-        // Clear the EADs
         userContext->GetEadManager()->ClearEadByMessage(messageNumber);
-        // Release the async functions
         userContext->GetCredentialManager()->CleanupAsyncFunctions();
         userContext->GetCryptoManager()->CleanupAsyncFunctions();
       };
@@ -281,7 +283,8 @@ Napi::Value LibEDHOC::ProcessMessage(const Napi::CallbackInfo& info,
   Napi::Env env = info.Env();
   Napi::HandleScope scope(env);
 
-  // Setup the async functions
+  auto deferred = Napi::Promise::Deferred::New(env);
+
   userContext->GetCredentialManager()->SetupAsyncFunctions();
   userContext->GetCryptoManager()->SetupAsyncFunctions();
 
@@ -293,16 +296,11 @@ Napi::Value LibEDHOC::ProcessMessage(const Napi::CallbackInfo& info,
 
   Napi::Buffer<uint8_t> inputBuffer = info[0].As<Napi::Buffer<uint8_t>>();
 
-  auto deferred = Napi::Promise::Deferred::New(env);
-
   EdhocProcessAsyncWorker::CallbackType callback =
       [this, messageNumber](Napi::Env& env) {
-        // Get the EADs
         Napi::Array EADs =
             userContext->GetEadManager()->GetEadByMessage(env, messageNumber);
-        // Clear the EADs
         userContext->GetEadManager()->ClearEadByMessage(messageNumber);
-        // Release the async functions
         userContext->GetCredentialManager()->CleanupAsyncFunctions();
         userContext->GetCryptoManager()->CleanupAsyncFunctions();
         return EADs;
@@ -351,20 +349,85 @@ Napi::Value LibEDHOC::ExportOSCORE(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
   Napi::HandleScope scope(env);
 
-  // Setup the async functions
+  auto deferred = Napi::Promise::Deferred::New(env);
+
   userContext->GetCredentialManager()->SetupAsyncFunctions();
   userContext->GetCryptoManager()->SetupAsyncFunctions();
 
-  auto deferred = Napi::Promise::Deferred::New(env);
-
-  EdhocExportAsyncWorker::CallbackType callback = [this](Napi::Env& env) {
-    // Release the async functions
+  EdhocExportOscoreAsyncWorker::CallbackType callback = [this](Napi::Env& env) {
     userContext->GetCredentialManager()->CleanupAsyncFunctions();
     userContext->GetCryptoManager()->CleanupAsyncFunctions();
   };
 
-  EdhocExportAsyncWorker* worker =
-      new EdhocExportAsyncWorker(env, deferred, context, callback);
+  EdhocExportOscoreAsyncWorker* worker =
+      new EdhocExportOscoreAsyncWorker(env, deferred, context, callback);
+  worker->Queue();
+
+  return deferred.Promise();
+}
+
+Napi::Value LibEDHOC::ExportKey(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  Napi::HandleScope scope(env);
+
+  if (info.Length() < 1 || !info[0].IsNumber()) {
+    Napi::TypeError::New(env, kErrorExpectedArgumentToBeNumber)
+        .ThrowAsJavaScriptException();
+    return env.Null();
+  }
+
+  if (info.Length() < 2 || !info[1].IsNumber()) {
+    Napi::TypeError::New(env, kErrorExpectedArgumentToBeNumber)
+        .ThrowAsJavaScriptException();
+    return env.Null();
+  }
+
+  uint16_t label = (uint16_t)info[0].As<Napi::Number>().Uint32Value();
+  uint8_t desiredLength = (uint8_t)info[1].As<Napi::Number>().Uint32Value();
+
+  auto deferred = Napi::Promise::Deferred::New(env);
+
+  userContext->GetCredentialManager()->SetupAsyncFunctions();
+  userContext->GetCryptoManager()->SetupAsyncFunctions();
+
+  EdhocKeyExporterAsyncWorker::CallbackType callback = [this](Napi::Env& env) {
+    userContext->GetCredentialManager()->CleanupAsyncFunctions();
+    userContext->GetCryptoManager()->CleanupAsyncFunctions();
+  };
+
+  EdhocKeyExporterAsyncWorker* worker = new EdhocKeyExporterAsyncWorker(
+      env, deferred, context, label, desiredLength, callback);
+  worker->Queue();
+
+  return deferred.Promise();
+}
+
+Napi::Value LibEDHOC::KeyUpdate(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  Napi::HandleScope scope(env);
+
+  if (info.Length() < 1 || !info[0].IsBuffer()) {
+    Napi::TypeError::New(env, kErrorExpectedFirstArgumentToBeBuffer)
+        .ThrowAsJavaScriptException();
+    return env.Null();
+  }
+
+  Napi::Buffer<uint8_t> contextBuffer = info[0].As<Napi::Buffer<uint8_t>>();
+  std::vector<uint8_t> contextBufferVector(
+      contextBuffer.Data(), contextBuffer.Data() + contextBuffer.Length());
+
+  auto deferred = Napi::Promise::Deferred::New(env);
+
+  userContext->GetCredentialManager()->SetupAsyncFunctions();
+  userContext->GetCryptoManager()->SetupAsyncFunctions();
+
+  EdhocKeyUpdateAsyncWorker::CallbackType callback = [this](Napi::Env& env) {
+    userContext->GetCredentialManager()->CleanupAsyncFunctions();
+    userContext->GetCryptoManager()->CleanupAsyncFunctions();
+  };
+
+  EdhocKeyUpdateAsyncWorker* worker = new EdhocKeyUpdateAsyncWorker(
+      env, deferred, context, contextBufferVector, callback);
   worker->Queue();
 
   return deferred.Promise();
@@ -399,6 +462,8 @@ Napi::Object LibEDHOC::Init(Napi::Env env, Napi::Object exports) {
           InstanceMethod(kMethodComposeMessage4, &LibEDHOC::ComposeMessage4),
           InstanceMethod(kMethodProcessMessage4, &LibEDHOC::ProcessMessage4),
           InstanceMethod(kMethodExportOSCORE, &LibEDHOC::ExportOSCORE),
+          InstanceMethod(kMethodExportKey, &LibEDHOC::ExportKey),
+          InstanceMethod(kMethodKeyUpdate, &LibEDHOC::KeyUpdate),
       });
 
   Napi::FunctionReference* constructor = new Napi::FunctionReference();
