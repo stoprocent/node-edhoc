@@ -36,18 +36,19 @@ export class X509CertificateCredentialManager implements EdhocCredentialManager 
         }
     }
 
-    async fetch(edhoc: EDHOC, callback: (error: Error | null, credentials: EdhocCredentials) => void) {        
+    async fetch(edhoc: EDHOC): Promise<EdhocCredentials> {        
+        console.trace("fetch");
         const chain: EdhocCredentialsCertificateChain = {
-            format: EdhocCredentialsFormat.x5chain,
+            format: 20 as any,
             privateKeyID: this.cryptoKeyID,
             x5chain: { 
                 certificates: this.certificates.map(cert => cert.raw)
             }
         };
-        callback(null, chain);
+        return chain;
     }
 
-    async verify(edhoc: EDHOC, credentials: EdhocCredentials, callback: (error: Error | null, credentials: EdhocCredentials) => void) {
+    async verify(edhoc: EDHOC, credentials: EdhocCredentials) {
         if (credentials.format !== EdhocCredentialsFormat.x5chain) {
             throw new Error('Credentials format not supported');
         }
@@ -63,7 +64,7 @@ export class X509CertificateCredentialManager implements EdhocCredentialManager 
 
         const token = new X509Certificate(certificates[0]).publicKey.export({ format: 'jwk' });
         credentials.publicKey = this.extractPublicKey(token);
-        callback(null, credentials);
+        return credentials;
     }
 
     private verifyCertificateChain(certificates: Buffer[]) {

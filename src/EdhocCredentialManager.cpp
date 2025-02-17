@@ -222,13 +222,38 @@ int EdhocCredentialManager::callFetchCredentials(const void* user_context,
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
 
-  auto jsCallbackHandler = [this, &promise, &credentials](const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
+  auto jsCallbackHandler = [this, &promise, &credentials](Napi::Env env, Napi::Value result) {
     Napi::HandleScope scope(env);
-    Napi::Value result = info[0];
-    // auto credsObj = result.As<Napi::Object>();
-    // credentialReferences.push_back(Napi::Persistent(credsObj));
-    Napi::Error::New(env, "test").ThrowAsJavaScriptException();
+    auto credsObj = result.As<Napi::Object>();
+    credentialReferences.push_back(Napi::Persistent(credsObj));
+
+    if (credsObj.IsObject() == false || credsObj.Has(kFormat) == false) {
+      throw std::runtime_error(kInvalidInputCredentialTypeError);
+    }
+    int label = credsObj.Get(kFormat).As<Napi::Number>().Int32Value();
+
+    switch (label) {
+      case EDHOC_COSE_HEADER_KID:
+        convert_js_to_edhoc_kid(credsObj, credentials);
+        break;
+      case EDHOC_COSE_HEADER_X509_CHAIN:
+        convert_js_to_edhoc_x5chain(credsObj, credentials);
+        break;
+      case EDHOC_COSE_HEADER_X509_HASH:
+        convert_js_to_edhoc_x5t(credsObj, credentials);
+        break;
+      case EDHOC_COSE_ANY:
+      default:
+        throw std::runtime_error(kUnsupportedCredentialTypeError);
+    }
+
+    if (credsObj.Has(kPrivateKeyId) && !credsObj.Get(kPrivateKeyId).IsNull()) {
+      Napi::Buffer<uint8_t> privKeyIdBuffer =
+          credsObj.Get(kPrivateKeyId).As<Napi::Buffer<uint8_t>>();
+      memcpy(credentials->priv_key_id, privKeyIdBuffer.Data(), privKeyIdBuffer.Length());
+    }
+
+    promise.set_value(EDHOC_SUCCESS);
   };
 
   auto errorHandler = [&promise](Napi::Env env, Napi::Error error) {
@@ -239,17 +264,9 @@ int EdhocCredentialManager::callFetchCredentials(const void* user_context,
                                  Napi::Env env, Napi::Function jsCallback) {
     Napi::HandleScope scope(env);
     std::vector<napi_value> arguments = {
-        static_cast<const UserContext*>(user_context)->parent.Value(), Napi::Function::New(env, jsCallbackHandler)};
-
-    // jsCallbackHandler(env, Napi::Value::From(env, "test"));
-    try {
-      jsCallback.Call(credentialManagerRef.Value(), arguments);
-    } catch (const Napi::Error& e) {
-      errorHandler(env, e);
-    }
-        
-    // Utils::InvokeJSFunctionWithPromiseHandling(env, credentialManagerRef.Value(), jsCallback,
-    //                                            arguments, jsCallbackHandler, errorHandler);
+        static_cast<const UserContext*>(user_context)->parent.Value()};
+    Utils::InvokeJSFunctionWithPromiseHandling(env, credentialManagerRef.Value(), jsCallback,
+                                               arguments, jsCallbackHandler, errorHandler);
   };
 
   fetchTsfn.BlockingCall(blockingCallHandler);
@@ -266,10 +283,8 @@ int EdhocCredentialManager::callVerifyCredentials(const void* user_context,
   std::future<int> future = promise.get_future();
 
   auto jsCallbackHandler = [this, &promise, &credentials, &public_key_reference,
-                            &public_key_length](const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
+                            &public_key_length](Napi::Env env, Napi::Value result) {
     Napi::HandleScope scope(env);
-    Napi::Value result = info[0];
     Napi::Object credsObj = result.As<Napi::Object>();
     credentialReferences.push_back(Napi::Persistent(credsObj));
     if (credsObj.IsObject() == false) {
@@ -325,12 +340,10 @@ int EdhocCredentialManager::callVerifyCredentials(const void* user_context,
     }
 
     std::vector<napi_value> arguments = {
-        static_cast<const UserContext*>(user_context)->parent.Value(), resultObject, Napi::Function::New(env, jsCallbackHandler)};
+        static_cast<const UserContext*>(user_context)->parent.Value(), resultObject};
 
-    jsCallback.Call(credentialManagerRef.Value(), arguments);
-
-    // Utils::InvokeJSFunctionWithPromiseHandling(env, credentialManagerRef.Value(), jsCallback,
-    //                                            arguments, jsCallbackHandler, errorHandler);
+    Utils::InvokeJSFunctionWithPromiseHandling(env, credentialManagerRef.Value(), jsCallback,
+                                               arguments, jsCallbackHandler, errorHandler);
   };
 
   verifyTsfn.BlockingCall(blockingCallHandler);
