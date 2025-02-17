@@ -55,7 +55,8 @@ class Utils {
       Napi::Object jsObject,
       Napi::Function jsCallback,
       const std::vector<napi_value>& args,
-      std::function<void(Napi::Env, Napi::Value)> callbackLambda);
+      std::function<void(Napi::Env, Napi::Value)> callbackLambda,
+      std::function<void(Napi::Env, Napi::Error)> errorLambda);
 
   /**
    * Converts a JavaScript value to an EDHOC connection ID structure.

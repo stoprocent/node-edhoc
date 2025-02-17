@@ -1,11 +1,10 @@
 #include "EdhocKeyUpdateAsyncWorker.h"
 
-EdhocKeyUpdateAsyncWorker::EdhocKeyUpdateAsyncWorker(
-    Napi::Env& env,
-    Napi::Promise::Deferred deferred,
-    struct edhoc_context& context,
-    std::vector<uint8_t> contextBuffer,
-    CallbackType callback)
+EdhocKeyUpdateAsyncWorker::EdhocKeyUpdateAsyncWorker(Napi::Env& env,
+                                                     Napi::Promise::Deferred deferred,
+                                                     struct edhoc_context& context,
+                                                     std::vector<uint8_t> contextBuffer,
+                                                     CallbackType callback)
     : Napi::AsyncWorker(env),
       deferred(std::move(deferred)),
       context(context),
@@ -14,8 +13,7 @@ EdhocKeyUpdateAsyncWorker::EdhocKeyUpdateAsyncWorker(
 
 void EdhocKeyUpdateAsyncWorker::Execute() {
   try {
-    int ret = edhoc_export_key_update(
-        &context, contextBuffer.data(), contextBuffer.size());
+    int ret = edhoc_export_key_update(&context, contextBuffer.data(), contextBuffer.size());
 
     if (ret != EDHOC_SUCCESS) {
       SetError("Failed to update key.");

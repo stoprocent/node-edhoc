@@ -67,7 +67,7 @@ export interface EdhocCredentialManager {
      * @param edhoc The EDHOC context for which to fetch credentials.
      * @return A promise that resolves to the fetched EdhocCredentials or throws an error if not successful.
      */
-    fetch(edhoc: EDHOC): Promise<EdhocCredentials> | EdhocCredentials | never;
+    fetch(edhoc: EDHOC, callback: (error: Error | null, credentials: EdhocCredentials) => void): void;
 
     /**
      * Verifies EDHOC credentials based on the provided EDHOC context and credentials.
@@ -75,7 +75,7 @@ export interface EdhocCredentialManager {
      * @param credentials The credentials to verify.
      * @return A promise that resolves to the verified EdhocCredentials or throws an error if not successful.
      */
-    verify(edhoc: EDHOC, credentials: EdhocCredentials): Promise<EdhocCredentials> | EdhocCredentials | never;
+    verify(edhoc: EDHOC, credentials: EdhocCredentials, callback: (error: Error | null, credentials: EdhocCredentials) => void): void;
 }
 
 /**

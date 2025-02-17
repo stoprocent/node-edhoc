@@ -1,3 +1,5 @@
+#include "LibEDHOC.h"
+
 #include <iostream>
 #include <thread>
 
@@ -6,7 +8,6 @@
 #include "EdhocKeyExporterAsyncWorker.h"
 #include "EdhocKeyUpdateAsyncWorker.h"
 #include "EdhocProcessAsyncWorker.h"
-#include "LibEDHOC.h"
 #include "Suites.h"
 #include "Utils.h"
 
@@ -14,20 +15,14 @@ static constexpr const char* kErrorFailedToInitializeEdhocContext =
     "Failed to initialize EDHOC context.";
 static constexpr const char* kErrorFailedToSetEdhocConnectionId =
     "Failed to set EDHOC Connection ID.";
-static constexpr const char* kErrorFailedToSetEdhocMethod =
-    "Failed to set EDHOC Method.";
-static constexpr const char* kErrorArraySuiteIndexesExpected =
-    "Array of suite indexes expected";
-static constexpr const char* kErrorArrayMethodIndexesExpected =
-    "Array of method indexes expected";
-static constexpr const char* kErrorInvalidCipherSuiteIndex =
-    "Invalid cipher suite index";
-static constexpr const char* kErrorFailedToSetCipherSuites =
-    "Failed to set cipher suites";
+static constexpr const char* kErrorFailedToSetEdhocMethod = "Failed to set EDHOC Method.";
+static constexpr const char* kErrorArraySuiteIndexesExpected = "Array of suite indexes expected";
+static constexpr const char* kErrorArrayMethodIndexesExpected = "Array of method indexes expected";
+static constexpr const char* kErrorInvalidCipherSuiteIndex = "Invalid cipher suite index";
+static constexpr const char* kErrorFailedToSetCipherSuites = "Failed to set cipher suites";
 static constexpr const char* kErrorExpectedFirstArgumentToBeBuffer =
     "Expected first argument to be a Buffer";
-static constexpr const char* kErrorExpectedArgumentToBeNumber =
-    "Expected argument to be a number";
+static constexpr const char* kErrorExpectedArgumentToBeNumber = "Expected argument to be a number";
 static constexpr const char* kErrorExpectedAFunction = "Expected a function";
 static constexpr const char* kClassNameLibEDHOC = "EDHOC";
 static constexpr const char* kMethodComposeMessage1 = "composeMessage1";
@@ -50,8 +45,7 @@ static constexpr const char* kJsPropertySelectedCipherSuite = "selectedSuite";
 static constexpr const char* kJsPropertyLogger = "logger";
 static constexpr const char* kLogggerFunctionName = "Logger";
 
-LibEDHOC::LibEDHOC(const Napi::CallbackInfo& info)
-    : Napi::ObjectWrap<LibEDHOC>(info) {
+LibEDHOC::LibEDHOC(const Napi::CallbackInfo& info) : Napi::ObjectWrap<LibEDHOC>(info) {
   Napi::Env env = info.Env();
   Napi::HandleScope scope(env);
 
@@ -72,16 +66,14 @@ LibEDHOC::LibEDHOC(const Napi::CallbackInfo& info)
 
   // Credentials
   Napi::Object jsCredentialManager = info[3].As<Napi::Object>();
-  auto credentialManager =
-      std::make_shared<EdhocCredentialManager>(jsCredentialManager);
+  auto credentialManager = std::make_shared<EdhocCredentialManager>(jsCredentialManager);
   // EAD
   auto eadManager = std::make_shared<EdhocEadManager>();
 
   // Bind all managers
   if (edhoc_bind_keys(&context, &cryptoManager->keys) != EDHOC_SUCCESS ||
       edhoc_bind_crypto(&context, &cryptoManager->crypto) != EDHOC_SUCCESS ||
-      edhoc_bind_credentials(&context, &credentialManager->credentials) !=
-          EDHOC_SUCCESS ||
+      edhoc_bind_credentials(&context, &credentialManager->credentials) != EDHOC_SUCCESS ||
       edhoc_bind_ead(&context, &eadManager->ead) != EDHOC_SUCCESS) {
     throw Napi::TypeError::New(env, kErrorFailedToInitializeEdhocContext);
   }
@@ -90,13 +82,10 @@ LibEDHOC::LibEDHOC(const Napi::CallbackInfo& info)
   context.logger = LibEDHOC::Logger;
 
   // User Context
-  userContext = std::make_shared<UserContext>(
-      cryptoManager, eadManager, credentialManager);
-  userContext->parent =
-      Reference<Napi::Object>::New(info.This().As<Napi::Object>());
+  userContext = std::make_shared<UserContext>(cryptoManager, eadManager, credentialManager);
+  userContext->parent = Reference<Napi::Object>::New(info.This().As<Napi::Object>());
 
-  if (edhoc_set_user_context(&context, static_cast<void*>(userContext.get())) !=
-      EDHOC_SUCCESS) {
+  if (edhoc_set_user_context(&context, static_cast<void*>(userContext.get())) != EDHOC_SUCCESS) {
     throw Napi::TypeError::New(env, kErrorFailedToInitializeEdhocContext);
   }
 }
@@ -110,8 +99,7 @@ Napi::Value LibEDHOC::GetCID(const Napi::CallbackInfo& info) {
   return Utils::CreateJsValueFromEdhocCid(info.Env(), cid);
 }
 
-void LibEDHOC::SetCID(const Napi::CallbackInfo& info,
-                      const Napi::Value& value) {
+void LibEDHOC::SetCID(const Napi::CallbackInfo& info, const Napi::Value& value) {
   cid = Utils::ConvertJsValueToEdhocCid(value);
   int result = edhoc_set_connection_id(&context, &cid);
   if (result != EDHOC_SUCCESS) {
@@ -121,8 +109,7 @@ void LibEDHOC::SetCID(const Napi::CallbackInfo& info,
 }
 
 Napi::Value LibEDHOC::GetPeerCID(const Napi::CallbackInfo& info) {
-  return Utils::CreateJsValueFromEdhocCid(info.Env(),
-                                          context.EDHOC_PRIVATE(peer_cid));
+  return Utils::CreateJsValueFromEdhocCid(info.Env(), context.EDHOC_PRIVATE(peer_cid));
 }
 
 Napi::Value LibEDHOC::GetMethods(const Napi::CallbackInfo& info) {
@@ -134,8 +121,7 @@ Napi::Value LibEDHOC::GetMethods(const Napi::CallbackInfo& info) {
   return result;
 }
 
-void LibEDHOC::SetMethods(const Napi::CallbackInfo& info,
-                          const Napi::Value& value) {
+void LibEDHOC::SetMethods(const Napi::CallbackInfo& info, const Napi::Value& value) {
   Napi::Env env = info.Env();
 
   if (!value.IsArray()) {
@@ -147,12 +133,10 @@ void LibEDHOC::SetMethods(const Napi::CallbackInfo& info,
   methods.reserve(jsArray.Length());
 
   for (uint32_t i = 0; i < jsArray.Length(); i++) {
-    methods.push_back(static_cast<edhoc_method>(
-        jsArray.Get(i).As<Napi::Number>().Int32Value()));
+    methods.push_back(static_cast<edhoc_method>(jsArray.Get(i).As<Napi::Number>().Int32Value()));
   }
 
-  if (edhoc_set_methods(&context, methods.data(), methods.size()) !=
-      EDHOC_SUCCESS) {
+  if (edhoc_set_methods(&context, methods.data(), methods.size()) != EDHOC_SUCCESS) {
     throw Napi::TypeError::New(env, kErrorFailedToSetEdhocMethod);
   }
 }
@@ -161,8 +145,7 @@ Napi::Value LibEDHOC::GetSelectedMethod(const Napi::CallbackInfo& info) {
   return Napi::Number::New(info.Env(), context.EDHOC_PRIVATE(chosen_method));
 }
 
-void LibEDHOC::SetCipherSuites(const Napi::CallbackInfo& info,
-                               const Napi::Value& value) {
+void LibEDHOC::SetCipherSuites(const Napi::CallbackInfo& info, const Napi::Value& value) {
   Napi::Env env = info.Env();
 
   if (!value.IsArray()) {
@@ -183,8 +166,7 @@ void LibEDHOC::SetCipherSuites(const Napi::CallbackInfo& info,
     selected_suites.push_back(*suite_pointers[index]);
   }
 
-  if (edhoc_set_cipher_suites(
-          &context, selected_suites.data(), selected_suites.size()) != 0) {
+  if (edhoc_set_cipher_suites(&context, selected_suites.data(), selected_suites.size()) != 0) {
     throw Napi::TypeError::New(env, kErrorFailedToSetCipherSuites);
   }
 }
@@ -193,8 +175,7 @@ Napi::Value LibEDHOC::GetCipherSuites(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
   Napi::Array result = Napi::Array::New(env, context.EDHOC_PRIVATE(csuite_len));
   for (size_t i = 0; i < context.EDHOC_PRIVATE(csuite_len); i++) {
-    result.Set(i,
-               Napi::Number::New(env, context.EDHOC_PRIVATE(csuite)[i].value));
+    result.Set(i, Napi::Number::New(env, context.EDHOC_PRIVATE(csuite)[i].value));
   }
   return result;
 }
@@ -202,9 +183,7 @@ Napi::Value LibEDHOC::GetCipherSuites(const Napi::CallbackInfo& info) {
 Napi::Value LibEDHOC::GetSelectedCipherSuite(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
   Napi::Number suite = Napi::Number::New(
-      env,
-      context.EDHOC_PRIVATE(csuite)[context.EDHOC_PRIVATE(chosen_csuite_idx)]
-          .value);
+      env, context.EDHOC_PRIVATE(csuite)[context.EDHOC_PRIVATE(chosen_csuite_idx)].value);
   return suite;
 }
 
@@ -212,16 +191,14 @@ Napi::Value LibEDHOC::GetLogger(const Napi::CallbackInfo& info) {
   return logger.Value();
 }
 
-void LibEDHOC::SetLogger(const Napi::CallbackInfo& info,
-                         const Napi::Value& value) {
+void LibEDHOC::SetLogger(const Napi::CallbackInfo& info, const Napi::Value& value) {
   if (!info[0].IsFunction()) {
-    Napi::TypeError::New(info.Env(), kErrorExpectedAFunction)
-        .ThrowAsJavaScriptException();
+    Napi::TypeError::New(info.Env(), kErrorExpectedAFunction).ThrowAsJavaScriptException();
   }
   Napi::Function jsCallback = info[0].As<Napi::Function>();
   logger = Napi::Persistent(jsCallback);
-  userContext->logger = Napi::ThreadSafeFunction::New(
-      info.Env(), jsCallback, kLogggerFunctionName, 0, 1);
+  userContext->logger =
+      Napi::ThreadSafeFunction::New(info.Env(), jsCallback, kLogggerFunctionName, 0, 1);
 }
 
 void LibEDHOC::Logger(void* usercontext,
@@ -236,11 +213,9 @@ void LibEDHOC::Logger(void* usercontext,
   const std::vector<uint8_t> bufferCopy(buffer, buffer + buffer_length);
 
   context->logger.NonBlockingCall(
-      [name = std::string(name), bufferCopy](Napi::Env env,
-                                             Napi::Function jsCallback) {
+      [name = std::string(name), bufferCopy](Napi::Env env, Napi::Function jsCallback) {
         jsCallback.Call({Napi::String::New(env, name),
-                         Napi::Buffer<uint8_t>::Copy(
-                             env, bufferCopy.data(), bufferCopy.size())});
+                         Napi::Buffer<uint8_t>::Copy(env, bufferCopy.data(), bufferCopy.size())});
       });
 }
 
@@ -256,23 +231,21 @@ Napi::Value LibEDHOC::ComposeMessage(const Napi::CallbackInfo& info,
 
   if (info[0].IsArray()) {
     try {
-      userContext->GetEadManager()->StoreEad(messageNumber,
-                                             info[0].As<Napi::Array>());
+      userContext->GetEadManager()->StoreEad(messageNumber, info[0].As<Napi::Array>());
     } catch (const Napi::Error& e) {
       e.ThrowAsJavaScriptException();
       return env.Null();
     }
   }
 
-  EdhocComposeAsyncWorker::CallbackType callback =
-      [this, messageNumber](Napi::Env& env) {
-        userContext->GetEadManager()->ClearEadByMessage(messageNumber);
-        userContext->GetCredentialManager()->CleanupAsyncFunctions();
-        userContext->GetCryptoManager()->CleanupAsyncFunctions();
-      };
+  EdhocComposeAsyncWorker::CallbackType callback = [this, messageNumber](Napi::Env& env) {
+    userContext->GetEadManager()->ClearEadByMessage(messageNumber);
+    userContext->GetCredentialManager()->CleanupAsyncFunctions();
+    userContext->GetCryptoManager()->CleanupAsyncFunctions();
+  };
 
-  EdhocComposeAsyncWorker* worker = new EdhocComposeAsyncWorker(
-      env, deferred, context, messageNumber, callback);
+  EdhocComposeAsyncWorker* worker =
+      new EdhocComposeAsyncWorker(env, deferred, context, messageNumber, callback);
   worker->Queue();
 
   return deferred.Promise();
@@ -289,25 +262,22 @@ Napi::Value LibEDHOC::ProcessMessage(const Napi::CallbackInfo& info,
   userContext->GetCryptoManager()->SetupAsyncFunctions();
 
   if (info.Length() < 1 || !info[0].IsBuffer()) {
-    Napi::TypeError::New(env, kErrorExpectedFirstArgumentToBeBuffer)
-        .ThrowAsJavaScriptException();
+    Napi::TypeError::New(env, kErrorExpectedFirstArgumentToBeBuffer).ThrowAsJavaScriptException();
     return env.Null();
   }
 
   Napi::Buffer<uint8_t> inputBuffer = info[0].As<Napi::Buffer<uint8_t>>();
 
-  EdhocProcessAsyncWorker::CallbackType callback =
-      [this, messageNumber](Napi::Env& env) {
-        Napi::Array EADs =
-            userContext->GetEadManager()->GetEadByMessage(env, messageNumber);
-        userContext->GetEadManager()->ClearEadByMessage(messageNumber);
-        userContext->GetCredentialManager()->CleanupAsyncFunctions();
-        userContext->GetCryptoManager()->CleanupAsyncFunctions();
-        return EADs;
-      };
+  EdhocProcessAsyncWorker::CallbackType callback = [this, messageNumber](Napi::Env& env) {
+    Napi::Array EADs = userContext->GetEadManager()->GetEadByMessage(env, messageNumber);
+    userContext->GetEadManager()->ClearEadByMessage(messageNumber);
+    userContext->GetCredentialManager()->CleanupAsyncFunctions();
+    userContext->GetCryptoManager()->CleanupAsyncFunctions();
+    return EADs;
+  };
 
-  EdhocProcessAsyncWorker* worker = new EdhocProcessAsyncWorker(
-      env, deferred, context, messageNumber, inputBuffer, callback);
+  EdhocProcessAsyncWorker* worker =
+      new EdhocProcessAsyncWorker(env, deferred, context, messageNumber, inputBuffer, callback);
   worker->Queue();
 
   return deferred.Promise();
@@ -371,14 +341,12 @@ Napi::Value LibEDHOC::ExportKey(const Napi::CallbackInfo& info) {
   Napi::HandleScope scope(env);
 
   if (info.Length() < 1 || !info[0].IsNumber()) {
-    Napi::TypeError::New(env, kErrorExpectedArgumentToBeNumber)
-        .ThrowAsJavaScriptException();
+    Napi::TypeError::New(env, kErrorExpectedArgumentToBeNumber).ThrowAsJavaScriptException();
     return env.Null();
   }
 
   if (info.Length() < 2 || !info[1].IsNumber()) {
-    Napi::TypeError::New(env, kErrorExpectedArgumentToBeNumber)
-        .ThrowAsJavaScriptException();
+    Napi::TypeError::New(env, kErrorExpectedArgumentToBeNumber).ThrowAsJavaScriptException();
     return env.Null();
   }
 
@@ -395,8 +363,8 @@ Napi::Value LibEDHOC::ExportKey(const Napi::CallbackInfo& info) {
     userContext->GetCryptoManager()->CleanupAsyncFunctions();
   };
 
-  EdhocKeyExporterAsyncWorker* worker = new EdhocKeyExporterAsyncWorker(
-      env, deferred, context, label, desiredLength, callback);
+  EdhocKeyExporterAsyncWorker* worker =
+      new EdhocKeyExporterAsyncWorker(env, deferred, context, label, desiredLength, callback);
   worker->Queue();
 
   return deferred.Promise();
@@ -407,14 +375,13 @@ Napi::Value LibEDHOC::KeyUpdate(const Napi::CallbackInfo& info) {
   Napi::HandleScope scope(env);
 
   if (info.Length() < 1 || !info[0].IsBuffer()) {
-    Napi::TypeError::New(env, kErrorExpectedFirstArgumentToBeBuffer)
-        .ThrowAsJavaScriptException();
+    Napi::TypeError::New(env, kErrorExpectedFirstArgumentToBeBuffer).ThrowAsJavaScriptException();
     return env.Null();
   }
 
   Napi::Buffer<uint8_t> contextBuffer = info[0].As<Napi::Buffer<uint8_t>>();
-  std::vector<uint8_t> contextBufferVector(
-      contextBuffer.Data(), contextBuffer.Data() + contextBuffer.Length());
+  std::vector<uint8_t> contextBufferVector(contextBuffer.Data(),
+                                           contextBuffer.Data() + contextBuffer.Length());
 
   auto deferred = Napi::Promise::Deferred::New(env);
 
@@ -426,8 +393,8 @@ Napi::Value LibEDHOC::KeyUpdate(const Napi::CallbackInfo& info) {
     userContext->GetCryptoManager()->CleanupAsyncFunctions();
   };
 
-  EdhocKeyUpdateAsyncWorker* worker = new EdhocKeyUpdateAsyncWorker(
-      env, deferred, context, contextBufferVector, callback);
+  EdhocKeyUpdateAsyncWorker* worker =
+      new EdhocKeyUpdateAsyncWorker(env, deferred, context, contextBufferVector, callback);
   worker->Queue();
 
   return deferred.Promise();
@@ -436,23 +403,16 @@ Napi::Value LibEDHOC::KeyUpdate(const Napi::CallbackInfo& info) {
 Napi::Object LibEDHOC::Init(Napi::Env env, Napi::Object exports) {
   Napi::HandleScope scope(env);
   Napi::Function func = DefineClass(
-      env,
-      kClassNameLibEDHOC,
+      env, kClassNameLibEDHOC,
       {
-          InstanceAccessor(
-              kJsPropertyConnectionID, &LibEDHOC::GetCID, &LibEDHOC::SetCID),
+          InstanceAccessor(kJsPropertyConnectionID, &LibEDHOC::GetCID, &LibEDHOC::SetCID),
           InstanceAccessor<&LibEDHOC::GetPeerCID>(kJsPropertyPeerConnectionID),
-          InstanceAccessor(
-              kJsPropertyMethods, &LibEDHOC::GetMethods, &LibEDHOC::SetMethods),
-          InstanceAccessor<&LibEDHOC::GetSelectedMethod>(
-              kJsPropertySelectedMethod),
-          InstanceAccessor(kJsPropertyCipherSuites,
-                           &LibEDHOC::GetCipherSuites,
+          InstanceAccessor(kJsPropertyMethods, &LibEDHOC::GetMethods, &LibEDHOC::SetMethods),
+          InstanceAccessor<&LibEDHOC::GetSelectedMethod>(kJsPropertySelectedMethod),
+          InstanceAccessor(kJsPropertyCipherSuites, &LibEDHOC::GetCipherSuites,
                            &LibEDHOC::SetCipherSuites),
-          InstanceAccessor<&LibEDHOC::GetSelectedCipherSuite>(
-              kJsPropertySelectedCipherSuite),
-          InstanceAccessor(
-              kJsPropertyLogger, &LibEDHOC::GetLogger, &LibEDHOC::SetLogger),
+          InstanceAccessor<&LibEDHOC::GetSelectedCipherSuite>(kJsPropertySelectedCipherSuite),
+          InstanceAccessor(kJsPropertyLogger, &LibEDHOC::GetLogger, &LibEDHOC::SetLogger),
           InstanceMethod(kMethodComposeMessage1, &LibEDHOC::ComposeMessage1),
           InstanceMethod(kMethodProcessMessage1, &LibEDHOC::ProcessMessage1),
           InstanceMethod(kMethodComposeMessage2, &LibEDHOC::ComposeMessage2),
