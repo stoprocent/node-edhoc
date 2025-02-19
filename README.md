@@ -69,7 +69,7 @@ const receivedEAD = await responder.processMessage1(message1);
 
 ### Certificate-Based Authentication
 
-Using X.509 certificates for authentication (Method 1):
+Using X.509 certificates for authentication:
 
 ```typescript
 import { 
@@ -91,8 +91,8 @@ const initiatorCrypto = new DefaultEdhocCryptoManager();
 // Initialize EDHOC with certificate-based auth
 const initiator = new EDHOC(
   10, 
-  [EdhocMethod.Method1], 
-  [EdhocSuite.Suite2],
+  [ EdhocMethod.Method0 ], 
+  [ EdhocSuite.Suite2 ],
   initiatorCreds,
   initiatorCrypto
 );
