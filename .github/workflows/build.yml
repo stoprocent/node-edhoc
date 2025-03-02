@@ -1,12 +1,10 @@
 name: Build
 on:
-  pull_request:
-    branches:
-      - feature/*
   push:
     branches:
       - main
       - beta
+      - feature/*
 concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: false
