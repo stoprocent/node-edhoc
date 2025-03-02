@@ -1,5 +1,8 @@
 name: Build
 on:
+  pull_request:
+    branches:
+      - feature/*
   push:
     branches:
       - main
@@ -71,6 +74,7 @@ jobs:
         
   release:
     needs: prebuild
+    if: github.ref == 'refs/heads/main'
     name: Release
     runs-on: ubuntu-latest
     steps:
