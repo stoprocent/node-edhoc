@@ -22,7 +22,7 @@
   "scripts": {
     "debug": "npx node-gyp build --debug",
     "install": "node-gyp-build",
-    "postinstall": "patch-package",
+    "prepare": "patch-package",
     "lint": "eslint .",
     "prebuildify": "prebuildify --napi --target 17.0.0 --force --strip --verbose",
     "prebuildify-cross": "prebuildify-cross --napi --target 17.0.0 --force --strip --verbose",
