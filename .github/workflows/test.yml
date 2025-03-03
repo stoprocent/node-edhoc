@@ -54,8 +54,5 @@ jobs:
         find external/ -type f \( -name "*.c" -o -name "*.h" \) -print0 | xargs -0 sed -i -E "s/__attribute__\(\([^)]*\)\)//g"
     - run: npm ci
     - run: npm run rebuild
+    - run: npx tsc
     - run: npm test
-    - run: npm run coverage
-    - uses: codecov/codecov-action@v4
-      with:
-        directory: ./coverage/
