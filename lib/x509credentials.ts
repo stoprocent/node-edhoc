@@ -37,7 +37,7 @@ export class X509CertificateCredentialManager implements EdhocCredentialManager 
         }
     }
 
-    async fetch(edhoc: EDHOC): Promise<EdhocCredentials> {
+    async fetch(_edhoc: EDHOC): Promise<EdhocCredentials> {
         if (this.certificates.length === 0) {
             throw new Error('No certificates found');
         }

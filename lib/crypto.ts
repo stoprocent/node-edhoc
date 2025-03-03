@@ -11,7 +11,7 @@ type KeyEntry = {
 };
 
 type KeyUtils = {
-    utils: any;
+    utils: { randomPrivateKey: () => Uint8Array };
     getPublicKey: (privateKey: Uint8Array, compressed?: boolean) => Uint8Array;
     getSharedSecret?: (privateKey: Uint8Array, publicKey: Uint8Array) => Uint8Array;
     sign?: (msg: Uint8Array, privateKey: Uint8Array) => Uint8Array | RecoveredSignatureType;
@@ -43,10 +43,10 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
         switch (keyType) {
             case EdhocKeyType.KeyAgreement:
             case EdhocKeyType.MakeKeyPair:
-                this.keys[keyID] = key.byteLength > 0 ? Buffer.from(key) : curveKE.utils.randomPrivateKey();
+                this.keys[keyID] = key.byteLength > 0 ? Buffer.from(key) : Buffer.from(curveKE.utils.randomPrivateKey());
                 break;
             case EdhocKeyType.Signature:
-                this.keys[keyID] = key.byteLength > 0 ? Buffer.from(key) : curveSIG.utils.randomPrivateKey()
+                this.keys[keyID] = key.byteLength > 0 ? Buffer.from(key) : Buffer.from(curveSIG.utils.randomPrivateKey());
                 break;
             default:
                 this.keys[keyID] = Buffer.from(key);
@@ -63,7 +63,7 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
         return true;
     }
 
-    makeKeyPair(edhoc: EDHOC, keyID: Buffer, privateKeySize: number, publicKeySize: number) {
+    makeKeyPair(edhoc: EDHOC, keyID: Buffer, _privateKeySize: number, _publicKeySize: number) {
         const key = this.getKey(keyID);
         try {
             const curveKE: KeyUtils = this.getCurveForKeyAgreement(edhoc.selectedSuite);
@@ -77,7 +77,7 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
         }
     }
 
-    keyAgreement(edhoc: EDHOC, keyID: Buffer, publicKey: Buffer, privateKeySize: number) {
+    keyAgreement(edhoc: EDHOC, keyID: Buffer, publicKey: Buffer, _privateKeySize: number) {
         const key = this.getKey(keyID);
         const curveKE: KeyUtils = this.getCurveForKeyAgreement(edhoc.selectedSuite);
         const publicKeyBuffer = this.formatPublicKey(curveKE, publicKey);
@@ -85,7 +85,7 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
         return sharedSecrect.subarray(curveKE === p256 ? 1 : 0);
     }
 
-    sign(edhoc: EDHOC, keyID: Buffer, input: Buffer, signatureSize: number) {
+    sign(edhoc: EDHOC, keyID: Buffer, input: Buffer, _signatureSize: number) {
         const key = this.getKey(keyID);
         const curveSIG: KeyUtils = this.getCurveForSignature(edhoc.selectedSuite);
         const payload = this.formatToBeSigned(curveSIG, input);
@@ -115,7 +115,7 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
         return true;
     }
 
-    extract(edhoc: EDHOC, keyID: Buffer, salt: Buffer, keySize: number) {
+    extract(edhoc: EDHOC, keyID: Buffer, salt: Buffer, _keySize: number) {
         const key = this.getKey(keyID);
         return Buffer.from(extract(sha256, new Uint8Array(key), new Uint8Array(salt)));
     }
@@ -126,7 +126,7 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
         return expanded;
     }
 
-    encrypt(edhoc: EDHOC, keyID: Buffer, nonce: Buffer, aad: Buffer, plaintext: Buffer, size: number) {
+    encrypt(edhoc: EDHOC, keyID: Buffer, nonce: Buffer, aad: Buffer, plaintext: Buffer, _size: number) {
         const key = this.getKey(keyID);
         const algorithm = this.getAlgorithm(edhoc.selectedSuite);
         const options: CipherCCMOptions | CipherGCMOptions = { 
@@ -145,7 +145,7 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
         return encrypted;
     }
 
-    decrypt(edhoc: EDHOC, keyID: Buffer, nonce: Buffer, aad: Buffer, ciphertext: Buffer, size: number) {
+    decrypt(edhoc: EDHOC, keyID: Buffer, nonce: Buffer, aad: Buffer, ciphertext: Buffer, _size: number) {
         const key = this.getKey(keyID);
         const tagLength = this.getTagLength(edhoc.selectedSuite);
         const algorithm = this.getAlgorithm(edhoc.selectedSuite);
@@ -162,7 +162,7 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
         return decrypted;
     }
 
-    async hash(edhoc: EDHOC, data: Buffer, hashSize: number) {
+    async hash(_edhoc: EDHOC, data: Buffer, _hashSize: number) {
         return Buffer.from(sha256(data));
     }
 
