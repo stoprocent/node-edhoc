@@ -3,6 +3,22 @@
   "description": "A Node.js implementation of EDHOC (Ephemeral Diffie-Hellman Over COSE) protocol for lightweight authenticated key exchange in IoT and other constrained environments.",
   "version": "0.0.1",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "author": "Marek Serafin <marek@serafin.email>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stoprocent/node-edhoc.git"
+  },
+  "homepage": "https://github.com/stoprocent/node-edhoc",
+  "keywords": [
+    "edhoc",
+    "cose",
+    "iot",
+    "constrained",
+    "authentication",
+    "key exchange", 
+    "coap"
+  ],
   "scripts": {
     "debug": "npx node-gyp build --debug",
     "install": "node-gyp-build",
