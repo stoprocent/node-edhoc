@@ -1,4 +1,4 @@
-# Node EDHOC
+# EDHOC for Node.js
 
 A TypeScript Node.js library implemented as a native addon, built on top of the C library [`libedhoc`](https://github.com/kamil-kielbasa/libedhoc/). It provides an efficient and lightweight way to use the Ephemeral Diffie-Hellman Over COSE (EDHOC) protocol, as specified in [RFC 9528](https://datatracker.ietf.org/doc/rfc9528/).
 
@@ -17,7 +17,7 @@ EDHOC is designed for lightweight communication and is particularly suitable for
 Install the package via npm:
 
 ```bash
-npm install node-edhoc
+npm install edhoc
 ```
 
 ## Usage Examples
