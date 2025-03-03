@@ -56,7 +56,3 @@ jobs:
     - run: npm run rebuild
     - run: npx tsc
     - run: npm test
-    - run: npm run coverage
-    - uses: codecov/codecov-action@v4
-      with:
-        directory: ./coverage/
