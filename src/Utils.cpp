@@ -20,8 +20,7 @@ void Utils::InvokeJSFunctionWithPromiseHandling(Napi::Env env,
 
   if (env.IsExceptionPending()) {
     deferred.Reject(env.GetAndClearPendingException().Value());
-  }
-  else {
+  } else {
     deferred.Resolve(result);
   }
 
@@ -38,7 +37,7 @@ void Utils::InvokeJSFunctionWithPromiseHandling(Napi::Env env,
   });
 
   Napi::Promise promise = deferred.Promise();
-  promise.Get(kStringThen).As<Napi::Function>().Call(promise, { thenCallback, catchCallback });
+  promise.Get(kStringThen).As<Napi::Function>().Call(promise, {thenCallback, catchCallback});
 }
 
 void Utils::EncodeInt64ToBuffer(int64_t value, uint8_t* buffer, size_t* length) {

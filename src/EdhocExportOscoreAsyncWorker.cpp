@@ -58,7 +58,7 @@ void EdhocExportOscoreAsyncWorker::OnOK() {
 
   callback(env);
 
-  if(env.IsExceptionPending()) {
+  if (env.IsExceptionPending()) {
     deferred.Reject(env.GetAndClearPendingException().Value());
   } else {
     deferred.Resolve(resultObj);
@@ -71,8 +71,8 @@ void EdhocExportOscoreAsyncWorker::OnError(const Napi::Error& error) {
 
   callback(env);
 
-  if(env.IsExceptionPending()) {
-    deferred.Reject(env.GetAndClearPendingException().Value()); 
+  if (env.IsExceptionPending()) {
+    deferred.Reject(env.GetAndClearPendingException().Value());
   } else {
     deferred.Reject(error.Value());
   }

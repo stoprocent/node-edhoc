@@ -5,9 +5,9 @@
 
 #include <cstdint>
 #include <future>
+#include <iostream>
 #include <string>
 #include <vector>
-#include <iostream>
 extern "C" {
 #include "edhoc.h"
 }
@@ -95,8 +95,7 @@ class Utils {
   template <typename EnumType>
   static EnumType ConvertToEnum(const Napi::Value& value) {
     if (!value.IsNumber()) {
-      Napi::TypeError::New(value.Env(), "Input value must be a number")
-        .ThrowAsJavaScriptException();
+      Napi::TypeError::New(value.Env(), "Input value must be a number").ThrowAsJavaScriptException();
     }
     return static_cast<EnumType>(value.As<Napi::Number>().Int32Value());
   }

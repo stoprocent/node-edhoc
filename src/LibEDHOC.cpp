@@ -241,8 +241,7 @@ Napi::Value LibEDHOC::ProcessMessage(const Napi::CallbackInfo& info, enum edhoc_
   Napi::HandleScope scope(env);
 
   if (info.Length() < 1 || !info[0].IsBuffer()) {
-    Napi::TypeError::New(env, kErrorExpectedFirstArgumentToBeBuffer)
-      .ThrowAsJavaScriptException();
+    Napi::TypeError::New(env, kErrorExpectedFirstArgumentToBeBuffer).ThrowAsJavaScriptException();
     return env.Null();
   }
   Napi::Buffer<uint8_t> inputBuffer = info[0].As<Napi::Buffer<uint8_t>>();

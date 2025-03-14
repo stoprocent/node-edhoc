@@ -1,4 +1,5 @@
 #include "EdhocProcessAsyncWorker.h"
+
 #include <iostream>
 static constexpr const char* kErrorInvalidMessageNumber = "Invalid message number";
 static constexpr const char* kErrorMessageFormat = "Failed to process EDHOC message %d. Error code: %d";
@@ -97,10 +98,10 @@ void EdhocProcessAsyncWorker::OnOK() {
   Napi::Env env = Env();
   Napi::HandleScope scope(env);
   Napi::Array result = callback(env);
-  
+
   callback(env);
 
-  if(env.IsExceptionPending()) {
+  if (env.IsExceptionPending()) {
     deferred.Reject(env.GetAndClearPendingException().Value());
   } else {
     deferred.Resolve(result);
@@ -121,7 +122,7 @@ void EdhocProcessAsyncWorker::OnError(const Napi::Error& error) {
 
   callback(env);
 
-  if(env.IsExceptionPending()) {
+  if (env.IsExceptionPending()) {
     deferred.Reject(env.GetAndClearPendingException().Value());
   } else {
     deferred.Reject(error.Value());

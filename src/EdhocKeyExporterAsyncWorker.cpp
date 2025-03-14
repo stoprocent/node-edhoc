@@ -29,10 +29,10 @@ void EdhocKeyExporterAsyncWorker::OnOK() {
   Napi::Env env = Env();
   Napi::HandleScope scope(env);
   auto outputBuffer = Napi::Buffer<uint8_t>::Copy(env, output.data(), output.size());
-  
+
   callback(env);
 
-  if(env.IsExceptionPending()) {
+  if (env.IsExceptionPending()) {
     deferred.Reject(env.GetAndClearPendingException().Value());
   } else {
     deferred.Resolve(outputBuffer);
@@ -42,10 +42,10 @@ void EdhocKeyExporterAsyncWorker::OnOK() {
 void EdhocKeyExporterAsyncWorker::OnError(const Napi::Error& error) {
   Napi::Env env = Env();
   Napi::HandleScope scope(env);
-  
+
   callback(env);
 
-  if(env.IsExceptionPending()) {
+  if (env.IsExceptionPending()) {
     deferred.Reject(env.GetAndClearPendingException().Value());
   } else {
     deferred.Reject(error.Value());

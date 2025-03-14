@@ -50,13 +50,12 @@ void EdhocComposeAsyncWorker::Execute() {
 void EdhocComposeAsyncWorker::OnOK() {
   Napi::Env env = Env();
   Napi::HandleScope scope(env);
-  
+
   callback(env);
 
-  if(env.IsExceptionPending()) {
+  if (env.IsExceptionPending()) {
     deferred.Reject(env.GetAndClearPendingException().Value());
-  } 
-  else {
+  } else {
     deferred.Resolve(Napi::Buffer<uint8_t>::Copy(env, composedMessage.data(), composedMessage.size()));
   }
 }
@@ -64,13 +63,12 @@ void EdhocComposeAsyncWorker::OnOK() {
 void EdhocComposeAsyncWorker::OnError(const Napi::Error& error) {
   Napi::Env env = Env();
   Napi::HandleScope scope(env);
-  
+
   callback(env);
-  
+
   if (env.IsExceptionPending()) {
     deferred.Reject(env.GetAndClearPendingException().Value());
-  }
-  else {
+  } else {
     deferred.Reject(error.Value());
   }
 }
