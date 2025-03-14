@@ -7,7 +7,7 @@
 #include <future>
 #include <string>
 #include <vector>
-
+#include <iostream>
 extern "C" {
 #include "edhoc.h"
 }
@@ -53,14 +53,15 @@ class Utils {
    * @return A lambda function that sets the exception on the promise.
    */
   template <typename T>
-  static ErrorHandler CreatePromiseErrorHandler(std::promise<T>& promise, T defaultValue) {
-    return [&promise, defaultValue](Napi::Env env, Napi::Error error) {
-      auto exception = std::current_exception();
-      if (exception) {
-        promise.set_exception(exception);
-      } else {
-        promise.set_value(defaultValue);
+  static ErrorHandler CreatePromiseErrorHandler(std::promise<T>& promise, T defaultValue, Napi::Error& lastError) {
+    return [&promise, defaultValue, &lastError](Napi::Env env, Napi::Error error) {
+      if (!error.IsEmpty()) {
+        error.ThrowAsJavaScriptException();
       }
+      if (env.IsExceptionPending()) {
+        lastError = env.GetAndClearPendingException();
+      }
+      promise.set_value(defaultValue);
     };
   }
 
@@ -94,7 +95,8 @@ class Utils {
   template <typename EnumType>
   static EnumType ConvertToEnum(const Napi::Value& value) {
     if (!value.IsNumber()) {
-      throw Napi::TypeError::New(value.Env(), "Input value must be a number");
+      Napi::TypeError::New(value.Env(), "Input value must be a number")
+        .ThrowAsJavaScriptException();
     }
     return static_cast<EnumType>(value.As<Napi::Number>().Int32Value());
   }

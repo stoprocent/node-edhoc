@@ -49,7 +49,7 @@ LibEDHOC::LibEDHOC(const Napi::CallbackInfo& info) : Napi::ObjectWrap<LibEDHOC>(
   // Initialize EDHOC context
   context = {};
   if (edhoc_context_init(&context) != EDHOC_SUCCESS) {
-    throw Napi::TypeError::New(env, kErrorFailedToInitializeEdhocContext);
+    Napi::TypeError::New(env, kErrorFailedToInitializeEdhocContext).ThrowAsJavaScriptException();
   }
 
   // Connection ID, Methods, and Suites
@@ -72,7 +72,7 @@ LibEDHOC::LibEDHOC(const Napi::CallbackInfo& info) : Napi::ObjectWrap<LibEDHOC>(
       edhoc_bind_crypto(&context, &cryptoManager->crypto) != EDHOC_SUCCESS ||
       edhoc_bind_credentials(&context, &credentialManager->credentials) != EDHOC_SUCCESS ||
       edhoc_bind_ead(&context, &eadManager->ead) != EDHOC_SUCCESS) {
-    throw Napi::TypeError::New(env, kErrorFailedToInitializeEdhocContext);
+    Napi::TypeError::New(env, kErrorFailedToInitializeEdhocContext).ThrowAsJavaScriptException();
   }
 
   // Logger
@@ -83,7 +83,7 @@ LibEDHOC::LibEDHOC(const Napi::CallbackInfo& info) : Napi::ObjectWrap<LibEDHOC>(
   userContext->parent = Reference<Napi::Object>::New(info.This().As<Napi::Object>());
 
   if (edhoc_set_user_context(&context, static_cast<void*>(userContext.get())) != EDHOC_SUCCESS) {
-    throw Napi::TypeError::New(env, kErrorFailedToInitializeEdhocContext);
+    Napi::TypeError::New(env, kErrorFailedToInitializeEdhocContext).ThrowAsJavaScriptException();
   }
 }
 
@@ -121,7 +121,7 @@ void LibEDHOC::SetMethods(const Napi::CallbackInfo& info, const Napi::Value& val
   Napi::Env env = info.Env();
 
   if (!value.IsArray()) {
-    throw Napi::TypeError::New(env, kErrorArrayMethodIndexesExpected);
+    Napi::TypeError::New(env, kErrorArrayMethodIndexesExpected).ThrowAsJavaScriptException();
   }
 
   const auto jsArray = value.As<Napi::Array>();
@@ -133,7 +133,7 @@ void LibEDHOC::SetMethods(const Napi::CallbackInfo& info, const Napi::Value& val
   }
 
   if (edhoc_set_methods(&context, methods.data(), methods.size()) != EDHOC_SUCCESS) {
-    throw Napi::TypeError::New(env, kErrorFailedToSetEdhocMethod);
+    Napi::TypeError::New(env, kErrorFailedToSetEdhocMethod).ThrowAsJavaScriptException();
   }
 }
 
@@ -145,7 +145,7 @@ void LibEDHOC::SetCipherSuites(const Napi::CallbackInfo& info, const Napi::Value
   Napi::Env env = info.Env();
 
   if (!value.IsArray()) {
-    throw Napi::TypeError::New(env, kErrorArraySuiteIndexesExpected);
+    Napi::TypeError::New(env, kErrorArraySuiteIndexesExpected).ThrowAsJavaScriptException();
   }
 
   const auto jsArray = value.As<Napi::Array>();
@@ -156,14 +156,14 @@ void LibEDHOC::SetCipherSuites(const Napi::CallbackInfo& info, const Napi::Value
     const uint32_t index = jsArray.Get(i).As<Napi::Number>().Uint32Value();
 
     if (index >= suite_pointers_count || suite_pointers[index] == nullptr) {
-      throw Napi::RangeError::New(env, kErrorInvalidCipherSuiteIndex);
+      Napi::RangeError::New(env, kErrorInvalidCipherSuiteIndex).ThrowAsJavaScriptException();
     }
 
     selected_suites.push_back(*suite_pointers[index]);
   }
 
   if (edhoc_set_cipher_suites(&context, selected_suites.data(), selected_suites.size()) != 0) {
-    throw Napi::TypeError::New(env, kErrorFailedToSetCipherSuites);
+    Napi::TypeError::New(env, kErrorFailedToSetCipherSuites).ThrowAsJavaScriptException();
   }
 }
 
@@ -215,12 +215,7 @@ Napi::Value LibEDHOC::ComposeMessage(const Napi::CallbackInfo& info, enum edhoc_
   Napi::HandleScope scope(env);
 
   if (info[0].IsArray()) {
-    try {
-      userContext->GetEadManager()->StoreEad(messageNumber, info[0].As<Napi::Array>());
-    } catch (const Napi::Error& e) {
-      e.ThrowAsJavaScriptException();
-      return env.Null();
-    }
+    userContext->GetEadManager()->StoreEad(messageNumber, info[0].As<Napi::Array>());
   }
 
   userContext->GetCredentialManager()->SetupAsyncFunctions();
@@ -230,6 +225,9 @@ Napi::Value LibEDHOC::ComposeMessage(const Napi::CallbackInfo& info, enum edhoc_
     userContext->GetEadManager()->ClearEadByMessage(messageNumber);
     userContext->GetCredentialManager()->CleanupAsyncFunctions();
     userContext->GetCryptoManager()->CleanupAsyncFunctions();
+    if (!userContext->error.IsEmpty()) {
+      userContext->error.ThrowAsJavaScriptException();
+    }
   };
 
   EdhocComposeAsyncWorker* worker = new EdhocComposeAsyncWorker(env, context, messageNumber, callback);
@@ -243,7 +241,8 @@ Napi::Value LibEDHOC::ProcessMessage(const Napi::CallbackInfo& info, enum edhoc_
   Napi::HandleScope scope(env);
 
   if (info.Length() < 1 || !info[0].IsBuffer()) {
-    Napi::TypeError::New(env, kErrorExpectedFirstArgumentToBeBuffer).ThrowAsJavaScriptException();
+    Napi::TypeError::New(env, kErrorExpectedFirstArgumentToBeBuffer)
+      .ThrowAsJavaScriptException();
     return env.Null();
   }
   Napi::Buffer<uint8_t> inputBuffer = info[0].As<Napi::Buffer<uint8_t>>();
@@ -256,6 +255,9 @@ Napi::Value LibEDHOC::ProcessMessage(const Napi::CallbackInfo& info, enum edhoc_
     userContext->GetEadManager()->ClearEadByMessage(messageNumber);
     userContext->GetCredentialManager()->CleanupAsyncFunctions();
     userContext->GetCryptoManager()->CleanupAsyncFunctions();
+    if (!userContext->error.IsEmpty()) {
+      userContext->error.ThrowAsJavaScriptException();
+    }
     return EADs;
   };
 
@@ -307,6 +309,9 @@ Napi::Value LibEDHOC::ExportOSCORE(const Napi::CallbackInfo& info) {
   EdhocExportOscoreAsyncWorker::CallbackType callback = [this](Napi::Env& env) {
     userContext->GetCredentialManager()->CleanupAsyncFunctions();
     userContext->GetCryptoManager()->CleanupAsyncFunctions();
+    if (!userContext->error.IsEmpty()) {
+      userContext->error.ThrowAsJavaScriptException();
+    }
   };
 
   EdhocExportOscoreAsyncWorker* worker = new EdhocExportOscoreAsyncWorker(env, context, callback);
@@ -338,6 +343,9 @@ Napi::Value LibEDHOC::ExportKey(const Napi::CallbackInfo& info) {
   EdhocKeyExporterAsyncWorker::CallbackType callback = [this](Napi::Env& env) {
     userContext->GetCredentialManager()->CleanupAsyncFunctions();
     userContext->GetCryptoManager()->CleanupAsyncFunctions();
+    if (!userContext->error.IsEmpty()) {
+      userContext->error.ThrowAsJavaScriptException();
+    }
   };
 
   EdhocKeyExporterAsyncWorker* worker = new EdhocKeyExporterAsyncWorker(env, context, label, desiredLength, callback);
@@ -364,6 +372,9 @@ Napi::Value LibEDHOC::KeyUpdate(const Napi::CallbackInfo& info) {
   EdhocKeyUpdateAsyncWorker::CallbackType callback = [this](Napi::Env& env) {
     userContext->GetCredentialManager()->CleanupAsyncFunctions();
     userContext->GetCryptoManager()->CleanupAsyncFunctions();
+    if (!userContext->error.IsEmpty()) {
+      userContext->error.ThrowAsJavaScriptException();
+    }
   };
 
   EdhocKeyUpdateAsyncWorker* worker = new EdhocKeyUpdateAsyncWorker(env, context, contextBufferVector, callback);

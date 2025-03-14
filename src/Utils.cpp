@@ -6,7 +6,6 @@
 #include <thread>
 
 static constexpr const char* kStringThen = "then";
-static constexpr const char* kStringCatch = "catch";
 static constexpr const char* kErrorInputValueMustBeANumberOrABuffer = "Input value must be a number or a buffer";
 
 void Utils::InvokeJSFunctionWithPromiseHandling(Napi::Env env,
@@ -17,21 +16,19 @@ void Utils::InvokeJSFunctionWithPromiseHandling(Napi::Env env,
                                                 ErrorHandler errorLambda) {
   auto deferred = Napi::Promise::Deferred::New(env);
 
-  try {
-    Napi::Value result = jsCallback.Call(jsObject, args);
+  Napi::Value result = jsCallback.Call(jsObject, args);
+
+  if (env.IsExceptionPending()) {
+    deferred.Reject(env.GetAndClearPendingException().Value());
+  }
+  else {
     deferred.Resolve(result);
-  } catch (const Napi::Error& e) {
-    deferred.Reject(e.Value());
   }
 
   auto thenCallback = Napi::Function::New(env, [successLambda, errorLambda](const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     Napi::HandleScope scope(env);
-    try {
-      successLambda(env, info[0].As<Napi::Value>());
-    } catch (const std::exception& e) {
-      errorLambda(env, Napi::Error::New(env, e.what()));
-    }
+    successLambda(env, info[0].As<Napi::Value>());
   });
 
   auto catchCallback = Napi::Function::New(env, [errorLambda](const Napi::CallbackInfo& info) {
@@ -41,8 +38,7 @@ void Utils::InvokeJSFunctionWithPromiseHandling(Napi::Env env,
   });
 
   Napi::Promise promise = deferred.Promise();
-  promise.Get(kStringCatch).As<Napi::Function>().Call(promise, {catchCallback});
-  promise.Get(kStringThen).As<Napi::Function>().Call(promise, {thenCallback});
+  promise.Get(kStringThen).As<Napi::Function>().Call(promise, { thenCallback, catchCallback });
 }
 
 void Utils::EncodeInt64ToBuffer(int64_t value, uint8_t* buffer, size_t* length) {
@@ -76,7 +72,7 @@ struct edhoc_connection_id Utils::ConvertJsValueToEdhocCid(Napi::Value value) {
     cid.bstr_length = buffer.Length();
     memcpy(cid.bstr_value, buffer.Data(), cid.bstr_length);
   } else {
-    throw Napi::TypeError::New(value.Env(), kErrorInputValueMustBeANumberOrABuffer);
+    Napi::TypeError::New(value.Env(), kErrorInputValueMustBeANumberOrABuffer).ThrowAsJavaScriptException();
   }
   return cid;
 }

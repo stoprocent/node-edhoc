@@ -25,24 +25,19 @@ EdhocExportOscoreAsyncWorker::EdhocExportOscoreAsyncWorker(Napi::Env& env,
 EdhocExportOscoreAsyncWorker::~EdhocExportOscoreAsyncWorker() {}
 
 void EdhocExportOscoreAsyncWorker::Execute() {
-  try {
-    size_t sender_id_length, recipient_id_length;
+  size_t sender_id_length, recipient_id_length;
 
-    int ret = edhoc_export_oscore_session(&context, masterSecret.data(), masterSecret.size(), masterSalt.data(),
-                                          masterSalt.size(), senderId.data(), senderId.size(), &sender_id_length,
-                                          recipientId.data(), recipientId.size(), &recipient_id_length);
+  int ret = edhoc_export_oscore_session(&context, masterSecret.data(), masterSecret.size(), masterSalt.data(),
+                                        masterSalt.size(), senderId.data(), senderId.size(), &sender_id_length,
+                                        recipientId.data(), recipientId.size(), &recipient_id_length);
 
-    if (ret != EDHOC_SUCCESS) {
-      char errorMessage[kErrorBufferSize];
-      std::snprintf(errorMessage, kErrorBufferSize, kErrorMessageFormat, ret);
-      SetError(errorMessage);
-    } else {
-      senderId.resize(sender_id_length);
-      recipientId.resize(recipient_id_length);
-    }
-
-  } catch (const std::exception& e) {
-    SetError(e.what());
+  if (ret != EDHOC_SUCCESS) {
+    char errorMessage[kErrorBufferSize];
+    std::snprintf(errorMessage, kErrorBufferSize, kErrorMessageFormat, ret);
+    SetError(errorMessage);
+  } else {
+    senderId.resize(sender_id_length);
+    recipientId.resize(recipient_id_length);
   }
 }
 
@@ -61,15 +56,26 @@ void EdhocExportOscoreAsyncWorker::OnOK() {
   resultObj.Set(kPropSenderId, senderIdBuffer);
   resultObj.Set(kPropRecipientId, recipientIdBuffer);
 
-  deferred.Resolve(resultObj);
   callback(env);
+
+  if(env.IsExceptionPending()) {
+    deferred.Reject(env.GetAndClearPendingException().Value());
+  } else {
+    deferred.Resolve(resultObj);
+  }
 }
 
 void EdhocExportOscoreAsyncWorker::OnError(const Napi::Error& error) {
   Napi::Env env = Env();
   Napi::HandleScope scope(env);
-  deferred.Reject(error.Value());
+
   callback(env);
+
+  if(env.IsExceptionPending()) {
+    deferred.Reject(env.GetAndClearPendingException().Value()); 
+  } else {
+    deferred.Reject(error.Value());
+  }
 }
 
 Napi::Promise EdhocExportOscoreAsyncWorker::GetPromise() {

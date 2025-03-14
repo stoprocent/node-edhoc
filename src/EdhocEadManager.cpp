@@ -36,7 +36,7 @@ void EdhocEadManager::StoreEad(enum edhoc_message message, const Napi::Array& ea
   for (size_t i = 0; i < eadArray.Length(); i++) {
     Napi::Value element = eadArray.Get(i);
     if (!element.IsObject()) {
-      throw Napi::TypeError::New(env, kErrorExpectedObject);
+      Napi::TypeError::New(env, kErrorExpectedObject).ThrowAsJavaScriptException();
     }
 
     Napi::Object obj = element.As<Napi::Object>();
@@ -44,7 +44,7 @@ void EdhocEadManager::StoreEad(enum edhoc_message message, const Napi::Array& ea
     Napi::Value bufferValue = obj.Get(kPropValue);
 
     if (!labelValue.IsNumber() || !bufferValue.IsBuffer()) {
-      throw Napi::TypeError::New(env, kErrorExpectedLabelNumberAndValueBuffer);
+      Napi::TypeError::New(env, kErrorExpectedLabelNumberAndValueBuffer).ThrowAsJavaScriptException();
     }
 
     int label = labelValue.As<Napi::Number>().Int32Value();

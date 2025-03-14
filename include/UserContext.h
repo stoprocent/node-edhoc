@@ -67,6 +67,7 @@ class UserContext {
 
   Napi::ThreadSafeFunction logger;  ///< The logger for the UserContext
   Napi::ObjectReference parent;     ///< The parent object reference for the UserContext
+  Napi::Error error;                ///< The last error for the UserContext
 
  protected:
   std::shared_ptr<EdhocCryptoManager> cryptoManager;          ///< The crypto manager
