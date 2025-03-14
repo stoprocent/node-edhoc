@@ -36,7 +36,7 @@ static constexpr const char* kVerify = "verify";
 void convert_js_to_edhoc_kid(const Napi::Object& jsObject, struct edhoc_auth_creds* credentials) {
   Napi::Object kidObj = jsObject.Get(kKid).As<Napi::Object>();
   if (!kidObj.Has(kIsCBOR) || !kidObj.Has(kKid) || !kidObj.Has(kCredentials)) {
-    throw std::runtime_error(kInvalidInputDataErrorKid);
+    Napi::TypeError::New(jsObject.Env(), kInvalidInputDataErrorKid).ThrowAsJavaScriptException();
   }
 
   credentials->label = EDHOC_COSE_HEADER_KID;
@@ -58,7 +58,7 @@ void convert_js_to_edhoc_kid(const Napi::Object& jsObject, struct edhoc_auth_cre
     credentials->key_id.key_id_bstr_length = buffer.Length();
     memcpy(credentials->key_id.key_id_bstr, buffer.Data(), buffer.Length());
   } else {
-    throw std::runtime_error(kInvalidInputDataErrorKid);
+    Napi::TypeError::New(jsObject.Env(), kInvalidInputDataErrorKid).ThrowAsJavaScriptException();
   }
 
   Napi::Buffer<uint8_t> credBuffer = kidObj.Get(kCredentials).As<Napi::Buffer<uint8_t>>();
@@ -73,7 +73,7 @@ void convert_js_to_edhoc_kid(const Napi::Object& jsObject, struct edhoc_auth_cre
 void convert_js_to_edhoc_x5chain(const Napi::Object& jsObject, struct edhoc_auth_creds* credentials) {
   Napi::Object x5chainObj = jsObject.Get(kX5chain).As<Napi::Object>();
   if (!x5chainObj.Has(kCertificates)) {
-    throw std::runtime_error(kInvalidInputDataErrorX509Chain);
+    Napi::TypeError::New(jsObject.Env(), kInvalidInputDataErrorX509Chain).ThrowAsJavaScriptException();
   }
 
   credentials->label = EDHOC_COSE_HEADER_X509_CHAIN;
@@ -95,7 +95,7 @@ void convert_js_to_edhoc_x5chain(const Napi::Object& jsObject, struct edhoc_auth
 void convert_js_to_edhoc_x5t(const Napi::Object& jsObject, struct edhoc_auth_creds* credentials) {
   Napi::Object x5tObj = jsObject.Get(kX5t).As<Napi::Object>();
   if (!x5tObj.Has(kCertificate) || !x5tObj.Has(kHash) || !x5tObj.Has(kHashAlgorithm)) {
-    throw std::runtime_error(kInvalidInputDataErrorX509Hash);
+    Napi::TypeError::New(jsObject.Env(), kInvalidInputDataErrorX509Hash).ThrowAsJavaScriptException();
   }
 
   credentials->label = EDHOC_COSE_HEADER_X509_HASH;
@@ -212,13 +212,15 @@ int EdhocCredentialManager::callFetchCredentials(const void* user_context, struc
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
 
-  auto successHandler = [this, &promise, &credentials](Napi::Env env, Napi::Value result) {
+  UserContext* context = static_cast<UserContext*>(const_cast<void*>(user_context));
+  auto successHandler = [this, &promise, &credentials, &context](Napi::Env env, Napi::Value result) {
     Napi::HandleScope scope(env);
     auto credsObj = result.As<Napi::Object>();
     credentialReferences.push_back(Napi::Persistent(credsObj));
 
     if (credsObj.IsObject() == false || credsObj.Has(kFormat) == false) {
-      throw std::runtime_error(kInvalidInputCredentialTypeError);
+      context->error = Napi::Error::New(env, kInvalidInputCredentialTypeError);
+      return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
     }
     int label = credsObj.Get(kFormat).As<Napi::Number>().Int32Value();
 
@@ -234,22 +236,27 @@ int EdhocCredentialManager::callFetchCredentials(const void* user_context, struc
         break;
       case EDHOC_COSE_ANY:
       default:
-        throw std::runtime_error(kUnsupportedCredentialTypeError);
+        context->error = Napi::Error::New(env, kUnsupportedCredentialTypeError);
+        return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
     }
 
     if (credsObj.Has(kPrivateKeyId) && !credsObj.Get(kPrivateKeyId).IsNull()) {
       Napi::Buffer<uint8_t> privKeyIdBuffer = credsObj.Get(kPrivateKeyId).As<Napi::Buffer<uint8_t>>();
       memcpy(credentials->priv_key_id, privKeyIdBuffer.Data(), privKeyIdBuffer.Length());
     }
+    else {
+      context->error = Napi::Error::New(env, kInvalidInputCredentialTypeError);
+      return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
+    }
 
     promise.set_value(EDHOC_SUCCESS);
   };
 
-  auto blockingCallHandler = [this, &user_context, &successHandler, &promise](Napi::Env env,
+  auto blockingCallHandler = [this, &context, &successHandler, &promise](Napi::Env env,
                                                                               Napi::Function jsCallback) {
     Napi::HandleScope scope(env);
-    std::vector<napi_value> arguments = {static_cast<const UserContext*>(user_context)->parent.Value()};
-    auto errorHandler = Utils::CreatePromiseErrorHandler<int>(promise, EDHOC_ERROR_GENERIC_ERROR);
+    std::vector<napi_value> arguments = {context->parent.Value()};
+    auto errorHandler = Utils::CreatePromiseErrorHandler<int>(promise, EDHOC_ERROR_GENERIC_ERROR, context->error);
     Utils::InvokeJSFunctionWithPromiseHandling(env, credentialManagerRef.Value(), jsCallback, arguments, successHandler,
                                                errorHandler);
   };
@@ -267,13 +274,16 @@ int EdhocCredentialManager::callVerifyCredentials(const void* user_context,
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
 
-  auto successHandler = [this, &promise, &credentials, &public_key_reference, &public_key_length](Napi::Env env,
+  UserContext* context = static_cast<UserContext*>(const_cast<void*>(user_context));
+
+  auto successHandler = [this, &promise, &credentials, &public_key_reference, &public_key_length, &context](Napi::Env env,
                                                                                                   Napi::Value result) {
     Napi::HandleScope scope(env);
     Napi::Object credsObj = result.As<Napi::Object>();
     credentialReferences.push_back(Napi::Persistent(credsObj));
     if (credsObj.IsObject() == false) {
-      throw std::runtime_error(kInvalidInputCredentialTypeError);
+      context->error = Napi::Error::New(env, kInvalidInputCredentialTypeError);
+      return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
     }
 
     int label = credsObj.Get(kFormat).As<Napi::Number>().Int32Value();
@@ -288,7 +298,8 @@ int EdhocCredentialManager::callVerifyCredentials(const void* user_context,
         convert_js_to_edhoc_x5t(credsObj, credentials);
         break;
       default:
-        throw std::runtime_error(kUnsupportedCredentialTypeError);
+        context->error = Napi::Error::New(env, kUnsupportedCredentialTypeError);
+        return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
     }
 
     if (credsObj.Has(kPublicKey) && !credsObj.Get(kPublicKey).IsNull()) {
@@ -296,11 +307,15 @@ int EdhocCredentialManager::callVerifyCredentials(const void* user_context,
       *public_key_reference = publicKeyBuffer.Data();
       *public_key_length = publicKeyBuffer.Length();
     }
+    else {
+      context->error = Napi::Error::New(env, kInvalidInputCredentialTypeError);
+      return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
+    }
 
     promise.set_value(EDHOC_SUCCESS);
   };
 
-  auto blockingCallHandler = [this, &user_context, &credentials, &successHandler, &promise](Napi::Env env,
+  auto blockingCallHandler = [this, &context, &credentials, &successHandler, &promise](Napi::Env env,
                                                                                             Napi::Function jsCallback) {
     Napi::HandleScope scope(env);
     Napi::Object resultObject = Napi::Object::New(env);
@@ -317,11 +332,12 @@ int EdhocCredentialManager::callVerifyCredentials(const void* user_context,
         resultObject.Set(kX5t, convert_edhoc_x5t_to_js(env, credentials->x509_hash));
         break;
       default:
-        throw std::runtime_error(kUnsupportedCredentialTypeError);
+        context->error = Napi::Error::New(env, kUnsupportedCredentialTypeError);
+        return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
     }
 
-    std::vector<napi_value> arguments = {static_cast<const UserContext*>(user_context)->parent.Value(), resultObject};
-    auto errorHandler = Utils::CreatePromiseErrorHandler<int>(promise, EDHOC_ERROR_GENERIC_ERROR);
+    std::vector<napi_value> arguments = {context->parent.Value(), resultObject};
+    auto errorHandler = Utils::CreatePromiseErrorHandler<int>(promise, EDHOC_ERROR_GENERIC_ERROR, context->error);
     Utils::InvokeJSFunctionWithPromiseHandling(env, credentialManagerRef.Value(), jsCallback, arguments, successHandler,
                                                errorHandler);
   };

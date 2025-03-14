@@ -17,15 +17,11 @@ EdhocKeyExporterAsyncWorker::EdhocKeyExporterAsyncWorker(Napi::Env& env,
       callback(std::move(callback)) {}
 
 void EdhocKeyExporterAsyncWorker::Execute() {
-  try {
-    int ret = edhoc_export_prk_exporter(&context, label, output.data(), desiredLength);
-    if (ret != EDHOC_SUCCESS) {
-      char errorMessage[kErrorBufferSize];
-      std::snprintf(errorMessage, kErrorBufferSize, kErrorMessageFormat, ret);
-      SetError(errorMessage);
-    }
-  } catch (const std::exception& e) {
-    SetError(e.what());
+  int ret = edhoc_export_prk_exporter(&context, label, output.data(), desiredLength);
+  if (ret != EDHOC_SUCCESS) {
+    char errorMessage[kErrorBufferSize];
+    std::snprintf(errorMessage, kErrorBufferSize, kErrorMessageFormat, ret);
+    SetError(errorMessage);
   }
 }
 
@@ -33,15 +29,27 @@ void EdhocKeyExporterAsyncWorker::OnOK() {
   Napi::Env env = Env();
   Napi::HandleScope scope(env);
   auto outputBuffer = Napi::Buffer<uint8_t>::Copy(env, output.data(), output.size());
-  deferred.Resolve(outputBuffer);
+
   callback(env);
+
+  if (env.IsExceptionPending()) {
+    deferred.Reject(env.GetAndClearPendingException().Value());
+  } else {
+    deferred.Resolve(outputBuffer);
+  }
 }
 
 void EdhocKeyExporterAsyncWorker::OnError(const Napi::Error& error) {
   Napi::Env env = Env();
   Napi::HandleScope scope(env);
-  deferred.Reject(error.Value());
+
   callback(env);
+
+  if (env.IsExceptionPending()) {
+    deferred.Reject(env.GetAndClearPendingException().Value());
+  } else {
+    deferred.Reject(error.Value());
+  }
 }
 
 Napi::Promise EdhocKeyExporterAsyncWorker::GetPromise() {

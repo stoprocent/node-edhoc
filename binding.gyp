@@ -6,7 +6,7 @@
     {
       "target_name": "bindings",
       'defines': [
-        'NAPI_CPP_EXCEPTIONS=1',
+        'NAPI_DISABLE_CPP_EXCEPTIONS=1',
         'CONFIG_LIBEDHOC_ENABLE=1',
         'CONFIG_LIBEDHOC_MAX_NR_OF_CIPHER_SUITES=9',
         'CONFIG_LIBEDHOC_MAX_LEN_OF_CONN_ID=7',
@@ -38,7 +38,7 @@
       'cflags!': [ '-fno-exceptions', '-std=c99' ],
       'cflags_cc!': [ '-fno-exceptions', '-std=c++20' ],
       'xcode_settings': {
-        'GCC_ENABLE_CPP_EXCEPTIONS': 'YES',
+        'GCC_ENABLE_CPP_EXCEPTIONS': 'NO',
         'CLANG_CXX_LIBRARY': 'libc++',
         'CLANG_CXX_LANGUAGE_STANDARD': 'c++20',
         'MACOSX_DEPLOYMENT_TARGET': '12'

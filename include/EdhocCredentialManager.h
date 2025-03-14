@@ -93,7 +93,7 @@ class EdhocCredentialManager {
   Napi::ObjectReference credentialManagerRef;                       ///< Reference to the JS object
   Napi::ThreadSafeFunction fetchTsfn;                               ///< Thread-safe function for FetchCredentials
   Napi::ThreadSafeFunction verifyTsfn;                              ///< Thread-safe function for VerifyCredentials
-
+  
   /**
    * @brief Assosciates the thread-safe function with the JS object function.
    * @param name The name of the function in the JS credential manager object.

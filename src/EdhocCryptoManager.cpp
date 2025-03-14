@@ -252,14 +252,17 @@ int EdhocCryptoManager::callImportKey(const void* user_context,
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
 
-  auto successHandler = [&promise, &key_id_ptr](Napi::Env env, Napi::Value result) {
+  UserContext* context = static_cast<UserContext*>(const_cast<void*>(user_context));
+
+  auto successHandler = [&promise, &key_id_ptr, &context](Napi::Env env, Napi::Value result) {
     Napi::HandleScope scope(env);
     uint8_t* key_id = static_cast<uint8_t*>(key_id_ptr);
 
     if (result.IsTypedArray()) {
       Napi::Uint8Array resultArray = result.As<Napi::Uint8Array>();
       if (resultArray.ElementLength() > CONFIG_LIBEDHOC_KEY_ID_LEN) {
-        throw std::runtime_error(kErrorInvalidUint8ArrayLength);
+        context->error = Napi::Error::New(env, kErrorInvalidUint8ArrayLength);
+        return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
       }
       memcpy(key_id, resultArray.Data(), resultArray.ElementLength());
       promise.set_value(EDHOC_SUCCESS);
@@ -270,25 +273,26 @@ int EdhocCryptoManager::callImportKey(const void* user_context,
       Utils::EncodeInt64ToBuffer(num, tempBuffer, &encodedLength);
 
       if (encodedLength > CONFIG_LIBEDHOC_KEY_ID_LEN) {
-        throw std::runtime_error(kErrorEncodedUint32Length);
+        context->error = Napi::Error::New(env, kErrorEncodedUint32Length);
+        return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
       }
 
       memcpy(key_id, tempBuffer, encodedLength);
       memset(key_id + encodedLength, 0, CONFIG_LIBEDHOC_KEY_ID_LEN - encodedLength);
       promise.set_value(EDHOC_SUCCESS);
     } else {
-      throw std::runtime_error(kErrorExpectUint8ArrayOrNumber);
+      context->error = Napi::Error::New(env, kErrorExpectUint8ArrayOrNumber);
+      return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
     }
   };
 
-  auto blockingCallHandler = [this, &user_context, &promise, key_type, &raw_key, raw_key_length, successHandler](
+  auto blockingCallHandler = [this, &context, &promise, key_type, &raw_key, raw_key_length, successHandler](
                                  Napi::Env env, Napi::Function jsCallback) {
     Napi::HandleScope scope(env);
 
-    std::vector<napi_value> args = {static_cast<const UserContext*>(user_context)->parent.Value(),
-                                    Napi::Number::New(env, static_cast<int>(key_type)),
+    std::vector<napi_value> args = {context->parent.Value(), Napi::Number::New(env, static_cast<int>(key_type)),
                                     Napi::Buffer<uint8_t>::New(env, const_cast<uint8_t*>(raw_key), raw_key_length)};
-    auto errorHandler = Utils::CreatePromiseErrorHandler<int>(promise, EDHOC_ERROR_GENERIC_ERROR);
+    auto errorHandler = Utils::CreatePromiseErrorHandler<int>(promise, EDHOC_ERROR_GENERIC_ERROR, context->error);
     Utils::InvokeJSFunctionWithPromiseHandling(env, cryptoManagerRef.Value(), jsCallback, args, successHandler,
                                                errorHandler);
   };
@@ -303,6 +307,8 @@ int EdhocCryptoManager::callDestroyKey(const void* user_context, void* key_id) {
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
 
+  UserContext* context = static_cast<UserContext*>(const_cast<void*>(user_context));
+
   // Timeout thread to ensure the callback is called
   std::shared_ptr<bool> callbackCompleted = std::make_shared<bool>(false);
   std::thread timeoutThread([callbackCompleted, &promise]() {
@@ -313,22 +319,23 @@ int EdhocCryptoManager::callDestroyKey(const void* user_context, void* key_id) {
   });
   timeoutThread.detach();
 
-  auto successHandler = [&promise](Napi::Env env, Napi::Value result) {
+  auto successHandler = [&promise, &context](Napi::Env env, Napi::Value result) {
     Napi::HandleScope scope(env);
     if (!result.IsBoolean()) {
-      throw std::runtime_error(kErrorExpectBoolean);
+      context->error = Napi::Error::New(env, kErrorExpectBoolean);
+      return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
     }
     promise.set_value(result.As<Napi::Boolean>().Value() ? EDHOC_SUCCESS : EDHOC_ERROR_GENERIC_ERROR);
   };
 
-  auto blockingCallHandler = [this, &user_context, &promise, &key_id, callbackCompleted, successHandler](
+  auto blockingCallHandler = [this, &context, &promise, &key_id, callbackCompleted, successHandler](
                                  Napi::Env env, Napi::Function jsCallback) {
     *callbackCompleted = true;
     Napi::HandleScope scope(env);
     std::vector<napi_value> args = {
-        static_cast<const UserContext*>(user_context)->parent.Value(),
+        context->parent.Value(),
         Napi::Buffer<uint8_t>::Copy(env, static_cast<uint8_t*>(key_id), CONFIG_LIBEDHOC_KEY_ID_LEN)};
-    auto errorHandler = Utils::CreatePromiseErrorHandler<int>(promise, EDHOC_ERROR_GENERIC_ERROR);
+    auto errorHandler = Utils::CreatePromiseErrorHandler<int>(promise, EDHOC_ERROR_GENERIC_ERROR, context->error);
     Utils::InvokeJSFunctionWithPromiseHandling(env, cryptoManagerRef.Value(), jsCallback, args, successHandler,
                                                errorHandler);
   };
@@ -350,11 +357,14 @@ int EdhocCryptoManager::callMakeKeyPair(const void* user_context,
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
 
+  UserContext* context = static_cast<UserContext*>(const_cast<void*>(user_context));
+
   auto successHandler = [&promise, &private_key, private_key_size, &private_key_length, &public_key, public_key_size,
-                         &public_key_length](Napi::Env env, Napi::Value result) {
+                         &public_key_length, &context](Napi::Env env, Napi::Value result) {
     Napi::HandleScope scope(env);
     if (!result.IsObject()) {
-      throw std::runtime_error(kErrorResultObjectExpected);
+      context->error = Napi::Error::New(env, kErrorResultObjectExpected);
+      return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
     }
 
     Napi::Object resultObject = result.As<Napi::Object>();
@@ -362,18 +372,21 @@ int EdhocCryptoManager::callMakeKeyPair(const void* user_context,
     Napi::Value publicKeyValue = resultObject.Get("publicKey");
 
     if (!privateKeyValue.IsBuffer() || !publicKeyValue.IsBuffer()) {
-      throw std::runtime_error(kErrorKeysExpectedAsBuffers);
+      context->error = Napi::Error::New(env, kErrorKeysExpectedAsBuffers);
+      return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
     }
 
     Napi::Buffer<uint8_t> privateKeyBuffer = privateKeyValue.As<Napi::Buffer<uint8_t>>();
     Napi::Buffer<uint8_t> publicKeyBuffer = publicKeyValue.As<Napi::Buffer<uint8_t>>();
 
     if (privateKeyBuffer.Length() > private_key_size) {
-      throw std::runtime_error(kErrorPrivateKeyLengthExceeds);
+      context->error = Napi::Error::New(env, kErrorPrivateKeyLengthExceeds);
+      return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
     }
 
     if (publicKeyBuffer.Length() > public_key_size) {
-      throw std::runtime_error(kErrorPublicKeyLengthExceeds);
+      context->error = Napi::Error::New(env, kErrorPublicKeyLengthExceeds);
+      return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
     }
 
     memcpy(private_key, privateKeyBuffer.Data(), privateKeyBuffer.Length());
@@ -384,15 +397,15 @@ int EdhocCryptoManager::callMakeKeyPair(const void* user_context,
     promise.set_value(EDHOC_SUCCESS);
   };
 
-  auto blockingCallHandler = [this, &user_context, &promise, &key_id, private_key_size, public_key_size,
-                              successHandler](Napi::Env env, Napi::Function jsCallback) {
+  auto blockingCallHandler = [this, &context, &promise, &key_id, private_key_size, public_key_size, successHandler](
+                                 Napi::Env env, Napi::Function jsCallback) {
     Napi::HandleScope scope(env);
     std::vector<napi_value> args = {
-        static_cast<const UserContext*>(user_context)->parent.Value(),
+        context->parent.Value(),
         Napi::Buffer<uint8_t>::Copy(env, static_cast<const uint8_t*>(key_id), CONFIG_LIBEDHOC_KEY_ID_LEN),
         Napi::Number::New(env, static_cast<size_t>(private_key_size)),
         Napi::Number::New(env, static_cast<size_t>(public_key_size))};
-    auto errorHandler = Utils::CreatePromiseErrorHandler<int>(promise, EDHOC_ERROR_GENERIC_ERROR);
+    auto errorHandler = Utils::CreatePromiseErrorHandler<int>(promise, EDHOC_ERROR_GENERIC_ERROR, context->error);
     Utils::InvokeJSFunctionWithPromiseHandling(env, cryptoManagerRef.Value(), jsCallback, args, successHandler,
                                                errorHandler);
   };
@@ -413,15 +426,19 @@ int EdhocCryptoManager::callKeyAgreement(const void* user_context,
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
 
-  auto successHandler = [&promise, &shared_secret, shared_secret_size, &shared_secret_length](Napi::Env env,
-                                                                                              Napi::Value result) {
+  UserContext* context = static_cast<UserContext*>(const_cast<void*>(user_context));
+
+  auto successHandler = [&promise, &shared_secret, shared_secret_size, &shared_secret_length, &context](
+                            Napi::Env env, Napi::Value result) {
     Napi::HandleScope scope(env);
     if (!result.IsBuffer()) {
-      throw std::runtime_error(kErrorExpectBuffer);
+      context->error = Napi::Error::New(env, kErrorExpectBuffer);
+      return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
     }
     Napi::Buffer<uint8_t> sharedSecretBuffer = result.As<Napi::Buffer<uint8_t>>();
     if (sharedSecretBuffer.Length() > shared_secret_size) {
-      throw std::runtime_error(kErrorSecretLengthExceeds);
+      context->error = Napi::Error::New(env, kErrorSecretLengthExceeds);
+      return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
     }
     memcpy(shared_secret, sharedSecretBuffer.Data(), sharedSecretBuffer.Length());
     *shared_secret_length = sharedSecretBuffer.Length();
@@ -429,16 +446,16 @@ int EdhocCryptoManager::callKeyAgreement(const void* user_context,
     promise.set_value(EDHOC_SUCCESS);
   };
 
-  auto blockingCallHandler = [this, &user_context, &promise, &key_id, &peer_public_key, peer_public_key_length,
+  auto blockingCallHandler = [this, &context, &promise, &key_id, &peer_public_key, peer_public_key_length,
                               shared_secret_size, successHandler](Napi::Env env, Napi::Function jsCallback) {
     Napi::HandleScope scope(env);
     std::vector<napi_value> args = {
-        static_cast<const UserContext*>(user_context)->parent.Value(),
+        context->parent.Value(),
         Napi::Buffer<uint8_t>::Copy(env, static_cast<const uint8_t*>(key_id), CONFIG_LIBEDHOC_KEY_ID_LEN),
         Napi::Buffer<uint8_t>::Copy(env, peer_public_key, peer_public_key_length),
         Napi::Number::New(env, static_cast<size_t>(shared_secret_size)),
     };
-    auto errorHandler = Utils::CreatePromiseErrorHandler<int>(promise, EDHOC_ERROR_GENERIC_ERROR);
+    auto errorHandler = Utils::CreatePromiseErrorHandler<int>(promise, EDHOC_ERROR_GENERIC_ERROR, context->error);
     Utils::InvokeJSFunctionWithPromiseHandling(env, cryptoManagerRef.Value(), jsCallback, args, successHandler,
                                                errorHandler);
   };
@@ -460,15 +477,19 @@ int EdhocCryptoManager::callSign(const void* user_context,
   std::future<int> future = promise.get_future();
 
   const uint8_t* kid = static_cast<const uint8_t*>(key_id);
+  UserContext* context = static_cast<UserContext*>(const_cast<void*>(user_context));
 
-  auto successHandler = [&promise, &signature, signature_size, &signature_length](Napi::Env env, Napi::Value result) {
+  auto successHandler = [&promise, &signature, signature_size, &signature_length, &context](Napi::Env env,
+                                                                                            Napi::Value result) {
     Napi::HandleScope scope(env);
     if (!result.IsBuffer()) {
-      throw std::runtime_error(kErrorExpectBuffer);
+      context->error = Napi::Error::New(env, kErrorExpectBuffer);
+      return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
     }
     Napi::Buffer<uint8_t> signatureBuffer = result.As<Napi::Buffer<uint8_t>>();
     if (signatureBuffer.Length() > signature_size) {
-      throw std::runtime_error(kErrorSignatureLengthExceeds);
+      context->error = Napi::Error::New(env, kErrorSignatureLengthExceeds);
+      return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
     }
     memcpy(signature, signatureBuffer.Data(), signatureBuffer.Length());
     *signature_length = signatureBuffer.Length();
@@ -476,15 +497,15 @@ int EdhocCryptoManager::callSign(const void* user_context,
     promise.set_value(EDHOC_SUCCESS);
   };
 
-  auto blockingCallHandler = [this, &user_context, &promise, kid, &input, input_length, signature_size, successHandler](
+  auto blockingCallHandler = [this, &context, &promise, kid, &input, input_length, signature_size, successHandler](
                                  Napi::Env env, Napi::Function jsCallback) {
     Napi::HandleScope scope(env);
     std::vector<napi_value> args = {
-        static_cast<const UserContext*>(user_context)->parent.Value(),
+        context->parent.Value(),
         Napi::Buffer<uint8_t>::Copy(env, static_cast<const uint8_t*>(kid), CONFIG_LIBEDHOC_KEY_ID_LEN),
         Napi::Buffer<uint8_t>::Copy(env, input, input_length),
         Napi::Number::New(env, static_cast<size_t>(signature_size))};
-    auto errorHandler = Utils::CreatePromiseErrorHandler<int>(promise, EDHOC_ERROR_GENERIC_ERROR);
+    auto errorHandler = Utils::CreatePromiseErrorHandler<int>(promise, EDHOC_ERROR_GENERIC_ERROR, context->error);
     Utils::InvokeJSFunctionWithPromiseHandling(env, cryptoManagerRef.Value(), jsCallback, args, successHandler,
                                                errorHandler);
   };
@@ -504,24 +525,27 @@ int EdhocCryptoManager::callVerify(const void* user_context,
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
 
-  auto successHandler = [&promise](Napi::Env env, Napi::Value result) {
+  UserContext* context = static_cast<UserContext*>(const_cast<void*>(user_context));
+
+  auto successHandler = [&promise, &context](Napi::Env env, Napi::Value result) {
     Napi::HandleScope scope(env);
     if (!result.IsBoolean()) {
-      throw std::runtime_error(kErrorExpectBooleanVerify);
+      context->error = Napi::Error::New(env, kErrorExpectBooleanVerify);
+      return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
     }
     promise.set_value(result.As<Napi::Boolean>().Value() ? EDHOC_SUCCESS : EDHOC_ERROR_CRYPTO_FAILURE);
   };
 
-  auto blockingCallHandler = [this, &user_context, &promise, &key_id, &input, input_length, &signature,
-                              signature_length, successHandler](Napi::Env env, Napi::Function jsCallback) {
+  auto blockingCallHandler = [this, &context, &promise, &key_id, &input, input_length, &signature, signature_length,
+                              successHandler](Napi::Env env, Napi::Function jsCallback) {
     Napi::HandleScope scope(env);
     std::vector<napi_value> args = {
-        static_cast<const UserContext*>(user_context)->parent.Value(),
+        context->parent.Value(),
         Napi::Buffer<uint8_t>::Copy(env, static_cast<const uint8_t*>(key_id), CONFIG_LIBEDHOC_KEY_ID_LEN),
         Napi::Buffer<uint8_t>::Copy(env, input, input_length),
         Napi::Buffer<uint8_t>::Copy(env, signature, signature_length),
     };
-    auto errorHandler = Utils::CreatePromiseErrorHandler<int>(promise, EDHOC_ERROR_GENERIC_ERROR);
+    auto errorHandler = Utils::CreatePromiseErrorHandler<int>(promise, EDHOC_ERROR_GENERIC_ERROR, context->error);
     Utils::InvokeJSFunctionWithPromiseHandling(env, cryptoManagerRef.Value(), jsCallback, args, successHandler,
                                                errorHandler);
   };
@@ -542,15 +566,19 @@ int EdhocCryptoManager::callExtract(const void* user_context,
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
 
-  auto successHandler = [&promise, &pseudo_random_key, pseudo_random_key_size, &pseudo_random_key_length](
+  UserContext* context = static_cast<UserContext*>(const_cast<void*>(user_context));
+
+  auto successHandler = [&promise, &pseudo_random_key, pseudo_random_key_size, &pseudo_random_key_length, &context](
                             Napi::Env env, Napi::Value result) {
     Napi::HandleScope scope(env);
     if (!result.IsBuffer()) {
-      throw std::runtime_error(kErrorExpectBuffer);
+      context->error = Napi::Error::New(env, kErrorExpectBuffer);
+      return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
     }
     Napi::Buffer<uint8_t> randomKeyBuffer = result.As<Napi::Buffer<uint8_t>>();
     if (randomKeyBuffer.Length() > pseudo_random_key_size) {
-      throw std::runtime_error(kErrorPseudoRandpmLengthExceeds);
+      context->error = Napi::Error::New(env, kErrorPseudoRandpmLengthExceeds);
+      return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
     }
     memcpy(pseudo_random_key, randomKeyBuffer.Data(), randomKeyBuffer.Length());
     *pseudo_random_key_length = randomKeyBuffer.Length();
@@ -558,15 +586,15 @@ int EdhocCryptoManager::callExtract(const void* user_context,
     promise.set_value(EDHOC_SUCCESS);
   };
 
-  auto blockingCallHandler = [this, &user_context, &promise, &key_id, &salt, salt_len, pseudo_random_key_size,
+  auto blockingCallHandler = [this, &context, &promise, &key_id, &salt, salt_len, pseudo_random_key_size,
                               successHandler](Napi::Env env, Napi::Function jsCallback) {
     Napi::HandleScope scope(env);
     std::vector<napi_value> args = {
-        static_cast<const UserContext*>(user_context)->parent.Value(),
+        context->parent.Value(),
         Napi::Buffer<uint8_t>::Copy(env, static_cast<const uint8_t*>(key_id), CONFIG_LIBEDHOC_KEY_ID_LEN),
         Napi::Buffer<uint8_t>::Copy(env, salt, salt_len),
         Napi::Number::New(env, static_cast<size_t>(pseudo_random_key_size))};
-    auto errorHandler = Utils::CreatePromiseErrorHandler<int>(promise, EDHOC_ERROR_GENERIC_ERROR);
+    auto errorHandler = Utils::CreatePromiseErrorHandler<int>(promise, EDHOC_ERROR_GENERIC_ERROR, context->error);
     Utils::InvokeJSFunctionWithPromiseHandling(env, cryptoManagerRef.Value(), jsCallback, args, successHandler,
                                                errorHandler);
   };
@@ -586,30 +614,34 @@ int EdhocCryptoManager::callExpand(const void* user_context,
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
 
-  auto successHandler = [&promise, &output_keying_material, output_keying_material_length](Napi::Env env,
-                                                                                           Napi::Value result) {
+  UserContext* context = static_cast<UserContext*>(const_cast<void*>(user_context));
+
+  auto successHandler = [&promise, &output_keying_material, output_keying_material_length, &context](
+                            Napi::Env env, Napi::Value result) {
     Napi::HandleScope scope(env);
     if (!result.IsBuffer()) {
-      throw std::runtime_error(kErrorExpectBuffer);
+      context->error = Napi::Error::New(env, kErrorExpectBuffer);
+      return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
     }
     Napi::Buffer<uint8_t> outputBuffer = result.As<Napi::Buffer<uint8_t>>();
     if (outputBuffer.Length() > output_keying_material_length) {
-      throw std::runtime_error(kErrorKeyingMaterialLengthExceeds);
+      context->error = Napi::Error::New(env, kErrorKeyingMaterialLengthExceeds);
+      return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
     }
     memcpy(output_keying_material, outputBuffer.Data(), outputBuffer.Length());
 
     promise.set_value(EDHOC_SUCCESS);
   };
 
-  auto blockingCallHandler = [this, &user_context, &promise, &key_id, &info, info_length, output_keying_material_length,
+  auto blockingCallHandler = [this, &context, &promise, &key_id, &info, info_length, output_keying_material_length,
                               successHandler](Napi::Env env, Napi::Function jsCallback) {
     Napi::HandleScope scope(env);
     std::vector<napi_value> args = {
-        static_cast<const UserContext*>(user_context)->parent.Value(),
+        context->parent.Value(),
         Napi::Buffer<uint8_t>::Copy(env, static_cast<const uint8_t*>(key_id), CONFIG_LIBEDHOC_KEY_ID_LEN),
         Napi::Buffer<uint8_t>::Copy(env, info, info_length),
         Napi::Number::New(env, static_cast<size_t>(output_keying_material_length))};
-    auto errorHandler = Utils::CreatePromiseErrorHandler<int>(promise, EDHOC_ERROR_GENERIC_ERROR);
+    auto errorHandler = Utils::CreatePromiseErrorHandler<int>(promise, EDHOC_ERROR_GENERIC_ERROR, context->error);
     Utils::InvokeJSFunctionWithPromiseHandling(env, cryptoManagerRef.Value(), jsCallback, args, successHandler,
                                                errorHandler);
   };
@@ -634,15 +666,19 @@ int EdhocCryptoManager::callEncrypt(const void* user_context,
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
 
-  auto successHandler = [&promise, &ciphertext, ciphertext_size, &ciphertext_length](Napi::Env env,
-                                                                                     Napi::Value result) {
+  UserContext* context = static_cast<UserContext*>(const_cast<void*>(user_context));
+
+  auto successHandler = [&promise, &ciphertext, ciphertext_size, &ciphertext_length, &context](Napi::Env env,
+                                                                                               Napi::Value result) {
     Napi::HandleScope scope(env);
     if (!result.IsBuffer()) {
-      throw std::runtime_error(kErrorExpectBuffer);
+      context->error = Napi::Error::New(env, kErrorExpectBuffer);
+      return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
     }
     Napi::Buffer<uint8_t> ciphertextBuffer = result.As<Napi::Buffer<uint8_t>>();
     if (ciphertextBuffer.Length() > ciphertext_size) {
-      throw std::runtime_error(kErrorBufferTooSmall);
+      context->error = Napi::Error::New(env, kErrorBufferTooSmall);
+      return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
     }
     memcpy(ciphertext, ciphertextBuffer.Data(), ciphertextBuffer.Length());
     *ciphertext_length = ciphertextBuffer.Length();
@@ -650,18 +686,18 @@ int EdhocCryptoManager::callEncrypt(const void* user_context,
     promise.set_value(EDHOC_SUCCESS);
   };
 
-  auto blockingCallHandler = [this, &user_context, &promise, &key_id, &nonce, nonce_length, &additional_data,
+  auto blockingCallHandler = [this, &context, &promise, &key_id, &nonce, nonce_length, &additional_data,
                               additional_data_length, &plaintext, plaintext_length, ciphertext_size,
                               successHandler](Napi::Env env, Napi::Function jsCallback) {
     Napi::HandleScope scope(env);
     std::vector<napi_value> args = {
-        static_cast<const UserContext*>(user_context)->parent.Value(),
+        context->parent.Value(),
         Napi::Buffer<uint8_t>::Copy(env, static_cast<const uint8_t*>(key_id), CONFIG_LIBEDHOC_KEY_ID_LEN),
         Napi::Buffer<uint8_t>::Copy(env, nonce, nonce_length),
         Napi::Buffer<uint8_t>::Copy(env, additional_data, additional_data_length),
         Napi::Buffer<uint8_t>::Copy(env, plaintext, plaintext_length),
         Napi::Number::New(env, static_cast<size_t>(ciphertext_size))};
-    auto errorHandler = Utils::CreatePromiseErrorHandler<int>(promise, EDHOC_ERROR_GENERIC_ERROR);
+    auto errorHandler = Utils::CreatePromiseErrorHandler<int>(promise, EDHOC_ERROR_GENERIC_ERROR, context->error);
     Utils::InvokeJSFunctionWithPromiseHandling(env, cryptoManagerRef.Value(), jsCallback, args, successHandler,
                                                errorHandler);
   };
@@ -686,14 +722,19 @@ int EdhocCryptoManager::callDecrypt(const void* user_context,
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
 
-  auto successHandler = [&promise, &plaintext, plaintext_size, plaintext_length](Napi::Env env, Napi::Value result) {
+  UserContext* context = static_cast<UserContext*>(const_cast<void*>(user_context));
+
+  auto successHandler = [&promise, &plaintext, plaintext_size, plaintext_length, &context](Napi::Env env,
+                                                                                           Napi::Value result) {
     Napi::HandleScope scope(env);
     if (!result.IsBuffer()) {
-      throw std::runtime_error(kErrorExpectBuffer);
+      context->error = Napi::Error::New(env, kErrorExpectBuffer);
+      return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
     }
     Napi::Buffer<uint8_t> plaintextBuffer = result.As<Napi::Buffer<uint8_t>>();
     if (plaintextBuffer.Length() > plaintext_size) {
-      throw std::runtime_error(kErrorPlaintextLengthExceeds);
+      context->error = Napi::Error::New(env, kErrorPlaintextLengthExceeds);
+      return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
     }
     memcpy(plaintext, plaintextBuffer.Data(), plaintextBuffer.Length());
     *plaintext_length = plaintextBuffer.Length();
@@ -701,18 +742,18 @@ int EdhocCryptoManager::callDecrypt(const void* user_context,
     promise.set_value(EDHOC_SUCCESS);
   };
 
-  auto blockingCallHandler = [this, &user_context, &promise, &key_id, &nonce, nonce_length, &additional_data,
+  auto blockingCallHandler = [this, &context, &promise, &key_id, &nonce, nonce_length, &additional_data,
                               additional_data_length, &ciphertext, &ciphertext_length, plaintext_size,
                               successHandler](Napi::Env env, Napi::Function jsCallback) {
     Napi::HandleScope scope(env);
     std::vector<napi_value> arguments = {
-        static_cast<const UserContext*>(user_context)->parent.Value(),
+        context->parent.Value(),
         Napi::Buffer<uint8_t>::Copy(env, static_cast<const uint8_t*>(key_id), CONFIG_LIBEDHOC_KEY_ID_LEN),
         Napi::Buffer<uint8_t>::Copy(env, nonce, nonce_length),
         Napi::Buffer<uint8_t>::Copy(env, additional_data, additional_data_length),
         Napi::Buffer<uint8_t>::Copy(env, ciphertext, ciphertext_length),
         Napi::Number::New(env, static_cast<size_t>(plaintext_size))};
-    auto errorHandler = Utils::CreatePromiseErrorHandler<int>(promise, EDHOC_ERROR_GENERIC_ERROR);
+    auto errorHandler = Utils::CreatePromiseErrorHandler<int>(promise, EDHOC_ERROR_GENERIC_ERROR, context->error);
     Utils::InvokeJSFunctionWithPromiseHandling(env, cryptoManagerRef.Value(), jsCallback, arguments, successHandler,
                                                errorHandler);
   };
@@ -732,14 +773,18 @@ int EdhocCryptoManager::callHash(const void* user_context,
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
 
-  auto successHandler = [&promise, &hash, hash_size, &hash_length](Napi::Env env, Napi::Value result) {
+  UserContext* context = static_cast<UserContext*>(const_cast<void*>(user_context));
+
+  auto successHandler = [&promise, &hash, hash_size, &hash_length, &context](Napi::Env env, Napi::Value result) {
     Napi::HandleScope scope(env);
     if (!result.IsBuffer()) {
-      throw std::runtime_error(kErrorExpectBuffer);
+      context->error = Napi::Error::New(env, kErrorExpectBuffer);
+      return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
     }
     Napi::Buffer<uint8_t> hashBuffer = result.As<Napi::Buffer<uint8_t>>();
     if (hashBuffer.Length() > hash_size) {
-      throw std::runtime_error(kErrorHashLengthExceeds);
+      context->error = Napi::Error::New(env, kErrorHashLengthExceeds);
+      return promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
     }
     memcpy(hash, hashBuffer.Data(), hashBuffer.Length());
     *hash_length = hashBuffer.Length();
@@ -747,15 +792,15 @@ int EdhocCryptoManager::callHash(const void* user_context,
     promise.set_value(EDHOC_SUCCESS);
   };
 
-  auto blockingCallHandler = [this, &user_context, &promise, &input, input_length, hash_size, successHandler](
+  auto blockingCallHandler = [this, &context, &promise, &input, input_length, hash_size, successHandler](
                                  Napi::Env env, Napi::Function jsCallback) {
     Napi::HandleScope scope(env);
     std::vector<napi_value> arguments = {
-        static_cast<const UserContext*>(user_context)->parent.Value(),
+        context->parent.Value(),
         Napi::Buffer<uint8_t>::Copy(env, input, input_length),
         Napi::Number::New(env, static_cast<size_t>(hash_size)),
     };
-    auto errorHandler = Utils::CreatePromiseErrorHandler<int>(promise, EDHOC_ERROR_GENERIC_ERROR);
+    auto errorHandler = Utils::CreatePromiseErrorHandler<int>(promise, EDHOC_ERROR_GENERIC_ERROR, context->error);
     Utils::InvokeJSFunctionWithPromiseHandling(env, cryptoManagerRef.Value(), jsCallback, arguments, successHandler,
                                                errorHandler);
   };
