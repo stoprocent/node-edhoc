@@ -4,9 +4,9 @@
 #include <cstring>
 #include <mutex>
 #include <thread>
+#include <iostream>
 
 static constexpr const char* kStringThen = "then";
-static constexpr const char* kStringCatch = "catch";
 static constexpr const char* kErrorInputValueMustBeANumberOrABuffer = "Input value must be a number or a buffer";
 
 void Utils::InvokeJSFunctionWithPromiseHandling(Napi::Env env,
@@ -15,6 +15,7 @@ void Utils::InvokeJSFunctionWithPromiseHandling(Napi::Env env,
                                                 const std::vector<napi_value>& args,
                                                 SuccessHandler successLambda,
                                                 ErrorHandler errorLambda) {
+  Napi::HandleScope scope(env);
   auto deferred = Napi::Promise::Deferred::New(env);
 
   try {
@@ -22,6 +23,8 @@ void Utils::InvokeJSFunctionWithPromiseHandling(Napi::Env env,
     deferred.Resolve(result);
   } catch (const Napi::Error& e) {
     deferred.Reject(e.Value());
+  } catch (const std::exception& e) {
+    deferred.Reject(Napi::Error::New(env, e.what()).Value());
   }
 
   auto thenCallback = Napi::Function::New(env, [successLambda, errorLambda](const Napi::CallbackInfo& info) {
@@ -29,6 +32,8 @@ void Utils::InvokeJSFunctionWithPromiseHandling(Napi::Env env,
     Napi::HandleScope scope(env);
     try {
       successLambda(env, info[0].As<Napi::Value>());
+    } catch (const Napi::Error& e) {
+      errorLambda(env, e);
     } catch (const std::exception& e) {
       errorLambda(env, Napi::Error::New(env, e.what()));
     }
@@ -41,8 +46,7 @@ void Utils::InvokeJSFunctionWithPromiseHandling(Napi::Env env,
   });
 
   Napi::Promise promise = deferred.Promise();
-  promise.Get(kStringCatch).As<Napi::Function>().Call(promise, {catchCallback});
-  promise.Get(kStringThen).As<Napi::Function>().Call(promise, {thenCallback});
+  promise.Get(kStringThen).As<Napi::Function>().Call(promise, {thenCallback, catchCallback});
 }
 
 void Utils::EncodeInt64ToBuffer(int64_t value, uint8_t* buffer, size_t* length) {

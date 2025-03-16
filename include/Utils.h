@@ -55,11 +55,13 @@ class Utils {
   template <typename T>
   static ErrorHandler CreatePromiseErrorHandler(std::promise<T>& promise, T defaultValue) {
     return [&promise, defaultValue](Napi::Env env, Napi::Error error) {
-      auto exception = std::current_exception();
-      if (exception) {
-        promise.set_exception(exception);
-      } else {
+      try {
+        if (!error.IsEmpty()) {
+          throw error;
+        }
         promise.set_value(defaultValue);
+      } catch (const Napi::Error& e) {
+        promise.set_exception(std::current_exception());
       }
     };
   }

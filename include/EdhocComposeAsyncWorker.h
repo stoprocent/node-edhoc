@@ -52,12 +52,19 @@ class EdhocComposeAsyncWorker : public Napi::AsyncWorker {
    */
   Napi::Promise GetPromise();
 
- private:
+  /**
+   * @brief Returns the deferred promise object.
+   * @return The deferred promise object.
+   */
+  Napi::Promise::Deferred GetDeferred();
+
   Napi::Promise::Deferred deferred;      ///< The deferred promise object.
+ private:
   struct edhoc_context& context;         ///< The EDHOC context.
   int messageNumber;                     ///< The message number.
   CallbackType callback;                 ///< The callback function.
   std::vector<uint8_t> composedMessage;  ///< The composed message.
+  Napi::Error lastError;                 ///< The last error.
 };
 
 #endif  // EDHOC_COMPOSE_ASYNC_WORKER_H

@@ -5,7 +5,7 @@
 #include <iostream>
 #include <stdexcept>
 
-#include "UserContext.h"
+#include "LibEDHOC.h"
 #include "Utils.h"
 
 static constexpr const char* kErrorExpectedObject = "Expected an object as element in the input array";
@@ -89,8 +89,8 @@ int EdhocEadManager::ComposeEad(void* user_context,
                                 struct edhoc_ead_token* ead_token,
                                 size_t ead_token_size,
                                 size_t* ead_token_len) {
-  UserContext* context = static_cast<UserContext*>(user_context);
-  EdhocEadManager* manager = context->GetEadManager();
+  LibEDHOC* edhoc = static_cast<LibEDHOC*>(user_context);
+  EdhocEadManager* manager = edhoc->GetEadManager();
   return manager->callComposeEad(message, ead_token, ead_token_size, ead_token_len);
 }
 
@@ -98,8 +98,8 @@ int EdhocEadManager::ProcessEad(void* user_context,
                                 enum edhoc_message message,
                                 const struct edhoc_ead_token* ead_token,
                                 size_t ead_token_size) {
-  UserContext* context = static_cast<UserContext*>(user_context);
-  EdhocEadManager* manager = context->GetEadManager();
+  LibEDHOC* edhoc = static_cast<LibEDHOC*>(user_context);
+  EdhocEadManager* manager = edhoc->GetEadManager();
   return manager->callProcessEad(message, ead_token, ead_token_size);
 }
 

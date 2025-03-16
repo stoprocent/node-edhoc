@@ -3,7 +3,9 @@
 
 #include <napi.h>
 
-#include "UserContext.h"
+#include "EdhocCryptoManager.h"
+#include "EdhocEadManager.h"
+#include "EdhocCredentialManager.h"
 
 extern "C" {
 #include "edhoc.h"
@@ -44,6 +46,36 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
    * @brief Destroys the LibEDHOC object.
    */
   ~LibEDHOC();
+
+  /**
+   * @brief Gets the crypto manager associated with the UserContext.
+   *
+   * @return A pointer to the EdhocCryptoManager.
+   */
+  EdhocCryptoManager* GetCryptoManager() const { return cryptoManager_.get(); }
+
+  /**
+   * @brief Gets the EAD manager associated with the UserContext.
+   *
+   * @return A pointer to the EdhocEadManager.
+   */
+  EdhocEadManager* GetEadManager() const { return eadManager_.get(); }
+
+  /**
+   * @brief Gets the credential manager associated with the UserContext.
+   *
+   * @return A pointer to the EdhocCredentialManager.
+   */
+  EdhocCredentialManager* GetCredentialManager() const { return credentialManager_.get(); }
+
+  /**
+   * @brief Gets the thread-safe function.
+   *
+   * @return A pointer to the thread-safe function.
+   */
+  Napi::ThreadSafeFunction GetTsfn() const { return tsfn_; }
+
+  Napi::Promise::Deferred GetDeferred() const { return deferred_; }
 
   /**
    * @brief Gets the connection identifier (C_I or C_R depending on the role).
@@ -280,15 +312,15 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
   Napi::Value KeyUpdate(const Napi::CallbackInfo& info);
 
  private:
-  struct edhoc_context context;  ///< The EDHOC context.
-
-  struct edhoc_connection_id cid;  ///< RFC 9528: 3.3.2. Representation of Byte String Identifiers.
-
-  Napi::FunctionReference logger;  ///< N-API reference to the logger function
-
-  // Private member variables to hold instances of EDHOC managers for
-  // cryptographic operations, EAD, and credentials
-  std::shared_ptr<UserContext> userContext;
+  static LibEDHOC* edhocPtr_;
+  struct edhoc_context context_;  ///< The EDHOC context.
+  struct edhoc_connection_id cid_;  ///< RFC 9528: 3.3.2. Representation of Byte String Identifiers.
+  Napi::FunctionReference logger_;  ///< N-API reference to the logger function
+  Napi::ThreadSafeFunction tsfn_;  ///< N-API thread-safe function for the logger
+  std::shared_ptr<EdhocCryptoManager> cryptoManager_;          ///< The crypto manager
+  std::shared_ptr<EdhocEadManager> eadManager_;                ///< The EAD manager
+  std::shared_ptr<EdhocCredentialManager> credentialManager_;  ///< The credential manager
+  Napi::Promise::Deferred deferred_;  ///< The deferred promise object
 
   /**
    * @brief Logger function for the LibEDHOC object.

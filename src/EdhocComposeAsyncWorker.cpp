@@ -46,7 +46,6 @@ void EdhocComposeAsyncWorker::Execute() {
       std::snprintf(errorMessage, kErrorBufferSize, kErrorMessageFormat, messageNumber + 1, ret);
       SetError(errorMessage);
     }
-
   } catch (const std::exception& e) {
     SetError(e.what());
   }
@@ -62,10 +61,14 @@ void EdhocComposeAsyncWorker::OnOK() {
 void EdhocComposeAsyncWorker::OnError(const Napi::Error& error) {
   Napi::Env env = Env();
   Napi::HandleScope scope(env);
-  deferred.Reject(error.Value());
+  // deferred.Reject(error.Value());
   callback(env);
 }
 
 Napi::Promise EdhocComposeAsyncWorker::GetPromise() {
   return deferred.Promise();
+}
+
+Napi::Promise::Deferred EdhocComposeAsyncWorker::GetDeferred() {
+  return deferred;
 }
