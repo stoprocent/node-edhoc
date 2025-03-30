@@ -2,8 +2,9 @@
 #define EDHOC_PROCESS_ASYNC_WORKER_H
 
 #include <napi.h>
-
 #include <vector>
+
+#include "RunningContext.h"
 
 extern "C" {
 #include "edhoc.h"
@@ -23,26 +24,17 @@ extern "C" {
  */
 class EdhocProcessAsyncWorker : public Napi::AsyncWorker {
  public:
-  /**
-   * @brief The type definition for the callback function.
-   */
-  using CallbackType = std::function<Napi::Array(Napi::Env&)>;
 
   /**
    * @brief Constructs a new instance of the EdhocProcessAsyncWorker class.
    *
-   * @param env The Napi::Env object.
-   * @param context The reference to the edhoc_context structure.
+   * @param runningContext The running context.
    * @param messageNumber The message number.
-   * @param buffer The Napi::Buffer<uint8_t> object containing the message
-   * buffer.
-   * @param callback The callback function to be called after processing.
+   * @param buffer The Napi::Buffer<uint8_t> object containing the message buffer.
    */
-  EdhocProcessAsyncWorker(Napi::Env& env,
-                          struct edhoc_context& context,
+  EdhocProcessAsyncWorker(RunningContext* runningContext,
                           int messageNumber,
-                          Napi::Buffer<uint8_t> buffer,
-                          CallbackType callback);
+                          Napi::Buffer<uint8_t> buffer);
 
   /**
    * @brief Executes the asynchronous worker task.
@@ -61,20 +53,11 @@ class EdhocProcessAsyncWorker : public Napi::AsyncWorker {
    */
   void OnError(const Napi::Error& error) override;
 
-  /**
-   * @brief Returns the promise object.
-   * @return The promise object.
-   */
-  Napi::Promise GetPromise();
-
  private:
-  Napi::Promise::Deferred deferred;       ///< The Napi::Promise::Deferred object for
-                                          ///< resolving or rejecting the promise.
-  struct edhoc_context& context;          ///< The reference to the edhoc_context structure.
-  int messageNumber;                      ///< The message number.
-  std::vector<uint8_t> messageBuffer;     ///< The message buffer.
-  CallbackType callback;                  ///< The callback function to be called after processing.
-  std::vector<uint8_t> peerCipherSuites;  ///< The peer cipher suites.
+  RunningContext* runningContext_;          ///< The reference to the edhoc_context structure.
+  int messageNumber_;                      ///< The message number.
+  std::vector<uint8_t> messageBuffer_;     ///< The message buffer.
+  std::vector<uint8_t> peerCipherSuites_;  ///< The peer cipher suites.
 };
 
 #endif  // EDHOC_PROCESS_ASYNC_WORKER_H

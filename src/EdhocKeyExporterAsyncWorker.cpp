@@ -3,22 +3,18 @@
 static constexpr const char* kErrorMessageFormat = "Failed to export the key. Error code: %d.";
 static constexpr size_t kErrorBufferSize = 100;
 
-EdhocKeyExporterAsyncWorker::EdhocKeyExporterAsyncWorker(Napi::Env& env,
-                                                         struct edhoc_context& context,
+EdhocKeyExporterAsyncWorker::EdhocKeyExporterAsyncWorker(RunningContext* runningContext,
                                                          uint16_t label,
-                                                         uint8_t desiredLength,
-                                                         CallbackType callback)
-    : Napi::AsyncWorker(env),
-      deferred(Napi::Promise::Deferred::New(env)),
-      context(context),
+                                                         uint8_t desiredLength)
+    : Napi::AsyncWorker(runningContext->GetEnv()),
+      runningContext_(runningContext),
       label(label),
       desiredLength(desiredLength),
-      output(desiredLength),
-      callback(std::move(callback)) {}
+      output(desiredLength) {}
 
 void EdhocKeyExporterAsyncWorker::Execute() {
   try {
-    int ret = edhoc_export_prk_exporter(&context, label, output.data(), desiredLength);
+    int ret = edhoc_export_prk_exporter(runningContext_->GetEdhocContext(), label, output.data(), desiredLength);
     if (ret != EDHOC_SUCCESS) {
       char errorMessage[kErrorBufferSize];
       std::snprintf(errorMessage, kErrorBufferSize, kErrorMessageFormat, ret);
@@ -33,17 +29,11 @@ void EdhocKeyExporterAsyncWorker::OnOK() {
   Napi::Env env = Env();
   Napi::HandleScope scope(env);
   auto outputBuffer = Napi::Buffer<uint8_t>::Copy(env, output.data(), output.size());
-  deferred.Resolve(outputBuffer);
-  callback(env);
+  runningContext_->Resolve(outputBuffer);
 }
 
 void EdhocKeyExporterAsyncWorker::OnError(const Napi::Error& error) {
   Napi::Env env = Env();
   Napi::HandleScope scope(env);
-  deferred.Reject(error.Value());
-  callback(env);
-}
-
-Napi::Promise EdhocKeyExporterAsyncWorker::GetPromise() {
-  return deferred.Promise();
+  runningContext_->Reject(error.Value());
 }

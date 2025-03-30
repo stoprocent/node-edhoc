@@ -2,9 +2,10 @@
 #define EDHOC_EXPORT_OSCORE_ASYNC_WORKER_H
 
 #include <napi.h>
-
 #include <functional>
 #include <vector>
+
+#include "RunningContext.h"
 
 extern "C" {
 #include "edhoc.h"
@@ -21,17 +22,11 @@ extern "C" {
 class EdhocExportOscoreAsyncWorker : public Napi::AsyncWorker {
  public:
   /**
-   * @brief The type definition for the callback function.
-   */
-  using CallbackType = std::function<void(Napi::Env&)>;
-
-  /**
    * @brief Constructs a new EdhocExportOscoreAsyncWorker object.
    *
-   * @param env The Napi::Env object representing the current environment.
-   * @param context The reference to the edhoc_context structure.
+   * @param runningContext The reference to the running context.
    */
-  EdhocExportOscoreAsyncWorker(Napi::Env& env, struct edhoc_context& context, CallbackType callback);
+  EdhocExportOscoreAsyncWorker(RunningContext* runningContext);
 
   /**
    * @brief Destroys the EdhocExportOscoreAsyncWorker object.
@@ -55,20 +50,12 @@ class EdhocExportOscoreAsyncWorker : public Napi::AsyncWorker {
    */
   void OnError(const Napi::Error& error) override;
 
-  /**
-   * @brief Returns the promise object.
-   * @return The promise object.
-   */
-  Napi::Promise GetPromise();
-
  private:
-  Napi::Promise::Deferred deferred;   ///< The deferred promise object.
-  struct edhoc_context& context;      ///< The reference to the edhoc_context structure.
+  RunningContext* runningContext_;    ///< The running context.
   std::vector<uint8_t> masterSecret;  ///< The master secret.
   std::vector<uint8_t> masterSalt;    ///< The master salt.
   std::vector<uint8_t> senderId;      ///< The sender ID.
   std::vector<uint8_t> recipientId;   ///< The recipient ID.
-  CallbackType callback;              ///< The callback function to be executed.
 };
 
 #endif  // EDHOC_EXPORT_OSCORE_ASYNC_WORKER_H

@@ -2,7 +2,6 @@
 #define UTILS_H
 
 #include <napi.h>
-
 #include <cstdint>
 #include <future>
 #include <string>
@@ -22,50 +21,6 @@ extern "C" {
  */
 class Utils {
  public:
-  using SuccessHandler = std::function<void(Napi::Env, Napi::Value)>;
-  using ErrorHandler = std::function<void(Napi::Env, Napi::Error)>;
-
-  /**
-   * Invokes a JavaScript function with promise handling.
-   * The function is called with the specified arguments, and the result is
-   * passed to a callback function.
-   *
-   * @param env The N-API environment handle.
-   * @param jsObject The N-API object representing the JavaScript class.
-   * @param jsCallback The N-API function object to call.
-   * @param args A vector of N-API values representing the arguments to pass to
-   * the function.
-   * @param callbackLambda A lambda function to handle the result of the
-   * function call.
-   */
-  static void InvokeJSFunctionWithPromiseHandling(Napi::Env env,
-                                                  Napi::Object jsObject,
-                                                  Napi::Function jsCallback,
-                                                  const std::vector<napi_value>& args,
-                                                  SuccessHandler successLambda,
-                                                  ErrorHandler errorLambda);
-
-  /**
-   * Creates a promise error handler for a given promise.
-   *
-   * @tparam T The type of the promise.
-   * @param promise The promise to handle errors for.
-   * @return A lambda function that sets the exception on the promise.
-   */
-  template <typename T>
-  static ErrorHandler CreatePromiseErrorHandler(std::promise<T>& promise, T defaultValue) {
-    return [&promise, defaultValue](Napi::Env env, Napi::Error error) {
-      try {
-        if (!error.IsEmpty()) {
-          throw error;
-        }
-        promise.set_value(defaultValue);
-      } catch (const Napi::Error& e) {
-        promise.set_exception(std::current_exception());
-      }
-    };
-  }
-
   /**
    * Converts a JavaScript value to an EDHOC connection ID structure.
    * The input can be a number or a buffer.

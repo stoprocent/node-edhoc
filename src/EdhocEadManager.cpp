@@ -5,7 +5,7 @@
 #include <iostream>
 #include <stdexcept>
 
-#include "LibEDHOC.h"
+#include "RunningContext.h"
 #include "Utils.h"
 
 static constexpr const char* kErrorExpectedObject = "Expected an object as element in the input array";
@@ -21,11 +21,11 @@ EdhocEadManager::EdhocEadManager() {
 }
 
 EdhocEadManager::~EdhocEadManager() {
-  eadBuffers.clear();
+  eadBuffers_.clear();
 }
 
 void EdhocEadManager::StoreEad(enum edhoc_message message, int label, const std::vector<uint8_t>& ead) {
-  auto& vecOfMaps = eadBuffers[message];
+  auto& vecOfMaps = eadBuffers_[message];
   EadMap newMap;
   newMap[label] = ead;
   vecOfMaps.push_back(std::move(newMap));
@@ -56,8 +56,8 @@ void EdhocEadManager::StoreEad(enum edhoc_message message, const Napi::Array& ea
 }
 
 const EadMapVector* EdhocEadManager::GetEadByMessage(enum edhoc_message message) const {
-  auto it = eadBuffers.find(message);
-  return it != eadBuffers.end() ? &it->second : nullptr;
+  auto it = eadBuffers_.find(message);
+  return it != eadBuffers_.end() ? &it->second : nullptr;
 }
 
 Napi::Array EdhocEadManager::GetEadByMessage(Napi::Env& env, enum edhoc_message message) const {
@@ -81,7 +81,7 @@ Napi::Array EdhocEadManager::GetEadByMessage(Napi::Env& env, enum edhoc_message 
 }
 
 void EdhocEadManager::ClearEadByMessage(enum edhoc_message message) {
-  eadBuffers.erase(message);
+  eadBuffers_.erase(message);
 }
 
 int EdhocEadManager::ComposeEad(void* user_context,
@@ -89,8 +89,8 @@ int EdhocEadManager::ComposeEad(void* user_context,
                                 struct edhoc_ead_token* ead_token,
                                 size_t ead_token_size,
                                 size_t* ead_token_len) {
-  LibEDHOC* edhoc = static_cast<LibEDHOC*>(user_context);
-  EdhocEadManager* manager = edhoc->GetEadManager();
+  RunningContext* context = static_cast<RunningContext*>(const_cast<void*>(user_context));
+  EdhocEadManager* manager = context->GetEadManager();
   return manager->callComposeEad(message, ead_token, ead_token_size, ead_token_len);
 }
 
@@ -98,8 +98,8 @@ int EdhocEadManager::ProcessEad(void* user_context,
                                 enum edhoc_message message,
                                 const struct edhoc_ead_token* ead_token,
                                 size_t ead_token_size) {
-  LibEDHOC* edhoc = static_cast<LibEDHOC*>(user_context);
-  EdhocEadManager* manager = edhoc->GetEadManager();
+  RunningContext* context = static_cast<RunningContext*>(const_cast<void*>(user_context));
+  EdhocEadManager* manager = context->GetEadManager();
   return manager->callProcessEad(message, ead_token, ead_token_size);
 }
 
@@ -107,15 +107,15 @@ int EdhocEadManager::callComposeEad(enum edhoc_message message,
                                     struct edhoc_ead_token* ead_token,
                                     size_t ead_token_size,
                                     size_t* ead_token_len) {
-  const EadMapVector* eadBuffers = GetEadByMessage(message);
-  if (!eadBuffers) {
+  const EadMapVector* eadBuffers_ = GetEadByMessage(message);
+  if (!eadBuffers_) {
     *ead_token_len = 0;
     return EDHOC_SUCCESS;
   }
 
   size_t count = 0;
 
-  for (const auto& map : *eadBuffers) {
+  for (const auto& map : *eadBuffers_) {
     for (const auto& [label, buffer] : map) {
       if (count >= ead_token_size) {
         break;

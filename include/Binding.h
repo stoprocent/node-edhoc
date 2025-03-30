@@ -3,79 +3,50 @@
 
 #include <napi.h>
 
+#include "EdhocCredentialManager.h"
 #include "EdhocCryptoManager.h"
 #include "EdhocEadManager.h"
-#include "EdhocCredentialManager.h"
+#include "RunningContext.h"
 
 extern "C" {
 #include "edhoc.h"
 }
 
 /**
- * @class LibEDHOC
- * @brief A class that represents the LibEDHOC object.
+ * @class Edhoc
+ * @brief A class that represents the Edhoc object.
  *
- * The LibEDHOC class is a wrapper around the EDHOC library and provides
+ * The Edhoc class is a wrapper around the EDHOC library and provides
  * an interface for performing EDHOC operations. It allows users to
  * initialize the EDHOC context, set connection identifiers, set the
  * method used in EDHOC, set cipher suites, set a logger function, and
  * compose/process EDHOC messages.
  */
-class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
+class Edhoc : public Napi::ObjectWrap<Edhoc> {
  public:
   /**
-   * @brief Initializes the LibEDHOC object.
+   * @brief Initializes the Edhoc object.
    *
-   * This static method is used to initialize the LibEDHOC object and
+   * This static method is used to initialize the Edhoc object and
    * bind it to the provided JavaScript environment.
    *
    * @param env The Napi::Env representing the JavaScript environment.
    * @param exports The Napi::Object representing the exports object.
-   * @return Napi::Object The initialized LibEDHOC object.
+   * @return Napi::Object The initialized Edhoc object.
    */
   static Napi::Object Init(Napi::Env env, Napi::Object exports);
 
   /**
-   * @brief Constructs a LibEDHOC object.
+   * @brief Constructs a Edhoc object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
    */
-  LibEDHOC(const Napi::CallbackInfo& info);
+  Edhoc(const Napi::CallbackInfo& info);
 
   /**
-   * @brief Destroys the LibEDHOC object.
+   * @brief Destroys the Edhoc object.
    */
-  ~LibEDHOC();
-
-  /**
-   * @brief Gets the crypto manager associated with the UserContext.
-   *
-   * @return A pointer to the EdhocCryptoManager.
-   */
-  EdhocCryptoManager* GetCryptoManager() const { return cryptoManager_.get(); }
-
-  /**
-   * @brief Gets the EAD manager associated with the UserContext.
-   *
-   * @return A pointer to the EdhocEadManager.
-   */
-  EdhocEadManager* GetEadManager() const { return eadManager_.get(); }
-
-  /**
-   * @brief Gets the credential manager associated with the UserContext.
-   *
-   * @return A pointer to the EdhocCredentialManager.
-   */
-  EdhocCredentialManager* GetCredentialManager() const { return credentialManager_.get(); }
-
-  /**
-   * @brief Gets the thread-safe function.
-   *
-   * @return A pointer to the thread-safe function.
-   */
-  Napi::ThreadSafeFunction GetTsfn() const { return tsfn_; }
-
-  Napi::Promise::Deferred GetDeferred() const { return deferred_; }
+  ~Edhoc();
 
   /**
    * @brief Gets the connection identifier (C_I or C_R depending on the role).
@@ -118,7 +89,7 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
    * @brief Gets the Method (RFC 9528: 3.2.) used in EDHOC.
    *
    * This method returns the Method (RFC 9528: 3.2.) used in EDHOC
-   * associated with the LibEDHOC object.
+   * associated with the Edhoc object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
    * @return Napi::Value The supported methods used in EDHOC.
@@ -129,7 +100,7 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
    * @brief Sets the Method (RFC 9528: 3.2.) used in EDHOC.
    *
    * This method sets the supported methods (RFC 9528: 3.2.) used in EDHOC for
-   * the LibEDHOC object.
+   * the Edhoc object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
    * @param value The Napi::Value representing the supported methods used in EDHOC.
@@ -139,7 +110,7 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
   /**
    * @brief Gets the selected method.
    *
-   * This method returns the selected method associated with the LibEDHOC object.
+   * This method returns the selected method associated with the Edhoc object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
    * @return Napi::Value The selected method.
@@ -149,7 +120,7 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
   /**
    * @brief Sets the cipher suites.
    *
-   * This method sets the cipher suites for the LibEDHOC object.
+   * This method sets the cipher suites for the Edhoc object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
    * @param value The Napi::Value representing the cipher suites.
@@ -159,7 +130,7 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
   /**
    * @brief Gets the cipher suites.
    *
-   * This method returns the cipher suites associated with the LibEDHOC object.
+   * This method returns the cipher suites associated with the Edhoc object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
    * @return Napi::Value The cipher suites.
@@ -169,7 +140,7 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
   /**
    * @brief Gets the selected cipher suite.
    *
-   * This method returns the selected cipher suite associated with the LibEDHOC
+   * This method returns the selected cipher suite associated with the Edhoc
    * object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
@@ -180,7 +151,7 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
   /**
    * @brief Gets the logger function.
    *
-   * This method returns the logger function associated with the LibEDHOC
+   * This method returns the logger function associated with the Edhoc
    * object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
@@ -191,7 +162,7 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
   /**
    * @brief Sets the logger function.
    *
-   * This method sets the logger function for the LibEDHOC object.
+   * This method sets the logger function for the Edhoc object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
    * @param value The Napi::Value representing the logger function.
@@ -201,7 +172,7 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
   /**
    * @brief Composes EDHOC message 1.
    *
-   * This method composes EDHOC message 1 for the LibEDHOC object.
+   * This method composes EDHOC message 1 for the Edhoc object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
    * @return Napi::Value The composed EDHOC message 1.
@@ -211,7 +182,7 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
   /**
    * @brief Processes EDHOC message 1.
    *
-   * This method processes EDHOC message 1 for the LibEDHOC object.
+   * This method processes EDHOC message 1 for the Edhoc object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
    * @return Napi::Value The EAD data from message 1 or Null.
@@ -221,7 +192,7 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
   /**
    * @brief Composes EDHOC message 2.
    *
-   * This method composes EDHOC message 2 for the LibEDHOC object.
+   * This method composes EDHOC message 2 for the Edhoc object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
    * @return Napi::Value The composed EDHOC message 2.
@@ -231,7 +202,7 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
   /**
    * @brief Processes EDHOC message 2.
    *
-   * This method processes EDHOC message 2 for the LibEDHOC object.
+   * This method processes EDHOC message 2 for the Edhoc object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
    * @return Napi::Value The EAD data from message 2 or Null.
@@ -241,7 +212,7 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
   /**
    * @brief Composes EDHOC message 3.
    *
-   * This method composes EDHOC message 3 for the LibEDHOC object.
+   * This method composes EDHOC message 3 for the Edhoc object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
    * @return Napi::Value The composed EDHOC message 3.
@@ -251,7 +222,7 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
   /**
    * @brief Processes EDHOC message 3.
    *
-   * This method processes EDHOC message 3 for the LibEDHOC object.
+   * This method processes EDHOC message 3 for the Edhoc object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
    * @return Napi::Value The EAD data from message 3 or Null.
@@ -261,7 +232,7 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
   /**
    * @brief Composes EDHOC message 4.
    *
-   * This method composes EDHOC message 4 for the LibEDHOC object.
+   * This method composes EDHOC message 4 for the Edhoc object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
    * @return Napi::Value The composed EDHOC message 4.
@@ -271,7 +242,7 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
   /**
    * @brief Processes EDHOC message 4.
    *
-   * This method processes EDHOC message 4 for the LibEDHOC object.
+   * This method processes EDHOC message 4 for the Edhoc object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
    * @return Napi::Value The EAD data from message 4 or Null.
@@ -282,7 +253,7 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
    * @brief Exports OSCORE.
    *
    * This method exports an OSCORE context object containing the master key,
-   * salt, recipient ID, and sender ID for the LibEDHOC object.
+   * salt, recipient ID, and sender ID for the Edhoc object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
    * @return Napi::Value The exported OSCORE context object.
@@ -304,7 +275,7 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
   /**
    * @brief Performs a key update.
    *
-   * This method performs a key update for the LibEDHOC object.
+   * This method performs a key update for the Edhoc object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
    * @return Napi::Value void.
@@ -312,18 +283,25 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
   Napi::Value KeyUpdate(const Napi::CallbackInfo& info);
 
  private:
-  static LibEDHOC* edhocPtr_;
-  struct edhoc_context context_;  ///< The EDHOC context.
+  
+  std::unique_ptr<edhoc_context> edhocContext_;  ///< The EDHOC context.
+
+  std::unique_ptr<RunningContext> runningContext_;  ///< The running context.
+
   struct edhoc_connection_id cid_;  ///< RFC 9528: 3.3.2. Representation of Byte String Identifiers.
+  
   Napi::FunctionReference logger_;  ///< N-API reference to the logger function
-  Napi::ThreadSafeFunction tsfn_;  ///< N-API thread-safe function for the logger
-  std::shared_ptr<EdhocCryptoManager> cryptoManager_;          ///< The crypto manager
-  std::shared_ptr<EdhocEadManager> eadManager_;                ///< The EAD manager
-  std::shared_ptr<EdhocCredentialManager> credentialManager_;  ///< The credential manager
-  Napi::Promise::Deferred deferred_;  ///< The deferred promise object
+  
+  std::unique_ptr<EdhocCryptoManager> cryptoManager_;          ///< The crypto manager
+  
+  std::unique_ptr<EdhocEadManager> eadManager_;                ///< The EAD manager
+  
+  std::unique_ptr<EdhocCredentialManager> credentialManager_;  ///< The credential manager
+
+  void StartRunningContext(Napi::Env env);
 
   /**
-   * @brief Logger function for the LibEDHOC object.
+   * @brief Logger function for the Edhoc object.
    *
    * This static method is used to log messages from the EDHOC library.
    *
@@ -337,7 +315,7 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
   /**
    * @brief Composes an EDHOC message.
    *
-   * This method is used to compose an EDHOC message for the LibEDHOC object.
+   * This method is used to compose an EDHOC message for the Edhoc object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
    * @param message The EDHOC message to compose.
@@ -348,7 +326,7 @@ class LibEDHOC : public Napi::ObjectWrap<LibEDHOC> {
   /**
    * @brief Processes an EDHOC message.
    *
-   * This method is used to process an EDHOC message for the LibEDHOC object.
+   * This method is used to process an EDHOC message for the Edhoc object.
    *
    * @param info The Napi::CallbackInfo representing the callback information.
    * @param message The EDHOC message to process.

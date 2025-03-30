@@ -2,8 +2,9 @@
 #define EDHOC_KEY_EXPORTER_ASYNC_WORKER_H
 
 #include <napi.h>
-
 #include <vector>
+
+#include "RunningContext.h"
 
 extern "C" {
 #include "edhoc.h"
@@ -21,10 +22,6 @@ extern "C" {
  */
 class EdhocKeyExporterAsyncWorker : public Napi::AsyncWorker {
  public:
-  /**
-   * @brief The type definition for the callback function.
-   */
-  using CallbackType = std::function<void(Napi::Env&)>;
 
   /**
    * @brief Constructs a new EdhocKeyExporterAsyncWorker object.
@@ -33,13 +30,10 @@ class EdhocKeyExporterAsyncWorker : public Napi::AsyncWorker {
    * @param context The reference to the edhoc_context structure.
    * @param label The label of the key to export.
    * @param desiredLength The desired length of the key to export.
-   * @param callback The callback function to be called after the export.
    */
-  EdhocKeyExporterAsyncWorker(Napi::Env& env,
-                              struct edhoc_context& context,
+  EdhocKeyExporterAsyncWorker(RunningContext* runningContext,
                               uint16_t label,
-                              uint8_t desiredLength,
-                              CallbackType callback);
+                              uint8_t desiredLength);
 
   /**
    * @brief Executes the asynchronous worker task.
@@ -58,19 +52,11 @@ class EdhocKeyExporterAsyncWorker : public Napi::AsyncWorker {
    */
   void OnError(const Napi::Error& error) override;
 
-  /**
-   * @brief Returns the promise object.
-   * @return The promise object.
-   */
-  Napi::Promise GetPromise();
-
  private:
-  Napi::Promise::Deferred deferred;
-  struct edhoc_context& context;
+  RunningContext* runningContext_;
   uint16_t label;
   uint8_t desiredLength;
   std::vector<uint8_t> output;
-  CallbackType callback;
 };
 
 #endif  // EDHOC_KEY_EXPORTER_ASYNC_WORKER_H

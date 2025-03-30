@@ -2,8 +2,9 @@
 #define EDHOC_KEY_UPDATE_ASYNC_WORKER_H
 
 #include <napi.h>
-
 #include <vector>
+
+#include "RunningContext.h"
 
 extern "C" {
 #include "edhoc.h"
@@ -29,15 +30,11 @@ class EdhocKeyUpdateAsyncWorker : public Napi::AsyncWorker {
   /**
    * @brief Constructs a new EdhocKeyUpdateAsyncWorker object.
    *
-   * @param env The Napi::Env object representing the current environment.
-   * @param context The reference to the edhoc_context structure.
+   * @param runningContext The running context.
    * @param contextBuffer The context buffer.
-   * @param callback The callback function to be called after the key update.
    */
-  EdhocKeyUpdateAsyncWorker(Napi::Env& env,
-                            struct edhoc_context& context,
-                            std::vector<uint8_t> contextBuffer,
-                            CallbackType callback);
+  EdhocKeyUpdateAsyncWorker(RunningContext *runningContext,
+                            std::vector<uint8_t> contextBuffer);
 
   /**
    * @brief Executes the asynchronous worker task.
@@ -56,17 +53,9 @@ class EdhocKeyUpdateAsyncWorker : public Napi::AsyncWorker {
    */
   void OnError(const Napi::Error& error) override;
 
-  /**
-   * @brief Returns the promise object.
-   * @return The promise object.
-   */
-  Napi::Promise GetPromise();
-
  private:
-  Napi::Promise::Deferred deferred;
-  struct edhoc_context& context;
+  RunningContext* runningContext_;
   std::vector<uint8_t> contextBuffer;
-  CallbackType callback;
 };
 
 #endif  // EDHOC_KEY_UPDATE_ASYNC_WORKER_H

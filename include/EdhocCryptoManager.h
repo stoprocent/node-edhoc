@@ -7,6 +7,8 @@ extern "C" {
 #include "edhoc.h"
 }
 
+class RunningContext;
+
 /**
  * @class EdhocCryptoManager
  * @brief Manages cryptographic operations for EDHOC protocol.
@@ -22,13 +24,13 @@ class EdhocCryptoManager {
 
   /**
    * @struct edhoc_crypto
-   * @brief Libedhoc's bind structure for cryptographics operations.
+   * @brief Edhoc's bind structure for cryptographics operations.
    */
   struct edhoc_crypto crypto;
 
   /**
    * @struct edhoc_keys
-   * @brief Libedhoc's bind structure for cryptographic key identifiers.
+   * @brief Edhoc's bind structure for cryptographic key identifiers.
    */
   struct edhoc_keys keys;
 
@@ -265,14 +267,14 @@ class EdhocCryptoManager {
   /**
    * @brief Calls the ImportKey function.
    *
-   * @param user_context The user context.
+   * @param runningContext The running context.
    * @param key_type The type of the key to import.
    * @param raw_key The raw key data.
    * @param raw_key_length The length of the raw key data.
    * @param key_id The imported key ID.
    * @return int The result code.
    */
-  int callImportKey(const void* user_context,
+  int callImportKey(const RunningContext* runningContext,
                     enum edhoc_key_type key_type,
                     const uint8_t* raw_key,
                     size_t raw_key_length,
@@ -285,12 +287,12 @@ class EdhocCryptoManager {
    * @param key_id The key ID to destroy.
    * @return int The result code.
    */
-  int callDestroyKey(const void* user_context, void* key_id);
+  int callDestroyKey(const RunningContext* runningContext, void* key_id);
 
   /**
    * @brief Calls the MakeKeyPair function.
    *
-   * @param user_context The user context.
+   * @param runningContext The running context.
    * @param key_id The key ID.
    * @param private_key The buffer to store the private key.
    * @param private_key_size The size of the private key buffer.
@@ -300,7 +302,7 @@ class EdhocCryptoManager {
    * @param public_key_length The length of the generated public key.
    * @return int The result code.
    */
-  int callMakeKeyPair(const void* user_context,
+  int callMakeKeyPair(const RunningContext* runningContext,
                       const void* key_id,
                       uint8_t* private_key,
                       size_t private_key_size,
@@ -312,7 +314,7 @@ class EdhocCryptoManager {
   /**
    * @brief Calls the KeyAgreement function.
    *
-   * @param user_context The user context.
+   * @param runningContext The running context.
    * @param key_id The key ID.
    * @param peer_public_key The peer's public key.
    * @param peer_public_key_length The length of the peer's public key.
@@ -321,7 +323,7 @@ class EdhocCryptoManager {
    * @param shared_secret_length The length of the generated shared secret.
    * @return int The result code.
    */
-  int callKeyAgreement(const void* user_context,
+  int callKeyAgreement(const RunningContext* runningContext,
                        const void* key_id,
                        const uint8_t* peer_public_key,
                        size_t peer_public_key_length,
@@ -332,7 +334,7 @@ class EdhocCryptoManager {
   /**
    * @brief Calls the Sign function.
    *
-   * @param user_context The user context.
+   * @param runningContext The running context.
    * @param key_id The key ID.
    * @param input The input data to sign.
    * @param input_length The length of the input data.
@@ -341,7 +343,7 @@ class EdhocCryptoManager {
    * @param signature_length The length of the generated signature.
    * @return int The result code.
    */
-  int callSign(const void* user_context,
+  int callSign(const RunningContext* runningContext,
                const void* key_id,
                const uint8_t* input,
                size_t input_length,
@@ -352,7 +354,7 @@ class EdhocCryptoManager {
   /**
    * @brief Calls the Verify function.
    *
-   * @param user_context The user context.
+   * @param runningContext The running context.
    * @param key_id The key ID.
    * @param input The input data.
    * @param input_length The length of the input data.
@@ -360,7 +362,7 @@ class EdhocCryptoManager {
    * @param signature_length The length of the signature.
    * @return int The result code.
    */
-  int callVerify(const void* user_context,
+  int callVerify(const RunningContext* runningContext,
                  const void* key_id,
                  const uint8_t* input,
                  size_t input_length,
@@ -370,7 +372,7 @@ class EdhocCryptoManager {
   /**
    * @brief Calls the Extract function.
    *
-   * @param user_context The user context.
+   * @param runningContext The running context.
    * @param key_id The key ID.
    * @param salt The salt data.
    * @param salt_len The length of the salt data.
@@ -380,7 +382,7 @@ class EdhocCryptoManager {
    * key.
    * @return int The result code.
    */
-  int callExtract(const void* user_context,
+  int callExtract(const RunningContext* runningContext,
                   const void* key_id,
                   const uint8_t* salt,
                   size_t salt_len,
@@ -391,7 +393,7 @@ class EdhocCryptoManager {
   /**
    * @brief Calls the Expand function.
    *
-   * @param user_context The user context.
+   * @param runningContext The running context.
    * @param key_id The key ID.
    * @param info The info data.
    * @param info_length The length of the info data.
@@ -401,7 +403,7 @@ class EdhocCryptoManager {
    * keying material.
    * @return int The result code.
    */
-  int callExpand(const void* user_context,
+  int callExpand(const RunningContext* runningContext,
                  const void* key_id,
                  const uint8_t* info,
                  size_t info_length,
@@ -411,7 +413,7 @@ class EdhocCryptoManager {
   /**
    * @brief Calls the Encrypt function.
    *
-   * @param user_context The user context.
+   * @param runningContext The running context.
    * @param key_id The key ID.
    * @param nonce The nonce data.
    * @param nonce_length The length of the nonce data.
@@ -424,7 +426,7 @@ class EdhocCryptoManager {
    * @param ciphertext_length The length of the generated ciphertext.
    * @return int The result code.
    */
-  int callEncrypt(const void* user_context,
+  int callEncrypt(const RunningContext* runningContext,
                   const void* key_id,
                   const uint8_t* nonce,
                   size_t nonce_length,
@@ -439,7 +441,7 @@ class EdhocCryptoManager {
   /**
    * @brief Calls the Decrypt function.
    *
-   * @param user_context The user context.
+   * @param runningContext The running context.
    * @param key_id The key ID.
    * @param nonce The nonce data.
    * @param nonce_length The length of the nonce data.
@@ -452,7 +454,7 @@ class EdhocCryptoManager {
    * @param plaintext_length The length of the generated plaintext.
    * @return int The result code.
    */
-  int callDecrypt(const void* user_context,
+  int callDecrypt(const RunningContext* runningContext,
                   const void* key_id,
                   const uint8_t* nonce,
                   size_t nonce_length,
@@ -467,7 +469,7 @@ class EdhocCryptoManager {
   /**
    * @brief Calls the Hash function.
    *
-   * @param user_context The user context.
+   * @param runningContext The running context.
    * @param input The input data to hash.
    * @param input_length The length of the input data.
    * @param hash The buffer to store the hash.
@@ -475,7 +477,7 @@ class EdhocCryptoManager {
    * @param hash_length The length of the generated hash.
    * @return int The result code.
    */
-  int callHash(const void* user_context,
+  int callHash(const RunningContext* runningContext,
                const uint8_t* input,
                size_t input_length,
                uint8_t* hash,

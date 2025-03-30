@@ -2,8 +2,9 @@
 #define EDHOC_COMPOSE_ASYNC_WORKER_H
 
 #include <napi.h>
-
 #include <vector>
+
+#include "RunningContext.h"
 
 extern "C" {
 #include "edhoc.h"
@@ -16,19 +17,12 @@ extern "C" {
 class EdhocComposeAsyncWorker : public Napi::AsyncWorker {
  public:
   /**
-   * @brief The type definition for the callback function.
-   */
-  using CallbackType = std::function<void(Napi::Env&)>;
-
-  /**
    * @brief Constructor for EdhocComposeAsyncWorker.
-   * @param env The Napi::Env object.
-   * @param context The EDHOC context.
+   * @param runningContext The running context.
    * @param messageNumber The message number.
-   * @param callback The callback function.
    */
-  EdhocComposeAsyncWorker(Napi::Env& env, struct edhoc_context& context, int messageNumber, CallbackType callback);
-
+  EdhocComposeAsyncWorker(RunningContext* runningContext, int messageNumber);
+  
   /**
    * @brief Executes the asynchronous worker task.
    */
@@ -46,25 +40,10 @@ class EdhocComposeAsyncWorker : public Napi::AsyncWorker {
    */
   void OnError(const Napi::Error& error) override;
 
-  /**
-   * @brief Returns the promise object.
-   * @return The promise object.
-   */
-  Napi::Promise GetPromise();
-
-  /**
-   * @brief Returns the deferred promise object.
-   * @return The deferred promise object.
-   */
-  Napi::Promise::Deferred GetDeferred();
-
-  Napi::Promise::Deferred deferred;      ///< The deferred promise object.
  private:
-  struct edhoc_context& context;         ///< The EDHOC context.
-  int messageNumber;                     ///< The message number.
-  CallbackType callback;                 ///< The callback function.
-  std::vector<uint8_t> composedMessage;  ///< The composed message.
-  Napi::Error lastError;                 ///< The last error.
+  RunningContext* runningContext_;        ///< The running context.
+  int messageNumber_;                     ///< The message number.
+  std::vector<uint8_t> composedMessage_;  ///< The composed message.
 };
 
 #endif  // EDHOC_COMPOSE_ASYNC_WORKER_H

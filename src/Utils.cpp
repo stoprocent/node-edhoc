@@ -6,48 +6,7 @@
 #include <thread>
 #include <iostream>
 
-static constexpr const char* kStringThen = "then";
 static constexpr const char* kErrorInputValueMustBeANumberOrABuffer = "Input value must be a number or a buffer";
-
-void Utils::InvokeJSFunctionWithPromiseHandling(Napi::Env env,
-                                                Napi::Object jsObject,
-                                                Napi::Function jsCallback,
-                                                const std::vector<napi_value>& args,
-                                                SuccessHandler successLambda,
-                                                ErrorHandler errorLambda) {
-  Napi::HandleScope scope(env);
-  auto deferred = Napi::Promise::Deferred::New(env);
-
-  try {
-    Napi::Value result = jsCallback.Call(jsObject, args);
-    deferred.Resolve(result);
-  } catch (const Napi::Error& e) {
-    deferred.Reject(e.Value());
-  } catch (const std::exception& e) {
-    deferred.Reject(Napi::Error::New(env, e.what()).Value());
-  }
-
-  auto thenCallback = Napi::Function::New(env, [successLambda, errorLambda](const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    Napi::HandleScope scope(env);
-    try {
-      successLambda(env, info[0].As<Napi::Value>());
-    } catch (const Napi::Error& e) {
-      errorLambda(env, e);
-    } catch (const std::exception& e) {
-      errorLambda(env, Napi::Error::New(env, e.what()));
-    }
-  });
-
-  auto catchCallback = Napi::Function::New(env, [errorLambda](const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    Napi::HandleScope scope(env);
-    errorLambda(env, info[0].As<Napi::Error>());
-  });
-
-  Napi::Promise promise = deferred.Promise();
-  promise.Get(kStringThen).As<Napi::Function>().Call(promise, {thenCallback, catchCallback});
-}
 
 void Utils::EncodeInt64ToBuffer(int64_t value, uint8_t* buffer, size_t* length) {
   size_t idx = 0;

@@ -7,6 +7,8 @@ extern "C" {
 #include "edhoc.h"
 }
 
+class RunningContext;
+
 /**
  * @class EdhocCredentialManager
  * @brief The EdhocCredentialManager class manages the credentials required for
@@ -18,7 +20,7 @@ class EdhocCredentialManager {
 
   /**
    * @struct edhoc_credentials
-   * @brief Libedhoc's bind structure for authentication credentials.
+   * @brief Edhoc's bind structure for authentication credentials.
    */
   struct edhoc_credentials credentials;
 
@@ -62,7 +64,7 @@ class EdhocCredentialManager {
    * fetched credentials.
    * @return EDHOC_SUCCESS if successful, otherwise an error code.
    */
-  int callFetchCredentials(const void* user_context, struct edhoc_auth_creds* credentials);
+  int callFetchCredentials(const RunningContext* runningContext, struct edhoc_auth_creds* credentials);
 
   /**
    * @brief Calls the VerifyCredentials function.
@@ -73,15 +75,15 @@ class EdhocCredentialManager {
    * @param public_key_length Pointer to the length of the public key.
    * @return EDHOC_SUCCESS if successful, otherwise an error code.
    */
-  int callVerifyCredentials(const void* user_context,
+  int callVerifyCredentials(const RunningContext* runningContext,
                             struct edhoc_auth_creds* credentials,
                             const uint8_t** public_key_reference,
                             size_t* public_key_length);
 
  private:
-  std::vector<Napi::Reference<Napi::Object>> credentialReferences;  ///< References to the JS objects
-  Napi::ObjectReference credentialManagerRef;                       ///< Reference to the JS object
-  Napi::ObjectReference edhocRef;
+  std::vector<Napi::Reference<Napi::Object>> credentialReferences_;  ///< References to the JS objects
+  Napi::ObjectReference credentialManagerRef_;                       ///< Reference to the JS object
+  Napi::ObjectReference edhocRef_;
 };
 
 #endif  // EDHOC_CREDENTIAL_MANAGER_H

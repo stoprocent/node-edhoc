@@ -1,0 +1,89 @@
+#include "RunningContext.h"
+
+RunningContext::RunningContext(Napi::Env env, 
+                 struct edhoc_context* edhoc_context,
+                 EdhocCryptoManager* cryptoManager,
+                 EdhocEadManager* eadManager,
+                 EdhocCredentialManager* credentialManager) 
+    : edhoc_context_(edhoc_context)
+    , cryptoManager_(cryptoManager)
+    , eadManager_(eadManager)
+    , credentialManager_(credentialManager)
+    , tsfn_()
+    , deferred_(Napi::Promise::Deferred::New(env))
+{
+    Napi::Function jsCallback = Napi::Function::New(env, [](const Napi::CallbackInfo& info) { return Napi::Value(); });
+    this->tsfn_ = Napi::ThreadSafeFunction::New(env, jsCallback, "jsCallback", 0, 1, this);
+}
+
+RunningContext::~RunningContext() {
+    if (tsfn_) {
+        tsfn_.Release();
+    }
+}
+
+int RunningContext::ThreadSafeBlockingCall(
+    Napi::Object jsObject,
+    const std::string& jsFunctionName,
+    ArgumentsHandler argumentsHandler,
+    CompletionHandler completionHandler) const
+{
+  std::promise<int> promise;
+  std::future<int> future = promise.get_future();
+
+  this->tsfn_.BlockingCall(&promise, [this, jsObject, jsFunctionName, argumentsHandler, completionHandler](Napi::Env env, Napi::Function jsCallback, std::promise<int>* promise) {
+    Napi::HandleScope scope(env);
+    auto deferred = Napi::Promise::Deferred::New(env);
+    
+    try {
+      auto arguments = argumentsHandler(env);
+      Napi::Function jsFunction = jsObject.Get(jsFunctionName).As<Napi::Function>();
+      Napi::Value result = jsFunction.Call(jsObject, arguments);
+      deferred.Resolve(result);
+    } catch (const Napi::Error& e) {
+      deferred.Reject(e.Value());
+    } catch (const std::exception& e) {
+      deferred.Reject(Napi::Error::New(env, e.what()).Value());
+    }
+
+    auto thenCallback = Napi::Function::New(env, [this, promise, completionHandler](const Napi::CallbackInfo& info) {
+      Napi::Env env = info.Env();
+      Napi::HandleScope scope(env);
+      try {
+        int result = completionHandler(env, info[0].As<Napi::Value>());
+        promise->set_value(result);
+      } catch (const Napi::Error& e) {
+        this->Reject(info[0].As<Napi::Error>().Value());
+        promise->set_value(EDHOC_ERROR_GENERIC_ERROR);
+      } catch (const std::exception& e) {
+        this->Reject(Napi::Error::New(env, e.what()).Value());
+        promise->set_value(EDHOC_ERROR_GENERIC_ERROR);
+      }
+    });
+
+    auto catchCallback = Napi::Function::New(env, [this, promise](const Napi::CallbackInfo& info) {
+      Napi::Env env = info.Env();
+      Napi::HandleScope scope(env);
+      this->Reject(info[0].As<Napi::Error>().Value());
+      promise->set_value(EDHOC_ERROR_GENERIC_ERROR);
+    });
+
+    Napi::Promise promise_ = deferred.Promise();
+    promise_.Get("then").As<Napi::Function>().Call(promise_, { thenCallback, catchCallback });
+  });  
+
+  future.wait();
+  return future.get();
+}
+
+void RunningContext::Resolve(Napi::Value value) const {
+    deferred_.Resolve(value);
+}
+
+void RunningContext::Reject(Napi::Value value) const {
+    deferred_.Reject(value);
+}
+
+Napi::Promise RunningContext::GetPromise() const {
+    return deferred_.Promise();
+} 

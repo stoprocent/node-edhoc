@@ -10,17 +10,13 @@ static constexpr size_t kMasterSecrectSize = 16;
 static constexpr size_t kMasterSaltSize = 8;
 static constexpr size_t kConnectionIdSize = 7;
 
-EdhocExportOscoreAsyncWorker::EdhocExportOscoreAsyncWorker(Napi::Env& env,
-                                                           struct edhoc_context& context,
-                                                           CallbackType callback)
-    : Napi::AsyncWorker(env),
-      deferred(Napi::Promise::Deferred::New(env)),
-      context(context),
+EdhocExportOscoreAsyncWorker::EdhocExportOscoreAsyncWorker(RunningContext* runningContext)
+    : Napi::AsyncWorker(runningContext->GetEnv()),
+      runningContext_(runningContext),
       masterSecret(kMasterSecrectSize),
       masterSalt(kMasterSaltSize),
       senderId(kConnectionIdSize),
-      recipientId(kConnectionIdSize),
-      callback(std::move(callback)) {}
+      recipientId(kConnectionIdSize) {}
 
 EdhocExportOscoreAsyncWorker::~EdhocExportOscoreAsyncWorker() {}
 
@@ -28,7 +24,7 @@ void EdhocExportOscoreAsyncWorker::Execute() {
   try {
     size_t sender_id_length, recipient_id_length;
 
-    int ret = edhoc_export_oscore_session(&context, masterSecret.data(), masterSecret.size(), masterSalt.data(),
+    int ret = edhoc_export_oscore_session(runningContext_->GetEdhocContext(), masterSecret.data(), masterSecret.size(), masterSalt.data(),
                                           masterSalt.size(), senderId.data(), senderId.size(), &sender_id_length,
                                           recipientId.data(), recipientId.size(), &recipient_id_length);
 
@@ -61,17 +57,11 @@ void EdhocExportOscoreAsyncWorker::OnOK() {
   resultObj.Set(kPropSenderId, senderIdBuffer);
   resultObj.Set(kPropRecipientId, recipientIdBuffer);
 
-  deferred.Resolve(resultObj);
-  callback(env);
+  runningContext_->Resolve(resultObj);
 }
 
 void EdhocExportOscoreAsyncWorker::OnError(const Napi::Error& error) {
   Napi::Env env = Env();
   Napi::HandleScope scope(env);
-  deferred.Reject(error.Value());
-  callback(env);
-}
-
-Napi::Promise EdhocExportOscoreAsyncWorker::GetPromise() {
-  return deferred.Promise();
+  runningContext_->Reject(error.Value());
 }

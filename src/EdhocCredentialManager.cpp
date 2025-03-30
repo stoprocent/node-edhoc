@@ -5,7 +5,7 @@
 #include <iostream>
 #include <stdexcept>
 
-#include "LibEDHOC.h"
+#include "RunningContext.h"
 #include "Utils.h"
 
 static constexpr const char* kFormat = "format";
@@ -26,9 +26,6 @@ static constexpr const char* kInvalidInputDataErrorKid = "Invalid input data for
 static constexpr const char* kInvalidInputDataErrorX509Chain = "Invalid input data for X.509 chain";
 static constexpr const char* kInvalidInputDataErrorX509Hash = "Invalid input data for X.509 hash";
 static constexpr const char* kErrorObjectExpected = "Object expected";
-static constexpr const char* kErrorFunctionExpected = "Function expected";
-static constexpr const char* kFetch = "fetch";
-static constexpr const char* kVerify = "verify";
 
 /*
  * Convert a JavaScript object to an edhoc_auth_cred_key_id
@@ -155,48 +152,59 @@ Napi::Object convert_edhoc_x5t_to_js(const Napi::Env& env, const struct edhoc_au
   return obj;
 }
 
+/*
+ * EdhocCredentialManager constructor
+ */
 EdhocCredentialManager::EdhocCredentialManager(Napi::Object& jsCredentialManager, Napi::Object& jsEdhoc) {
   if (!jsCredentialManager.IsObject() || !jsEdhoc.IsObject()) {
     Napi::Error::New(jsCredentialManager.Env(), kErrorObjectExpected).ThrowAsJavaScriptException();
   }
-  credentialManagerRef = Napi::Persistent(jsCredentialManager);
-  edhocRef = Napi::Weak(jsEdhoc);
+  credentialManagerRef_ = Napi::Persistent(jsCredentialManager);
+  edhocRef_ = Napi::Weak(jsEdhoc);
 
   credentials.fetch = FetchCredentials;
   credentials.verify = VerifyCredentials;
 }
 
+/*
+ * EdhocCredentialManager destructor
+ */
 EdhocCredentialManager::~EdhocCredentialManager() {
-  credentialManagerRef.Reset();
-  edhocRef.Reset();
-  for (auto& ref : credentialReferences) {
+  credentialManagerRef_.Reset();
+  edhocRef_.Reset();
+  for (auto& ref : credentialReferences_) {
     ref.Reset();
   }
-  credentialReferences.clear();
+  credentialReferences_.clear();
 }
 
+/*
+ * Static method to fetch credentials
+ */
 int EdhocCredentialManager::FetchCredentials(void* user_context, struct edhoc_auth_creds* credentials) {
-  LibEDHOC* edhoc = static_cast<LibEDHOC*>(const_cast<void*>(user_context));
-  EdhocCredentialManager* manager = edhoc->GetCredentialManager();
-  return manager->callFetchCredentials(edhoc, credentials);
+  RunningContext* context = static_cast<RunningContext*>(const_cast<void*>(user_context));
+  EdhocCredentialManager* manager = context->GetCredentialManager();
+  return manager->callFetchCredentials(context, credentials);
 }
 
+/*
+ * Static method to verify credentials
+ */
 int EdhocCredentialManager::VerifyCredentials(void* user_context,
                                               struct edhoc_auth_creds* credentials,
                                               const uint8_t** public_key_reference,
                                               size_t* public_key_length) {
-  LibEDHOC* edhoc = static_cast<LibEDHOC*>(const_cast<void*>(user_context));
-  EdhocCredentialManager* manager = edhoc->GetCredentialManager();
-  return manager->callVerifyCredentials(edhoc, credentials, public_key_reference, public_key_length);
+  RunningContext* context = static_cast<RunningContext*>(const_cast<void*>(user_context));
+  EdhocCredentialManager* manager = context->GetCredentialManager();
+  return manager->callVerifyCredentials(context, credentials, public_key_reference, public_key_length);
 }
 
-int EdhocCredentialManager::callFetchCredentials(const void* user_context, struct edhoc_auth_creds* credentials) {
-  std::promise<int> promise;
-  std::future<int> future = promise.get_future();
+/*
+ * Method to fetch credentials
+ */
+int EdhocCredentialManager::callFetchCredentials(const RunningContext* runningContext, struct edhoc_auth_creds* credentials) {
 
-  LibEDHOC* edhoc = static_cast<LibEDHOC*>(const_cast<void*>(user_context));
-
-  auto successHandler = [this, &promise, &credentials](Napi::Env env, Napi::Value result) {
+  auto successHandler = [this, &credentials](Napi::Env env, Napi::Value result) {
     Napi::HandleScope scope(env);
     auto credsObj = result.As<Napi::Object>();
 
@@ -204,7 +212,7 @@ int EdhocCredentialManager::callFetchCredentials(const void* user_context, struc
       throw std::runtime_error(kInvalidInputCredentialTypeError);
     }
 
-    credentialReferences.push_back(Napi::Persistent(credsObj));
+    credentialReferences_.push_back(Napi::Persistent(credsObj));
 
     int label = credsObj.Get(kFormat).As<Napi::Number>().Int32Value();
 
@@ -220,7 +228,7 @@ int EdhocCredentialManager::callFetchCredentials(const void* user_context, struc
         break;
       case EDHOC_COSE_ANY:
       default:
-        throw std::runtime_error(kUnsupportedCredentialTypeError);
+        throw Napi::Error::New(env, kUnsupportedCredentialTypeError);
     }
 
     if (credsObj.Has(kPrivateKeyId) && !credsObj.Get(kPrivateKeyId).IsNull()) {
@@ -228,45 +236,31 @@ int EdhocCredentialManager::callFetchCredentials(const void* user_context, struc
       memcpy(credentials->priv_key_id, privKeyIdBuffer.Data(), privKeyIdBuffer.Length());
     }
 
-    promise.set_value(EDHOC_SUCCESS);
+    return EDHOC_SUCCESS;
   };
 
-  auto blockingCallHandler = [this, &
-  successHandler, &promise, &edhoc](Napi::Env env, Napi::Function jsCallback) {
+  auto argumentsHandler = [this](Napi::Env env) {
     Napi::HandleScope scope(env);
-    std::vector<napi_value> arguments = {this->edhocRef.Value()};
-    Napi::Function jsFunction = credentialManagerRef.Value().Get(kFetch).As<Napi::Function>();
-    // TODO: Add error handler
-    auto errorHandler = Utils::CreatePromiseErrorHandler<int>(promise, EDHOC_ERROR_GENERIC_ERROR);
-    Utils::InvokeJSFunctionWithPromiseHandling(env, credentialManagerRef.Value(), jsFunction, arguments, successHandler,
-                                               [&promise, &edhoc](Napi::Env env, Napi::Error error) {
-                                                if (!error.IsEmpty()) {
-                                                  edhoc->GetDeferred().Reject(error.Value());
-                                                }
-                                                promise.set_value(EDHOC_ERROR_GENERIC_ERROR);
-                                               });
+    return std::vector<napi_value> { this->edhocRef_.Value() };
   };
 
-  edhoc->GetTsfn().BlockingCall(blockingCallHandler);
-
-  future.wait();
-  return future.get();
+  return runningContext->ThreadSafeBlockingCall(credentialManagerRef_.Value(), "fetch", argumentsHandler, successHandler);
 }
 
-int EdhocCredentialManager::callVerifyCredentials(const void* user_context,
+/*
+ * Method to verify credentials
+ */
+int EdhocCredentialManager::callVerifyCredentials(const RunningContext* runningContext,
                                                   struct edhoc_auth_creds* credentials,
                                                   const uint8_t** public_key_reference,
                                                   size_t* public_key_length) {
-  std::promise<int> promise;
-  std::future<int> future = promise.get_future();
 
-  LibEDHOC* edhoc = static_cast<LibEDHOC*>(const_cast<void*>(user_context));
-
-  auto successHandler = [this, &promise, &credentials, &public_key_reference, &public_key_length](Napi::Env env,
+  auto successHandler = [this, &credentials, &public_key_reference, &public_key_length](Napi::Env env,
                                                                                                   Napi::Value result) {
     Napi::HandleScope scope(env);
     Napi::Object credsObj = result.As<Napi::Object>();
-    credentialReferences.push_back(Napi::Persistent(credsObj));
+    credentialReferences_.push_back(Napi::Persistent(credsObj));
+
     if (credsObj.IsObject() == false) {
       throw std::runtime_error(kInvalidInputCredentialTypeError);
     }
@@ -292,11 +286,10 @@ int EdhocCredentialManager::callVerifyCredentials(const void* user_context,
       *public_key_length = publicKeyBuffer.Length();
     }
 
-    promise.set_value(EDHOC_SUCCESS);
+    return EDHOC_SUCCESS;
   };
 
-  auto blockingCallHandler = [this, &credentials, &successHandler, &promise](Napi::Env env,
-                                                                                            Napi::Function jsCallback) {
+  auto argumentsHandler = [this, &credentials](Napi::Env env) {
     Napi::HandleScope scope(env);
     Napi::Object resultObject = Napi::Object::New(env);
     resultObject.Set(kFormat, Napi::Number::New(env, credentials->label));
@@ -314,16 +307,11 @@ int EdhocCredentialManager::callVerifyCredentials(const void* user_context,
       default:
         throw std::runtime_error(kUnsupportedCredentialTypeError);
     }
-    Napi::Function jsFunction = credentialManagerRef.Value().Get(kVerify).As<Napi::Function>();
-    // TODO: Add error handler
-    std::vector<napi_value> arguments = {this->edhocRef.Value(), resultObject};
-    auto errorHandler = Utils::CreatePromiseErrorHandler<int>(promise, EDHOC_ERROR_GENERIC_ERROR);
-    Utils::InvokeJSFunctionWithPromiseHandling(env, credentialManagerRef.Value(), jsFunction, arguments, successHandler,
-                                               errorHandler);
+    return std::vector<napi_value> { 
+      this->edhocRef_.Value(), 
+      resultObject
+    };
   };
 
-  edhoc->GetTsfn().BlockingCall(blockingCallHandler);
-
-  future.wait();
-  return future.get();
+  return runningContext->ThreadSafeBlockingCall(credentialManagerRef_.Value(), "verify", argumentsHandler, successHandler);
 }

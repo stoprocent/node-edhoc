@@ -2,7 +2,6 @@
 #define EDHOC_EAD_MANAGER_H
 
 #include <napi.h>
-
 #include <map>
 #include <vector>
 
@@ -30,7 +29,7 @@ class EdhocEadManager {
  public:
   /**
    * @struct edhoc_ead
-   * @brief Libedhoc's bind structure for EAD operations.
+   * @brief Edhoc's bind structure for EAD operations.
    */
   struct edhoc_ead ead;
 
@@ -87,8 +86,8 @@ class EdhocEadManager {
   void ClearEadByMessage(enum edhoc_message message);
 
  private:
-  EadBufferMap eadBuffers;  ///< Map to store the EAD buffers for different
-                            ///< EDHOC messages.
+  EadBufferMap eadBuffers_;  ///< Map to store the EAD buffers for different
+                             ///< EDHOC messages.
 
   /**
    * @brief Static callback function for composing an EAD token.
