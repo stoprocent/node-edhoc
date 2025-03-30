@@ -168,7 +168,17 @@ class Edhoc : public Napi::ObjectWrap<Edhoc> {
    * @param value The Napi::Value representing the logger function.
    */
   void SetLogger(const Napi::CallbackInfo& info, const Napi::Value& value);
-
+  
+  /**
+   * @brief Resets the EDHOC context.
+   *
+   * This method resets the EDHOC context for the Edhoc object.
+   *
+   * @param info The Napi::CallbackInfo representing the callback information.
+   * @return Napi::Value void.
+   */
+  void Reset(const Napi::CallbackInfo& info);
+  
   /**
    * @brief Composes EDHOC message 1.
    *

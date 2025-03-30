@@ -26,19 +26,6 @@ Edhoc::Edhoc(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Edhoc>(info) {
   Napi::Env env = info.Env();
   Napi::HandleScope scope(env);
 
-  // Initialize EDHOC context
-  edhocContext_ = std::make_unique<edhoc_context>();
-
-  if (edhoc_context_init(edhocContext_.get()) != EDHOC_SUCCESS) {
-    Napi::TypeError::New(env, kErrorFailedToInitializeEdhocContext)
-      .ThrowAsJavaScriptException();
-  }
-
-  // Connection ID, Methods, and Suites
-  SetCID(info, info[0]);
-  SetMethods(info, info[1]);
-  SetCipherSuites(info, info[2]);
-
   // Get the JS object
   Napi::Object jsEdhoc = info.This().As<Napi::Object>();
   
@@ -53,6 +40,40 @@ Edhoc::Edhoc(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Edhoc>(info) {
   // EAD
   this->eadManager_ = std::make_unique<EdhocEadManager>();
 
+  // Reset the EDHOC context
+  this->Reset(info);
+
+  // Connection ID, Methods, and Suites
+  SetCID(info, info[0]);
+  SetMethods(info, info[1]);
+  SetCipherSuites(info, info[2]);
+}
+
+void Edhoc::Reset(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  Napi::HandleScope scope(env);
+
+  bool isInitialized = edhocContext_ != nullptr;
+
+  // Get the Connection ID, Methods, and Suites
+  Napi::Value cid = env.Null();
+  Napi::Value methods = env.Null();
+  Napi::Value suites = env.Null();
+
+  if (isInitialized) {
+    cid = this->GetCID(info);
+    methods = this->GetMethods(info);
+    suites = this->GetCipherSuites(info);
+  }
+
+  // Initialize EDHOC context
+  edhocContext_ = std::make_unique<edhoc_context>();
+
+  if (edhoc_context_init(edhocContext_.get()) != EDHOC_SUCCESS) {
+    Napi::TypeError::New(env, kErrorFailedToInitializeEdhocContext)
+      .ThrowAsJavaScriptException();
+  }
+
   // Bind all managers
   if (edhoc_bind_keys(edhocContext_.get(), &this->cryptoManager_.get()->keys) != EDHOC_SUCCESS ||
       edhoc_bind_crypto(edhocContext_.get(), &this->cryptoManager_.get()->crypto) != EDHOC_SUCCESS ||
@@ -63,12 +84,19 @@ Edhoc::Edhoc(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Edhoc>(info) {
       .ThrowAsJavaScriptException();
   }
 
+  // If the previous context was initialized, copy the Connection ID, Methods, and Suites
+  if (isInitialized) {
+    this->SetCID(info, cid);
+    this->SetMethods(info, methods);
+    this->SetCipherSuites(info, suites);
+  }
+
   // Logger
   edhocContext_->logger = Edhoc::Logger;
 }
 
 Edhoc::~Edhoc() {
-  // edhocContext_ = {};
+  // Reset the EDHOC context
 }
 
 Napi::Value Edhoc::GetCID(const Napi::CallbackInfo& info) {
@@ -111,8 +139,9 @@ void Edhoc::SetMethods(const Napi::CallbackInfo& info, const Napi::Value& value)
   for (uint32_t i = 0; i < jsArray.Length(); i++) {
     methods.push_back(static_cast<edhoc_method>(jsArray.Get(i).As<Napi::Number>().Int32Value()));
   }
-
-  if (edhoc_set_methods(edhocContext_.get(), methods.data(), methods.size()) != EDHOC_SUCCESS) {
+  
+  int result = edhoc_set_methods(edhocContext_.get(), methods.data(), methods.size());
+  if (result != EDHOC_SUCCESS) {
     Napi::TypeError::New(env, kErrorFailedToSetEdhocMethod)
       .ThrowAsJavaScriptException();
   }
@@ -375,6 +404,7 @@ Napi::Object Edhoc::Init(Napi::Env env, Napi::Object exports) {
     InstanceAccessor("cipherSuites", &Edhoc::GetCipherSuites, &Edhoc::SetCipherSuites),
     InstanceAccessor<&Edhoc::GetSelectedCipherSuite>("selectedSuite"),
     InstanceAccessor("logger", &Edhoc::GetLogger, &Edhoc::SetLogger),
+    InstanceMethod("reset", &Edhoc::Reset),
     InstanceMethod("composeMessage1", &Edhoc::ComposeMessage1),
     InstanceMethod("processMessage1", &Edhoc::ProcessMessage1),
     InstanceMethod("composeMessage2", &Edhoc::ComposeMessage2),

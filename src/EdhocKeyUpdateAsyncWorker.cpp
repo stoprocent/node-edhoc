@@ -4,11 +4,11 @@ EdhocKeyUpdateAsyncWorker::EdhocKeyUpdateAsyncWorker(RunningContext* runningCont
                                                      std::vector<uint8_t> contextBuffer)
     : Napi::AsyncWorker(runningContext->GetEnv()),
       runningContext_(runningContext),
-      contextBuffer(contextBuffer) {}
+      contextBuffer_(contextBuffer) {}
 
 void EdhocKeyUpdateAsyncWorker::Execute() {
   try {
-    int ret = edhoc_export_key_update(runningContext_->GetEdhocContext(), contextBuffer.data(), contextBuffer.size());
+    int ret = edhoc_export_key_update(runningContext_->GetEdhocContext(), contextBuffer_.data(), contextBuffer_.size());
 
     if (ret != EDHOC_SUCCESS) {
       SetError("Failed to update key.");

@@ -18,7 +18,7 @@ class EdhocComposeAsyncWorker : public Napi::AsyncWorker {
  public:
   /**
    * @brief Constructor for EdhocComposeAsyncWorker.
-   * @param runningContext The running context.
+   * @param runningContext The pointer to the running context.
    * @param messageNumber The message number.
    */
   EdhocComposeAsyncWorker(RunningContext* runningContext, int messageNumber);
@@ -41,7 +41,7 @@ class EdhocComposeAsyncWorker : public Napi::AsyncWorker {
   void OnError(const Napi::Error& error) override;
 
  private:
-  RunningContext* runningContext_;        ///< The running context.
+  RunningContext* runningContext_;        ///< The pointer to the running context.
   int messageNumber_;                     ///< The message number.
   std::vector<uint8_t> composedMessage_;  ///< The composed message.
 };

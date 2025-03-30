@@ -1,5 +1,5 @@
 #include "RunningContext.h"
-
+#include <iostream>
 RunningContext::RunningContext(Napi::Env env, 
                  struct edhoc_context* edhoc_context,
                  EdhocCryptoManager* cryptoManager,
@@ -11,34 +11,28 @@ RunningContext::RunningContext(Napi::Env env,
     , credentialManager_(credentialManager)
     , tsfn_()
     , deferred_(Napi::Promise::Deferred::New(env))
+    , isResolved_(false)
 {
     Napi::Function jsCallback = Napi::Function::New(env, [](const Napi::CallbackInfo& info) { return Napi::Value(); });
     this->tsfn_ = Napi::ThreadSafeFunction::New(env, jsCallback, "jsCallback", 0, 1, this);
 }
 
-RunningContext::~RunningContext() {
-    if (tsfn_) {
-        tsfn_.Release();
-    }
-}
-
 int RunningContext::ThreadSafeBlockingCall(
-    Napi::Object jsObject,
+    Napi::ObjectReference& jsObjectRef,
     const std::string& jsFunctionName,
     ArgumentsHandler argumentsHandler,
-    CompletionHandler completionHandler) const
+    CompletionHandler completionHandler)
 {
   std::promise<int> promise;
   std::future<int> future = promise.get_future();
 
-  this->tsfn_.BlockingCall(&promise, [this, jsObject, jsFunctionName, argumentsHandler, completionHandler](Napi::Env env, Napi::Function jsCallback, std::promise<int>* promise) {
+  this->tsfn_.BlockingCall(&promise, [this, &jsObjectRef, jsFunctionName, argumentsHandler, completionHandler](Napi::Env env, Napi::Function jsCallback, std::promise<int>* promise) {
     Napi::HandleScope scope(env);
     auto deferred = Napi::Promise::Deferred::New(env);
-    
     try {
-      auto arguments = argumentsHandler(env);
-      Napi::Function jsFunction = jsObject.Get(jsFunctionName).As<Napi::Function>();
-      Napi::Value result = jsFunction.Call(jsObject, arguments);
+      const std::vector<napi_value> arguments = argumentsHandler(env);
+      Napi::Function jsFunction = jsObjectRef.Value().Get(jsFunctionName).As<Napi::Function>();
+      Napi::Value result = jsFunction.Call(jsObjectRef.Value(), arguments);
       deferred.Resolve(result);
     } catch (const Napi::Error& e) {
       deferred.Reject(e.Value());
@@ -76,12 +70,22 @@ int RunningContext::ThreadSafeBlockingCall(
   return future.get();
 }
 
-void RunningContext::Resolve(Napi::Value value) const {
+void RunningContext::Resolve(Napi::Value value) {
+    if (isResolved_) {
+        return;
+    }
     deferred_.Resolve(value);
+    tsfn_.Release();
+    isResolved_ = true;
 }
 
-void RunningContext::Reject(Napi::Value value) const {
-    deferred_.Reject(value);
+void RunningContext::Reject(Napi::Value value) {
+  if (isResolved_) {
+    return;
+  }
+  deferred_.Reject(value);
+  tsfn_.Release();
+  isResolved_ = true;
 }
 
 Napi::Promise RunningContext::GetPromise() const {

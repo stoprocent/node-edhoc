@@ -186,7 +186,7 @@ int EdhocCryptoManager::Hash(void* user_context,
   return context->GetCryptoManager()->callHash(context, input, input_length, hash, hash_size, hash_length);
 }
 
-int EdhocCryptoManager::callImportKey(const RunningContext* runningContext,
+int EdhocCryptoManager::callImportKey(RunningContext* runningContext,
                                       enum edhoc_key_type key_type,
                                       const uint8_t* raw_key,
                                       size_t raw_key_length,
@@ -220,8 +220,7 @@ int EdhocCryptoManager::callImportKey(const RunningContext* runningContext,
     return EDHOC_SUCCESS;
   };
 
-  auto argumentsHandler = [this, key_type, &raw_key, raw_key_length](Napi::Env env) {
-    Napi::HandleScope scope(env);
+  auto argumentsHandler = [this, key_type, raw_key, raw_key_length](Napi::Env env) {
     return std::vector<napi_value> {
       this->edhocRef.Value(),
       Napi::Number::New(env, static_cast<int>(key_type)),
@@ -229,10 +228,10 @@ int EdhocCryptoManager::callImportKey(const RunningContext* runningContext,
     };
   };
 
-  return runningContext->ThreadSafeBlockingCall(cryptoManagerRef.Value(), "importKey", argumentsHandler, successHandler);
+  return runningContext->ThreadSafeBlockingCall(cryptoManagerRef, "importKey", argumentsHandler, successHandler);
 }
 
-int EdhocCryptoManager::callDestroyKey(const RunningContext* runningContext, void* key_id) {
+int EdhocCryptoManager::callDestroyKey(RunningContext* runningContext, void* key_id) {
   // Timeout thread to ensure the callback is called
   std::shared_ptr<bool> callbackCompleted = std::make_shared<bool>(false);
   // std::thread timeoutThread([callbackCompleted]() {
@@ -253,17 +252,16 @@ int EdhocCryptoManager::callDestroyKey(const RunningContext* runningContext, voi
 
   auto argumentsHandler = [this, &key_id, callbackCompleted](Napi::Env env) {
     *callbackCompleted = true;
-    Napi::HandleScope scope(env);
     return std::vector<napi_value> {
       this->edhocRef.Value(),
       Napi::Buffer<uint8_t>::Copy(env, static_cast<uint8_t*>(key_id), CONFIG_LIBEDHOC_KEY_ID_LEN)
     };
   };
 
-  return runningContext->ThreadSafeBlockingCall(cryptoManagerRef.Value(), "destroyKey", argumentsHandler, successHandler);
+  return runningContext->ThreadSafeBlockingCall(cryptoManagerRef, "destroyKey", argumentsHandler, successHandler);
 }
 
-int EdhocCryptoManager::callMakeKeyPair(const RunningContext* runningContext,
+int EdhocCryptoManager::callMakeKeyPair(RunningContext* runningContext,
                                         const void* key_id,
                                         uint8_t* private_key,
                                         size_t private_key_size,
@@ -306,7 +304,6 @@ int EdhocCryptoManager::callMakeKeyPair(const RunningContext* runningContext,
   };
 
   auto argumentsHandler = [this, &key_id, private_key_size, public_key_size](Napi::Env env) {
-    Napi::HandleScope scope(env);
     return std::vector<napi_value> {
       this->edhocRef.Value(),
       Napi::Buffer<uint8_t>::Copy(env, static_cast<const uint8_t*>(key_id), CONFIG_LIBEDHOC_KEY_ID_LEN),
@@ -315,10 +312,10 @@ int EdhocCryptoManager::callMakeKeyPair(const RunningContext* runningContext,
     };
   };
 
-  return runningContext->ThreadSafeBlockingCall(cryptoManagerRef.Value(), "makeKeyPair", argumentsHandler, successHandler);
+  return runningContext->ThreadSafeBlockingCall(cryptoManagerRef, "makeKeyPair", argumentsHandler, successHandler);
 }
 
-int EdhocCryptoManager::callKeyAgreement(const RunningContext* runningContext,
+int EdhocCryptoManager::callKeyAgreement(RunningContext* runningContext,
                                          const void* key_id,
                                          const uint8_t* peer_public_key,
                                          size_t peer_public_key_length,
@@ -342,7 +339,6 @@ int EdhocCryptoManager::callKeyAgreement(const RunningContext* runningContext,
   };
 
   auto argumentsHandler = [this, &key_id, &peer_public_key, peer_public_key_length, shared_secret_size](Napi::Env env) {
-    Napi::HandleScope scope(env);
     return std::vector<napi_value> {
       this->edhocRef.Value(),
       Napi::Buffer<uint8_t>::Copy(env, static_cast<const uint8_t*>(key_id), CONFIG_LIBEDHOC_KEY_ID_LEN),
@@ -351,10 +347,10 @@ int EdhocCryptoManager::callKeyAgreement(const RunningContext* runningContext,
     };
   };
 
-  return runningContext->ThreadSafeBlockingCall(cryptoManagerRef.Value(), "keyAgreement", argumentsHandler, successHandler);
+  return runningContext->ThreadSafeBlockingCall(cryptoManagerRef, "keyAgreement", argumentsHandler, successHandler);
 }
 
-int EdhocCryptoManager::callSign(const RunningContext* runningContext,
+int EdhocCryptoManager::callSign(RunningContext* runningContext,
                                  const void* key_id,
                                  const uint8_t* input,
                                  size_t input_length,
@@ -378,7 +374,6 @@ int EdhocCryptoManager::callSign(const RunningContext* runningContext,
   };
 
   auto argumentsHandler = [this, &key_id, &input, input_length, signature_size](Napi::Env env) {
-    Napi::HandleScope scope(env);
     return std::vector<napi_value> {
       this->edhocRef.Value(),
       Napi::Buffer<uint8_t>::Copy(env, static_cast<const uint8_t*>(key_id), CONFIG_LIBEDHOC_KEY_ID_LEN),
@@ -387,10 +382,10 @@ int EdhocCryptoManager::callSign(const RunningContext* runningContext,
     };
   };
 
-  return runningContext->ThreadSafeBlockingCall(cryptoManagerRef.Value(), "sign", argumentsHandler, successHandler);
+  return runningContext->ThreadSafeBlockingCall(cryptoManagerRef, "sign", argumentsHandler, successHandler);
 }
 
-int EdhocCryptoManager::callVerify(const RunningContext* runningContext,
+int EdhocCryptoManager::callVerify(RunningContext* runningContext,
                                    const void* key_id,
                                    const uint8_t* input,
                                    size_t input_length,
@@ -406,7 +401,6 @@ int EdhocCryptoManager::callVerify(const RunningContext* runningContext,
   };
 
   auto argumentsHandler = [this, &key_id, &input, input_length, &signature, signature_length](Napi::Env env) {
-    Napi::HandleScope scope(env);
     return std::vector<napi_value> {
       this->edhocRef.Value(),
       Napi::Buffer<uint8_t>::Copy(env, static_cast<const uint8_t*>(key_id), CONFIG_LIBEDHOC_KEY_ID_LEN),
@@ -415,10 +409,10 @@ int EdhocCryptoManager::callVerify(const RunningContext* runningContext,
     };
   };
 
-  return runningContext->ThreadSafeBlockingCall(cryptoManagerRef.Value(), "verify", argumentsHandler, successHandler);
+  return runningContext->ThreadSafeBlockingCall(cryptoManagerRef, "verify", argumentsHandler, successHandler);
 }
 
-int EdhocCryptoManager::callExtract(const RunningContext* runningContext,
+int EdhocCryptoManager::callExtract(RunningContext* runningContext,
                                     const void* key_id,
                                     const uint8_t* salt,
                                     size_t salt_len,
@@ -441,7 +435,6 @@ int EdhocCryptoManager::callExtract(const RunningContext* runningContext,
   };
 
   auto argumentsHandler = [this, &key_id, &salt, salt_len, pseudo_random_key_size](Napi::Env env) {
-    Napi::HandleScope scope(env);
     return std::vector<napi_value> {
       this->edhocRef.Value(),
       Napi::Buffer<uint8_t>::Copy(env, static_cast<const uint8_t*>(key_id), CONFIG_LIBEDHOC_KEY_ID_LEN),
@@ -450,10 +443,10 @@ int EdhocCryptoManager::callExtract(const RunningContext* runningContext,
     };
   };
 
-  return runningContext->ThreadSafeBlockingCall(cryptoManagerRef.Value(), "extract", argumentsHandler, successHandler);
+  return runningContext->ThreadSafeBlockingCall(cryptoManagerRef, "extract", argumentsHandler, successHandler);
 }
 
-int EdhocCryptoManager::callExpand(const RunningContext* runningContext,
+int EdhocCryptoManager::callExpand(RunningContext* runningContext,
                                    const void* key_id,
                                    const uint8_t* info,
                                    size_t info_length,
@@ -474,7 +467,6 @@ int EdhocCryptoManager::callExpand(const RunningContext* runningContext,
   };
 
   auto argumentsHandler = [this, &key_id, &info, info_length, output_keying_material_length](Napi::Env env) {
-    Napi::HandleScope scope(env);
     return std::vector<napi_value> {
       this->edhocRef.Value(),
       Napi::Buffer<uint8_t>::Copy(env, static_cast<const uint8_t*>(key_id), CONFIG_LIBEDHOC_KEY_ID_LEN),
@@ -483,10 +475,10 @@ int EdhocCryptoManager::callExpand(const RunningContext* runningContext,
     };
   };
 
-  return runningContext->ThreadSafeBlockingCall(cryptoManagerRef.Value(), "expand", argumentsHandler, successHandler);
+  return runningContext->ThreadSafeBlockingCall(cryptoManagerRef, "expand", argumentsHandler, successHandler);
 }
 
-int EdhocCryptoManager::callEncrypt(const RunningContext* runningContext,
+int EdhocCryptoManager::callEncrypt(RunningContext* runningContext,
                                     const void* key_id,
                                     const uint8_t* nonce,
                                     size_t nonce_length,
@@ -514,7 +506,6 @@ int EdhocCryptoManager::callEncrypt(const RunningContext* runningContext,
 
   auto argumentsHandler = [this, &key_id, &nonce, nonce_length, &additional_data,
                               additional_data_length, &plaintext, plaintext_length, ciphertext_size](Napi::Env env) {
-    Napi::HandleScope scope(env);
     return std::vector<napi_value> {
       this->edhocRef.Value(),
       Napi::Buffer<uint8_t>::Copy(env, static_cast<const uint8_t*>(key_id), CONFIG_LIBEDHOC_KEY_ID_LEN),
@@ -525,10 +516,10 @@ int EdhocCryptoManager::callEncrypt(const RunningContext* runningContext,
     };
   };
 
-  return runningContext->ThreadSafeBlockingCall(cryptoManagerRef.Value(), "encrypt", argumentsHandler, successHandler);
+  return runningContext->ThreadSafeBlockingCall(cryptoManagerRef, "encrypt", argumentsHandler, successHandler);
 }
 
-int EdhocCryptoManager::callDecrypt(const RunningContext* runningContext,
+int EdhocCryptoManager::callDecrypt(RunningContext* runningContext,
                                     const void* key_id,
                                     const uint8_t* nonce,
                                     size_t nonce_length,
@@ -556,7 +547,6 @@ int EdhocCryptoManager::callDecrypt(const RunningContext* runningContext,
 
   auto argumentsHandler = [this, &key_id, &nonce, nonce_length, &additional_data,
                               additional_data_length, &ciphertext, &ciphertext_length, plaintext_size](Napi::Env env) {
-    Napi::HandleScope scope(env);
     return std::vector<napi_value> {
       this->edhocRef.Value(),
       Napi::Buffer<uint8_t>::Copy(env, static_cast<const uint8_t*>(key_id), CONFIG_LIBEDHOC_KEY_ID_LEN),
@@ -567,10 +557,10 @@ int EdhocCryptoManager::callDecrypt(const RunningContext* runningContext,
     };
   };
 
-  return runningContext->ThreadSafeBlockingCall(cryptoManagerRef.Value(), "decrypt", argumentsHandler, successHandler);
+  return runningContext->ThreadSafeBlockingCall(cryptoManagerRef, "decrypt", argumentsHandler, successHandler);
 }
 
-int EdhocCryptoManager::callHash(const RunningContext* runningContext,
+int EdhocCryptoManager::callHash(RunningContext* runningContext,
                                  const uint8_t* input,
                                  size_t input_length,
                                  uint8_t* hash,
@@ -592,7 +582,6 @@ int EdhocCryptoManager::callHash(const RunningContext* runningContext,
   };
 
   auto argumentsHandler = [this, &input, input_length, hash_size](Napi::Env env) {
-    Napi::HandleScope scope(env);
     return std::vector<napi_value> {
       this->edhocRef.Value(),
       Napi::Buffer<uint8_t>::Copy(env, input, input_length),
@@ -600,5 +589,5 @@ int EdhocCryptoManager::callHash(const RunningContext* runningContext,
     };
   };
 
-  return runningContext->ThreadSafeBlockingCall(cryptoManagerRef.Value(), "hash", argumentsHandler, successHandler);
+  return runningContext->ThreadSafeBlockingCall(cryptoManagerRef, "hash", argumentsHandler, successHandler);
 }

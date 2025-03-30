@@ -13,18 +13,14 @@ extern "C" {
 
 /**
  * @class EdhocExportOscoreAsyncWorker
- * @brief A class that represents an asynchronous worker for exporting Edhoc
- * context.
- *
- * This class inherits from Napi::AsyncWorker and provides methods for executing
- * the export operation asynchronously and handling the result or error.
+ * @brief A class that represents an asynchronous worker for exporting OSCORE context.
  */
 class EdhocExportOscoreAsyncWorker : public Napi::AsyncWorker {
  public:
   /**
    * @brief Constructs a new EdhocExportOscoreAsyncWorker object.
    *
-   * @param runningContext The reference to the running context.
+   * @param runningContext The pointer to the running context.
    */
   EdhocExportOscoreAsyncWorker(RunningContext* runningContext);
 
@@ -51,11 +47,11 @@ class EdhocExportOscoreAsyncWorker : public Napi::AsyncWorker {
   void OnError(const Napi::Error& error) override;
 
  private:
-  RunningContext* runningContext_;    ///< The running context.
-  std::vector<uint8_t> masterSecret;  ///< The master secret.
-  std::vector<uint8_t> masterSalt;    ///< The master salt.
-  std::vector<uint8_t> senderId;      ///< The sender ID.
-  std::vector<uint8_t> recipientId;   ///< The recipient ID.
+  RunningContext* runningContext_;     ///< The pointer to the running context.
+  std::vector<uint8_t> masterSecret_;  ///< The master secret.
+  std::vector<uint8_t> masterSalt_;    ///< The master salt.
+  std::vector<uint8_t> senderId_;      ///< The sender ID.
+  std::vector<uint8_t> recipientId_;   ///< The recipient ID.
 };
 
 #endif  // EDHOC_EXPORT_OSCORE_ASYNC_WORKER_H

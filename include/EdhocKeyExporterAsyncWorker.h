@@ -13,12 +13,6 @@ extern "C" {
 /**
  * @class EdhocKeyExporterAsyncWorker
  * @brief A class that represents an asynchronous worker for exporting PRKs.
- *
- * This class inherits from the Napi::AsyncWorker class and is used to perform
- * PRK export in a separate thread. It takes an Edhoc context, a label, a
- * desired length, and a callback function as input parameters. The export is
- * performed in the Execute() method, and the result is returned through the
- * OnOK() method or an error is handled through the OnError() method.
  */
 class EdhocKeyExporterAsyncWorker : public Napi::AsyncWorker {
  public:
@@ -53,10 +47,10 @@ class EdhocKeyExporterAsyncWorker : public Napi::AsyncWorker {
   void OnError(const Napi::Error& error) override;
 
  private:
-  RunningContext* runningContext_;
-  uint16_t label;
-  uint8_t desiredLength;
-  std::vector<uint8_t> output;
+  RunningContext* runningContext_; ///< Pointer to the running context.
+  uint16_t label_;                 ///< The label of the key to export.
+  uint8_t desiredLength_;          ///< The desired length of the key to export.
+  std::vector<uint8_t> output_;    ///< The output vector.
 };
 
 #endif  // EDHOC_KEY_EXPORTER_ASYNC_WORKER_H

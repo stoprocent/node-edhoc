@@ -274,7 +274,7 @@ class EdhocCryptoManager {
    * @param key_id The imported key ID.
    * @return int The result code.
    */
-  int callImportKey(const RunningContext* runningContext,
+  int callImportKey(RunningContext* runningContext,
                     enum edhoc_key_type key_type,
                     const uint8_t* raw_key,
                     size_t raw_key_length,
@@ -287,7 +287,7 @@ class EdhocCryptoManager {
    * @param key_id The key ID to destroy.
    * @return int The result code.
    */
-  int callDestroyKey(const RunningContext* runningContext, void* key_id);
+  int callDestroyKey(RunningContext* runningContext, void* key_id);
 
   /**
    * @brief Calls the MakeKeyPair function.
@@ -302,7 +302,7 @@ class EdhocCryptoManager {
    * @param public_key_length The length of the generated public key.
    * @return int The result code.
    */
-  int callMakeKeyPair(const RunningContext* runningContext,
+  int callMakeKeyPair(RunningContext* runningContext,
                       const void* key_id,
                       uint8_t* private_key,
                       size_t private_key_size,
@@ -323,7 +323,7 @@ class EdhocCryptoManager {
    * @param shared_secret_length The length of the generated shared secret.
    * @return int The result code.
    */
-  int callKeyAgreement(const RunningContext* runningContext,
+  int callKeyAgreement(RunningContext* runningContext,
                        const void* key_id,
                        const uint8_t* peer_public_key,
                        size_t peer_public_key_length,
@@ -343,7 +343,7 @@ class EdhocCryptoManager {
    * @param signature_length The length of the generated signature.
    * @return int The result code.
    */
-  int callSign(const RunningContext* runningContext,
+  int callSign(RunningContext* runningContext,
                const void* key_id,
                const uint8_t* input,
                size_t input_length,
@@ -362,7 +362,7 @@ class EdhocCryptoManager {
    * @param signature_length The length of the signature.
    * @return int The result code.
    */
-  int callVerify(const RunningContext* runningContext,
+  int callVerify(RunningContext* runningContext,
                  const void* key_id,
                  const uint8_t* input,
                  size_t input_length,
@@ -382,7 +382,7 @@ class EdhocCryptoManager {
    * key.
    * @return int The result code.
    */
-  int callExtract(const RunningContext* runningContext,
+  int callExtract(RunningContext* runningContext,
                   const void* key_id,
                   const uint8_t* salt,
                   size_t salt_len,
@@ -403,7 +403,7 @@ class EdhocCryptoManager {
    * keying material.
    * @return int The result code.
    */
-  int callExpand(const RunningContext* runningContext,
+  int callExpand(RunningContext* runningContext,
                  const void* key_id,
                  const uint8_t* info,
                  size_t info_length,
@@ -426,7 +426,7 @@ class EdhocCryptoManager {
    * @param ciphertext_length The length of the generated ciphertext.
    * @return int The result code.
    */
-  int callEncrypt(const RunningContext* runningContext,
+  int callEncrypt(RunningContext* runningContext,
                   const void* key_id,
                   const uint8_t* nonce,
                   size_t nonce_length,
@@ -454,7 +454,7 @@ class EdhocCryptoManager {
    * @param plaintext_length The length of the generated plaintext.
    * @return int The result code.
    */
-  int callDecrypt(const RunningContext* runningContext,
+  int callDecrypt(RunningContext* runningContext,
                   const void* key_id,
                   const uint8_t* nonce,
                   size_t nonce_length,
@@ -477,7 +477,7 @@ class EdhocCryptoManager {
    * @param hash_length The length of the generated hash.
    * @return int The result code.
    */
-  int callHash(const RunningContext* runningContext,
+  int callHash(RunningContext* runningContext,
                const uint8_t* input,
                size_t input_length,
                uint8_t* hash,

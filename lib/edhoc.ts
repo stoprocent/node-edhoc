@@ -331,6 +331,11 @@ export declare class EDHOC {
      * @param crypto A crypto manager to handle cryptographic functions.
      */
     constructor(connectionID: EdhocConnectionID, methods: EdhocMethod[], suites: EdhocSuite[], credentials: EdhocCredentialManager, crypto: EdhocCryptoManager);
+    
+    /**
+     * Resets the EDHOC context.
+     */
+    public reset(): void;
 
     /**
      * Composes the first EDHOC message.

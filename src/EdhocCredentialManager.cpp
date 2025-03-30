@@ -202,7 +202,7 @@ int EdhocCredentialManager::VerifyCredentials(void* user_context,
 /*
  * Method to fetch credentials
  */
-int EdhocCredentialManager::callFetchCredentials(const RunningContext* runningContext, struct edhoc_auth_creds* credentials) {
+int EdhocCredentialManager::callFetchCredentials(RunningContext* runningContext, struct edhoc_auth_creds* credentials) {
 
   auto successHandler = [this, &credentials](Napi::Env env, Napi::Value result) {
     Napi::HandleScope scope(env);
@@ -240,23 +240,21 @@ int EdhocCredentialManager::callFetchCredentials(const RunningContext* runningCo
   };
 
   auto argumentsHandler = [this](Napi::Env env) {
-    Napi::HandleScope scope(env);
     return std::vector<napi_value> { this->edhocRef_.Value() };
   };
 
-  return runningContext->ThreadSafeBlockingCall(credentialManagerRef_.Value(), "fetch", argumentsHandler, successHandler);
+  return runningContext->ThreadSafeBlockingCall(credentialManagerRef_, "fetch", argumentsHandler, successHandler);
 }
 
 /*
  * Method to verify credentials
  */
-int EdhocCredentialManager::callVerifyCredentials(const RunningContext* runningContext,
+int EdhocCredentialManager::callVerifyCredentials(RunningContext* runningContext,
                                                   struct edhoc_auth_creds* credentials,
                                                   const uint8_t** public_key_reference,
                                                   size_t* public_key_length) {
 
-  auto successHandler = [this, &credentials, &public_key_reference, &public_key_length](Napi::Env env,
-                                                                                                  Napi::Value result) {
+  auto successHandler = [this, &credentials, &public_key_reference, &public_key_length](Napi::Env env, Napi::Value result) {
     Napi::HandleScope scope(env);
     Napi::Object credsObj = result.As<Napi::Object>();
     credentialReferences_.push_back(Napi::Persistent(credsObj));
@@ -290,7 +288,6 @@ int EdhocCredentialManager::callVerifyCredentials(const RunningContext* runningC
   };
 
   auto argumentsHandler = [this, &credentials](Napi::Env env) {
-    Napi::HandleScope scope(env);
     Napi::Object resultObject = Napi::Object::New(env);
     resultObject.Set(kFormat, Napi::Number::New(env, credentials->label));
 
@@ -313,5 +310,5 @@ int EdhocCredentialManager::callVerifyCredentials(const RunningContext* runningC
     };
   };
 
-  return runningContext->ThreadSafeBlockingCall(credentialManagerRef_.Value(), "verify", argumentsHandler, successHandler);
+  return runningContext->ThreadSafeBlockingCall(credentialManagerRef_, "verify", argumentsHandler, successHandler);
 }

@@ -64,7 +64,7 @@ class EdhocCredentialManager {
    * fetched credentials.
    * @return EDHOC_SUCCESS if successful, otherwise an error code.
    */
-  int callFetchCredentials(const RunningContext* runningContext, struct edhoc_auth_creds* credentials);
+  int callFetchCredentials(RunningContext* runningContext, struct edhoc_auth_creds* credentials);
 
   /**
    * @brief Calls the VerifyCredentials function.
@@ -75,7 +75,7 @@ class EdhocCredentialManager {
    * @param public_key_length Pointer to the length of the public key.
    * @return EDHOC_SUCCESS if successful, otherwise an error code.
    */
-  int callVerifyCredentials(const RunningContext* runningContext,
+  int callVerifyCredentials(RunningContext* runningContext,
                             struct edhoc_auth_creds* credentials,
                             const uint8_t** public_key_reference,
                             size_t* public_key_length);

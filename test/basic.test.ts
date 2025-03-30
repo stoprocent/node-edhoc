@@ -61,4 +61,15 @@ describe('EDHOC Handshake', () => {
         const responderKey = await responder.exportKey(40001, 32);
         expect(initiatorKey).toEqual(responderKey);
     });
+
+    test('should fail to generate message 1 twice', async () => {
+        await initiator.composeMessage1();
+        await expect(initiator.composeMessage1()).rejects.toThrow();
+    });
+
+    test('should NOT fail to generate message 1 twice', async () => {
+        await responder.composeMessage1();
+        await responder.reset();
+        await responder.composeMessage1();
+    });
 });

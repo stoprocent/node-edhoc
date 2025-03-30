@@ -13,10 +13,10 @@ static constexpr size_t kConnectionIdSize = 7;
 EdhocExportOscoreAsyncWorker::EdhocExportOscoreAsyncWorker(RunningContext* runningContext)
     : Napi::AsyncWorker(runningContext->GetEnv()),
       runningContext_(runningContext),
-      masterSecret(kMasterSecrectSize),
-      masterSalt(kMasterSaltSize),
-      senderId(kConnectionIdSize),
-      recipientId(kConnectionIdSize) {}
+      masterSecret_(kMasterSecrectSize),
+      masterSalt_(kMasterSaltSize),
+      senderId_(kConnectionIdSize),
+      recipientId_(kConnectionIdSize) {}
 
 EdhocExportOscoreAsyncWorker::~EdhocExportOscoreAsyncWorker() {}
 
@@ -24,17 +24,17 @@ void EdhocExportOscoreAsyncWorker::Execute() {
   try {
     size_t sender_id_length, recipient_id_length;
 
-    int ret = edhoc_export_oscore_session(runningContext_->GetEdhocContext(), masterSecret.data(), masterSecret.size(), masterSalt.data(),
-                                          masterSalt.size(), senderId.data(), senderId.size(), &sender_id_length,
-                                          recipientId.data(), recipientId.size(), &recipient_id_length);
+    int ret = edhoc_export_oscore_session(runningContext_->GetEdhocContext(), masterSecret_.data(), masterSecret_.size(), masterSalt_.data(),
+                                          masterSalt_.size(), senderId_.data(), senderId_.size(), &sender_id_length,
+                                          recipientId_.data(), recipientId_.size(), &recipient_id_length);
 
     if (ret != EDHOC_SUCCESS) {
       char errorMessage[kErrorBufferSize];
       std::snprintf(errorMessage, kErrorBufferSize, kErrorMessageFormat, ret);
       SetError(errorMessage);
     } else {
-      senderId.resize(sender_id_length);
-      recipientId.resize(recipient_id_length);
+      senderId_.resize(sender_id_length);
+      recipientId_.resize(recipient_id_length);
     }
 
   } catch (const std::exception& e) {
@@ -46,10 +46,10 @@ void EdhocExportOscoreAsyncWorker::OnOK() {
   Napi::Env env = Env();
   Napi::HandleScope scope(env);
 
-  auto masterSecretBuffer = Napi::Buffer<uint8_t>::Copy(env, masterSecret.data(), masterSecret.size());
-  auto masterSaltBuffer = Napi::Buffer<uint8_t>::Copy(env, masterSalt.data(), masterSalt.size());
-  auto senderIdBuffer = Napi::Buffer<uint8_t>::Copy(env, senderId.data(), senderId.size());
-  auto recipientIdBuffer = Napi::Buffer<uint8_t>::Copy(env, recipientId.data(), recipientId.size());
+  auto masterSecretBuffer = Napi::Buffer<uint8_t>::Copy(env, masterSecret_.data(), masterSecret_.size());
+  auto masterSaltBuffer = Napi::Buffer<uint8_t>::Copy(env, masterSalt_.data(), masterSalt_.size());
+  auto senderIdBuffer = Napi::Buffer<uint8_t>::Copy(env, senderId_.data(), senderId_.size());
+  auto recipientIdBuffer = Napi::Buffer<uint8_t>::Copy(env, recipientId_.data(), recipientId_.size());
 
   Napi::Object resultObj = Napi::Object::New(env);
   resultObj.Set(kPropMasterSecret, masterSecretBuffer);
