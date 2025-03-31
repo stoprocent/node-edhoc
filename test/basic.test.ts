@@ -1,5 +1,5 @@
 import { randomBytes } from 'crypto';
-import { EDHOC, X509CertificateCredentialManager, DefaultEdhocCryptoManager, EdhocMethod, EdhocSuite, EdhocKeyType, EdhocCryptoManager } from '../dist/index'
+import { EDHOC, X509CertificateCredentialManager, DefaultEdhocCryptoManager, EdhocMethod, EdhocSuite, EdhocKeyType } from '../dist/index'
 
 describe('EDHOC Handshake', () => {
     // Test setup variables
@@ -12,9 +12,6 @@ describe('EDHOC Handshake', () => {
     
     let initiatorCredentialManager: X509CertificateCredentialManager;
     let responderCredentialManager: X509CertificateCredentialManager;
-
-    let initiatorCryptoManager: EdhocCryptoManager;
-    let responderCryptoManager: EdhocCryptoManager;
 
     class StaticCryptoManager extends DefaultEdhocCryptoManager {
 
@@ -43,7 +40,7 @@ describe('EDHOC Handshake', () => {
         );
         initiatorCredentialManager.addTrustedCA(trustedCA);
 
-        initiatorCryptoManager = new DefaultEdhocCryptoManager();
+        const initiatorCryptoManager = new DefaultEdhocCryptoManager();
         initiatorCryptoManager.addKey(initiatorKeyID, Buffer.from('DC1FBB05B6B08360CE5B9EEA08EBFBFC6766A21340641863D4C8A3F68F096337', 'hex'));
 
         const responderKeyID = Buffer.from('00000002', 'hex');
@@ -53,7 +50,7 @@ describe('EDHOC Handshake', () => {
         );
         responderCredentialManager.addTrustedCA(trustedCA);
 
-        responderCryptoManager = new DefaultEdhocCryptoManager();
+        const responderCryptoManager = new DefaultEdhocCryptoManager();
         responderCryptoManager.addKey(responderKeyID, Buffer.from('EE6287116FE27CDC539629DC87E12BF8EAA2229E7773AA67BC4C0FBA96E7FBB2', 'hex'));
 
         // Initialize EDHOC instances
@@ -105,8 +102,8 @@ describe('EDHOC Handshake', () => {
         });
 
         it('messages should be the same', async () => {
-            initiatorCryptoManager = new StaticCryptoManager();
-            responderCryptoManager = new StaticCryptoManager();
+            const initiatorCryptoManager = new StaticCryptoManager();
+            const responderCryptoManager = new StaticCryptoManager();
             
             initiator = new EDHOC(10, [EdhocMethod.Method1], [EdhocSuite.Suite2], initiatorCredentialManager, initiatorCryptoManager);
             responder = new EDHOC(20, [EdhocMethod.Method2, EdhocMethod.Method0, EdhocMethod.Method1], [EdhocSuite.Suite2], responderCredentialManager, responderCryptoManager);
