@@ -43,7 +43,7 @@ describe('EDHOC Handshake', () => {
         );
         initiatorCredentialManager.addTrustedCA(trustedCA);
 
-        const initiatorCryptoManager = new DefaultEdhocCryptoManager();
+        initiatorCryptoManager = new DefaultEdhocCryptoManager();
         initiatorCryptoManager.addKey(initiatorKeyID, Buffer.from('DC1FBB05B6B08360CE5B9EEA08EBFBFC6766A21340641863D4C8A3F68F096337', 'hex'));
 
         const responderKeyID = Buffer.from('00000002', 'hex');
@@ -53,7 +53,7 @@ describe('EDHOC Handshake', () => {
         );
         responderCredentialManager.addTrustedCA(trustedCA);
 
-        const responderCryptoManager = new DefaultEdhocCryptoManager();
+        responderCryptoManager = new DefaultEdhocCryptoManager();
         responderCryptoManager.addKey(responderKeyID, Buffer.from('EE6287116FE27CDC539629DC87E12BF8EAA2229E7773AA67BC4C0FBA96E7FBB2', 'hex'));
 
         // Initialize EDHOC instances
@@ -96,7 +96,7 @@ describe('EDHOC Handshake', () => {
     });
 
     describe('should NOT fail to generate message 1 twice', () => {
-        
+
         it('messages should be different', async () => {
             const message_a = await responder.composeMessage1();
             await responder.reset();
@@ -105,8 +105,8 @@ describe('EDHOC Handshake', () => {
         });
 
         it('messages should be the same', async () => {
-            const initiatorCryptoManager = new StaticCryptoManager();
-            const responderCryptoManager = new StaticCryptoManager();
+            initiatorCryptoManager = new StaticCryptoManager();
+            responderCryptoManager = new StaticCryptoManager();
             
             initiator = new EDHOC(10, [EdhocMethod.Method1], [EdhocSuite.Suite2], initiatorCredentialManager, initiatorCryptoManager);
             responder = new EDHOC(20, [EdhocMethod.Method2, EdhocMethod.Method0, EdhocMethod.Method1], [EdhocSuite.Suite2], responderCredentialManager, responderCryptoManager);
