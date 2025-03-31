@@ -210,29 +210,34 @@ void Edhoc::SetLogger(const Napi::CallbackInfo& info, const Napi::Value& value) 
 
 void Edhoc::Logger(void* user_context, const char* name, const uint8_t* buffer, size_t buffer_length) {
   RunningContext* context = static_cast<RunningContext*>(const_cast<void*>(user_context));
-  // context->GetTsfn().NonBlockingCall(context, [name = std::string(name), bufferCopy](Napi::Env env, Napi::Function jsCallback, Edhoc* edhoc) {
+  
+  if (!context || !context->GetTsfn() || !context->GetLoggerRef()) {
+    return;
+  }
 
-  // auto* edhoc = static_cast<Edhoc*>(user_context);
-  // if (!edhoc || !edhoc->logger_ || !edhoc->tsfn_) {
-  //   return;
-  // }
+  const std::vector<uint8_t> bufferCopy(buffer, buffer + buffer_length);
 
-  // const std::vector<uint8_t> bufferCopy(buffer, buffer + buffer_length);
-
-  // edhoc->GetTsfn().NonBlockingCall(edhoc, [name = std::string(name), bufferCopy](Napi::Env env, Napi::Function jsCallback, Edhoc* edhoc) {
-  //   Napi::HandleScope scope(env);
-  //   try {
-  //     edhoc->logger_.Call({Napi::String::New(env, name), Napi::Buffer<uint8_t>::Copy(env, bufferCopy.data(), bufferCopy.size())});
-  //   } catch (const Napi::Error& e) {
-  //      // This is just a logger, so we don't want to throw an error
-  //     std::cerr << "Error in Logger: " << e.Get("stack").ToString().Utf8Value() << std::endl;
-  //   }
-  // });
+  context->GetTsfn().NonBlockingCall(context, [name = std::string(name), bufferCopy](Napi::Env env, Napi::Function jsCallback, RunningContext* context) {
+    Napi::HandleScope scope(env);
+    try {
+      context->GetLoggerRef().Value().As<Napi::Function>().Call({Napi::String::New(env, name), Napi::Buffer<uint8_t>::Copy(env, bufferCopy.data(), bufferCopy.size())});
+    } catch (const Napi::Error& e) {
+       // This is just a logger, so we don't want to throw an error
+      std::cerr << "Error in Logger: " << e.Get("stack").ToString().Utf8Value() << std::endl;
+    }
+  });
 }
 
 void Edhoc::StartRunningContext(Napi::Env env) {
   // Initialize the running context
-  this->runningContext_ = std::make_unique<RunningContext>(env, edhocContext_.get(), this->cryptoManager_.get(), this->eadManager_.get(), this->credentialManager_.get());
+  this->runningContext_ = std::make_unique<RunningContext>(
+    env, 
+    edhocContext_.get(), 
+    this->cryptoManager_.get(), 
+    this->eadManager_.get(), 
+    this->credentialManager_.get(), 
+    logger_.Value()
+  );
 
   // Set the user context of the EDHOC context
   if (edhoc_set_user_context(edhocContext_.get(), static_cast<void*>(this->runningContext_.get())) != EDHOC_SUCCESS) {

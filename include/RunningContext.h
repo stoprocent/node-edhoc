@@ -39,7 +39,8 @@ class RunningContext {
                  struct edhoc_context* edhoc_context,
                  EdhocCryptoManager* cryptoManager,
                  EdhocEadManager* eadManager,
-                 EdhocCredentialManager* credentialManager);
+                 EdhocCredentialManager* credentialManager,
+                 const Napi::Function& logger);
       
   /**
    * @brief Get the Napi::Env object.
@@ -84,7 +85,8 @@ class RunningContext {
   EdhocEadManager* GetEadManager() const { return eadManager_; }
   EdhocCredentialManager* GetCredentialManager() const { return credentialManager_; }
   struct edhoc_context* GetEdhocContext() const { return edhoc_context_; }
-
+  Napi::FunctionReference& GetLoggerRef() { return loggerRef_; }
+  
  private:
   struct edhoc_context* edhoc_context_;       ///< Pointer to the edhoc_context object.
   EdhocCryptoManager* cryptoManager_;         ///< Pointer to the cryptoManager object.
@@ -92,7 +94,9 @@ class RunningContext {
   EdhocCredentialManager* credentialManager_; ///< Pointer to the credentialManager object.
   Napi::ThreadSafeFunction tsfn_;             ///< ThreadSafeFunction object.
   Napi::Promise::Deferred deferred_;          ///< Deferred object.
+  Napi::FunctionReference loggerRef_;           ///< Reference to the logger function.
   bool isResolved_;                           ///< Boolean to check if the promise is resolved.
+  
 };
 
 #endif  // RUNNING_CONTEXT_H

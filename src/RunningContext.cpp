@@ -4,13 +4,15 @@ RunningContext::RunningContext(Napi::Env env,
                  struct edhoc_context* edhoc_context,
                  EdhocCryptoManager* cryptoManager,
                  EdhocEadManager* eadManager,
-                 EdhocCredentialManager* credentialManager) 
+                 EdhocCredentialManager* credentialManager,
+                 const Napi::Function& logger) 
     : edhoc_context_(edhoc_context)
     , cryptoManager_(cryptoManager)
     , eadManager_(eadManager)
     , credentialManager_(credentialManager)
     , tsfn_()
     , deferred_(Napi::Promise::Deferred::New(env))
+    , loggerRef_(Napi::Weak(logger))
     , isResolved_(false)
 {
     Napi::Function jsCallback = Napi::Function::New(env, [](const Napi::CallbackInfo& info) { return Napi::Value(); });
