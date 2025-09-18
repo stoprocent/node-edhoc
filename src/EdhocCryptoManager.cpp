@@ -224,7 +224,7 @@ int EdhocCryptoManager::callImportKey(RunningContext* runningContext,
     return std::vector<napi_value> {
       this->edhocRef.Value(),
       Napi::Number::New(env, static_cast<int>(key_type)),
-      Napi::Buffer<uint8_t>::New(env, const_cast<uint8_t*>(raw_key), raw_key_length)
+      Napi::Buffer<uint8_t>::Copy(env, const_cast<uint8_t*>(raw_key), raw_key_length)
     };
   };
 
