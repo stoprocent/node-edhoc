@@ -166,7 +166,7 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
         return Buffer.from(sha256(data));
     }
 
-    private getKey(keyID: Buffer): Buffer {
+    public getKey(keyID: Buffer): Buffer {
         const kid = keyID.toString('hex');
         if (kid in this.keys === false) {
             throw new Error(`Key '${kid}' not found`);
