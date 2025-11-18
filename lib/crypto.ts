@@ -126,7 +126,7 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
         return expanded;
     }
 
-    encrypt(edhoc: EDHOC, keyID: Buffer, nonce: Buffer, aad: Buffer, plaintext: Buffer, _size: number) {
+    async encrypt(edhoc: EDHOC, keyID: Buffer, nonce: Buffer, aad: Buffer, plaintext: Buffer, _size: number): Promise<Buffer> {
         const key = this.getKey(keyID);
         const algorithm = this.getAlgorithm(edhoc.selectedSuite);
         const options: CipherCCMOptions | CipherGCMOptions = { 
@@ -145,7 +145,7 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
         return encrypted;
     }
 
-    decrypt(edhoc: EDHOC, keyID: Buffer, nonce: Buffer, aad: Buffer, ciphertext: Buffer, _size: number) {
+    async decrypt(edhoc: EDHOC, keyID: Buffer, nonce: Buffer, aad: Buffer, ciphertext: Buffer, _size: number): Promise<Buffer> {
         const key = this.getKey(keyID);
         const tagLength = this.getTagLength(edhoc.selectedSuite);
         const algorithm = this.getAlgorithm(edhoc.selectedSuite);
@@ -166,7 +166,7 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
         return Buffer.from(sha256(data));
     }
 
-    public getKey(keyID: Buffer): Buffer {
+    private getKey(keyID: Buffer): Buffer {
         const kid = keyID.toString('hex');
         if (kid in this.keys === false) {
             throw new Error(`Key '${kid}' not found`);
