@@ -27,6 +27,89 @@ static constexpr const char* kInvalidInputDataErrorX509Chain = "Invalid input da
 static constexpr const char* kInvalidInputDataErrorX509Hash = "Invalid input data for X.509 hash";
 static constexpr const char* kErrorObjectExpected = "Object expected";
 
+static Napi::Value copy_if_buffer(Napi::Env env, const Napi::Value& value) {
+  if (value.IsBuffer()) {
+    auto buf = value.As<Napi::Buffer<uint8_t>>();
+    return Napi::Buffer<uint8_t>::Copy(env, buf.Data(), buf.Length());
+  }
+  return value;
+}
+
+static Napi::Object clone_credentials_object(Napi::Env env, const Napi::Object& credsObj) {
+  if (!credsObj.Has(kFormat)) {
+    throw std::runtime_error(kInvalidInputCredentialTypeError);
+  }
+
+  Napi::Object out = Napi::Object::New(env);
+  out.Set(kFormat, credsObj.Get(kFormat));
+
+  // Optional fields that can appear on credentials object
+  if (credsObj.Has(kPrivateKeyId) && !credsObj.Get(kPrivateKeyId).IsNull() && !credsObj.Get(kPrivateKeyId).IsUndefined()) {
+    out.Set(kPrivateKeyId, copy_if_buffer(env, credsObj.Get(kPrivateKeyId)));
+  }
+  if (credsObj.Has(kPublicKey) && !credsObj.Get(kPublicKey).IsNull() && !credsObj.Get(kPublicKey).IsUndefined()) {
+    out.Set(kPublicKey, copy_if_buffer(env, credsObj.Get(kPublicKey)));
+  }
+
+  const int label = credsObj.Get(kFormat).As<Napi::Number>().Int32Value();
+  switch (label) {
+    case EDHOC_COSE_HEADER_KID: {
+      Napi::Object kidObj = credsObj.Get(kKid).As<Napi::Object>();
+      Napi::Object newKidObj = Napi::Object::New(env);
+
+      if (kidObj.Has(kIsCBOR)) {
+        newKidObj.Set(kIsCBOR, kidObj.Get(kIsCBOR));
+      }
+      if (kidObj.Has(kKid)) {
+        newKidObj.Set(kKid, copy_if_buffer(env, kidObj.Get(kKid)));
+      }
+      if (kidObj.Has(kCredentials)) {
+        newKidObj.Set(kCredentials, copy_if_buffer(env, kidObj.Get(kCredentials)));
+      }
+
+      out.Set(kKid, newKidObj);
+      break;
+    }
+    case EDHOC_COSE_HEADER_X509_CHAIN: {
+      Napi::Object x5chainObj = credsObj.Get(kX5chain).As<Napi::Object>();
+      Napi::Object newX5chainObj = Napi::Object::New(env);
+
+      if (x5chainObj.Has(kCertificates)) {
+        Napi::Array certArray = x5chainObj.Get(kCertificates).As<Napi::Array>();
+        Napi::Array newCertArray = Napi::Array::New(env, certArray.Length());
+        for (uint32_t i = 0; i < certArray.Length(); ++i) {
+          newCertArray.Set(i, copy_if_buffer(env, certArray.Get(i)));
+        }
+        newX5chainObj.Set(kCertificates, newCertArray);
+      }
+
+      out.Set(kX5chain, newX5chainObj);
+      break;
+    }
+    case EDHOC_COSE_HEADER_X509_HASH: {
+      Napi::Object x5tObj = credsObj.Get(kX5t).As<Napi::Object>();
+      Napi::Object newX5tObj = Napi::Object::New(env);
+
+      if (x5tObj.Has(kCertificate) && !x5tObj.Get(kCertificate).IsUndefined() && !x5tObj.Get(kCertificate).IsNull()) {
+        newX5tObj.Set(kCertificate, copy_if_buffer(env, x5tObj.Get(kCertificate)));
+      }
+      if (x5tObj.Has(kHash)) {
+        newX5tObj.Set(kHash, copy_if_buffer(env, x5tObj.Get(kHash)));
+      }
+      if (x5tObj.Has(kHashAlgorithm)) {
+        newX5tObj.Set(kHashAlgorithm, x5tObj.Get(kHashAlgorithm));
+      }
+
+      out.Set(kX5t, newX5tObj);
+      break;
+    }
+    default:
+      throw std::runtime_error(kUnsupportedCredentialTypeError);
+  }
+
+  return out;
+}
+
 /*
  * Convert a JavaScript object to an edhoc_auth_cred_key_id
  */
@@ -172,10 +255,26 @@ EdhocCredentialManager::EdhocCredentialManager(Napi::Object& jsCredentialManager
 EdhocCredentialManager::~EdhocCredentialManager() {
   credentialManagerRef_.Reset();
   edhocRef_.Reset();
+  cachedPeerCredentialsRef_.Reset();
   for (auto& ref : credentialReferences_) {
     ref.Reset();
   }
   credentialReferences_.clear();
+}
+
+void EdhocCredentialManager::ClearCachedCredentials() {
+  cachedPeerCredentialsRef_.Reset();
+  for (auto& ref : credentialReferences_) {
+    ref.Reset();
+  }
+  credentialReferences_.clear();
+}
+
+Napi::Value EdhocCredentialManager::GetCachedPeerCredentials(Napi::Env env) {
+  if (cachedPeerCredentialsRef_.IsEmpty()) {
+    return env.Null();
+  }
+  return cachedPeerCredentialsRef_.Value();
 }
 
 /*
@@ -258,6 +357,10 @@ int EdhocCredentialManager::callVerifyCredentials(RunningContext* runningContext
     Napi::HandleScope scope(env);
     Napi::Object credsObj = result.As<Napi::Object>();
     credentialReferences_.push_back(Napi::Persistent(credsObj));
+    // Cache a deep copy of the final peer credentials object for later export.
+    // (Deep copy prevents user-side mutations from affecting the cached value.)
+    cachedPeerCredentialsRef_.Reset();
+    cachedPeerCredentialsRef_ = Napi::Persistent(clone_credentials_object(env, credsObj));
 
     if (credsObj.IsObject() == false) {
       throw std::runtime_error(kInvalidInputCredentialTypeError);

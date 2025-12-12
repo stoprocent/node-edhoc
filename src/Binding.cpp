@@ -53,6 +53,11 @@ void Edhoc::Reset(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
   Napi::HandleScope scope(env);
 
+  // Clear cached session state from previous run
+  if (this->credentialManager_ != nullptr) {
+    this->credentialManager_->ClearCachedCredentials();
+  }
+
   bool isInitialized = edhocContext_ != nullptr;
 
   // Get the Connection ID, Methods, and Suites
@@ -373,6 +378,12 @@ Napi::Value Edhoc::ExportKey(const Napi::CallbackInfo& info) {
   return this->runningContext_->GetPromise();
 }
 
+Napi::Value Edhoc::ExportUsedPeerCredentials(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  Napi::HandleScope scope(env);
+  return this->credentialManager_->GetCachedPeerCredentials(env);
+}
+
 Napi::Value Edhoc::KeyUpdate(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
   Napi::HandleScope scope(env);
@@ -420,6 +431,7 @@ Napi::Object Edhoc::Init(Napi::Env env, Napi::Object exports) {
     InstanceMethod("processMessage4", &Edhoc::ProcessMessage4),
     InstanceMethod("exportOSCORE", &Edhoc::ExportOSCORE),
     InstanceMethod("exportKey", &Edhoc::ExportKey),
+    InstanceMethod("exportUsedPeerCredentials", &Edhoc::ExportUsedPeerCredentials),
     InstanceMethod("keyUpdate", &Edhoc::KeyUpdate),
   });
 

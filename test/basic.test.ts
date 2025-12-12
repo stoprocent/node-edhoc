@@ -85,6 +85,15 @@ describe('EDHOC Handshake', () => {
         const initiatorKey = await initiator.exportKey(40001, 32);
         const responderKey = await responder.exportKey(40001, 32);
         expect(initiatorKey).toEqual(responderKey);
+
+        // Peer credentials should be available after peer verification
+        const initiatorPeerCreds = initiator.exportUsedPeerCredentials();
+        expect(initiatorPeerCreds).not.toBeNull();
+        expect((initiatorPeerCreds as any).publicKey).toBeInstanceOf(Buffer);
+
+        // reset() should clear cached peer credentials
+        initiator.reset();
+        expect(initiator.exportUsedPeerCredentials()).toBeNull();
     });
 
     test('should fail to generate message 1 twice', async () => {

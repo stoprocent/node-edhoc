@@ -35,6 +35,22 @@ class EdhocCredentialManager {
   ~EdhocCredentialManager();
 
   /**
+   * @brief Clears any cached credential objects from the previous EDHOC run.
+   *
+   * This is intended to be called from EDHOC::reset() to avoid leaking
+   * credential references across sessions and to ensure exported values
+   * reflect only the current session.
+   */
+  void ClearCachedCredentials();
+
+  /**
+   * @brief Returns the last peer credentials object returned from JS verify().
+   *
+   * @return Napi::Value The cached credentials object, or null if not available.
+   */
+  Napi::Value GetCachedPeerCredentials(Napi::Env env);
+
+  /**
    * @brief Static function to fetch the credentials.
    * @param user_context The user context.
    * @param credentials Pointer to the edhoc_auth_creds structure to store the
@@ -84,6 +100,7 @@ class EdhocCredentialManager {
   std::vector<Napi::Reference<Napi::Object>> credentialReferences_;  ///< References to the JS objects
   Napi::ObjectReference credentialManagerRef_;                       ///< Reference to the JS object
   Napi::ObjectReference edhocRef_;
+  Napi::ObjectReference cachedPeerCredentialsRef_;                   ///< Cached peer credential (post-verify)
 };
 
 #endif  // EDHOC_CREDENTIAL_MANAGER_H

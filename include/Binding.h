@@ -283,6 +283,17 @@ class Edhoc : public Napi::ObjectWrap<Edhoc> {
   Napi::Value ExportKey(const Napi::CallbackInfo& info);
 
   /**
+   * @brief Exports the peer credentials used during the EDHOC exchange.
+   *
+   * Returns the last credentials object returned from the user-provided
+   * credential manager's verify() function. This is a synchronous call.
+   *
+   * @param info The Napi::CallbackInfo representing the callback information.
+   * @return Napi::Value The peer credentials object or Null if not available.
+   */
+  Napi::Value ExportUsedPeerCredentials(const Napi::CallbackInfo& info);
+
+  /**
    * @brief Performs a key update.
    *
    * This method performs a key update for the Edhoc object.

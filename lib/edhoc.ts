@@ -412,6 +412,14 @@ export declare class EDHOC {
     public exportKey(exporterLabel: number, length: number): Promise<Buffer> | never;
 
     /**
+     * Exports the peer credentials used during the EDHOC exchange.
+     * This returns the (post-verify) credentials object returned by your credential manager's `verify(...)`.
+     *
+     * Returns `null` if the peer credentials haven't been verified yet, or after `reset()`.
+     */
+    public exportUsedPeerCredentials(): EdhocCredentials | null;
+
+    /**
      * Key update for the new OSCORE security session
      * Read Appendix H of RFC 9528 - https://www.rfc-editor.org/rfc/rfc9528.html#appendix-H
      * @param context Buffer containing the entropy for key update.
