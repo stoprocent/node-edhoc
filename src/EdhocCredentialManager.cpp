@@ -355,16 +355,20 @@ int EdhocCredentialManager::callVerifyCredentials(RunningContext* runningContext
 
   auto successHandler = [this, &credentials, &public_key_reference, &public_key_length](Napi::Env env, Napi::Value result) {
     Napi::HandleScope scope(env);
-    Napi::Object credsObj = result.As<Napi::Object>();
-    credentialReferences_.push_back(Napi::Persistent(credsObj));
-    // Cache a deep copy of the final peer credentials object for later export.
-    // (Deep copy prevents user-side mutations from affecting the cached value.)
+    // Clear cached peer credentials for this attempt. If verification fails below,
+    // exportUsedPeerCredentials() should not return stale/invalid data.
     cachedPeerCredentialsRef_.Reset();
-    cachedPeerCredentialsRef_ = Napi::Persistent(clone_credentials_object(env, credsObj));
 
-    if (credsObj.IsObject() == false) {
+    if (result.IsObject() == false) {
       throw std::runtime_error(kInvalidInputCredentialTypeError);
     }
+
+    Napi::Object credsObj = result.As<Napi::Object>();
+    if (credsObj.Has(kFormat) == false) {
+      throw std::runtime_error(kInvalidInputCredentialTypeError);
+    }
+
+    credentialReferences_.push_back(Napi::Persistent(credsObj));
 
     int label = credsObj.Get(kFormat).As<Napi::Number>().Int32Value();
     switch (label) {
@@ -386,6 +390,10 @@ int EdhocCredentialManager::callVerifyCredentials(RunningContext* runningContext
       *public_key_reference = publicKeyBuffer.Data();
       *public_key_length = publicKeyBuffer.Length();
     }
+
+    // Cache a deep copy of the validated peer credentials object for later export.
+    // (Deep copy prevents user-side mutations from affecting the cached value.)
+    cachedPeerCredentialsRef_ = Napi::Persistent(clone_credentials_object(env, credsObj));
 
     return EDHOC_SUCCESS;
   };

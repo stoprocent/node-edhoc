@@ -89,7 +89,7 @@ describe('EDHOC Handshake', () => {
         // Peer credentials should be available after peer verification
         const initiatorPeerCreds = initiator.exportUsedPeerCredentials();
         expect(initiatorPeerCreds).not.toBeNull();
-        expect((initiatorPeerCreds as any).publicKey).toBeInstanceOf(Buffer);
+        expect((initiatorPeerCreds as { publicKey: Buffer }).publicKey).toBeInstanceOf(Buffer);
 
         // reset() should clear cached peer credentials
         initiator.reset();
