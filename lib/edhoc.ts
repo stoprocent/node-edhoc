@@ -15,6 +15,25 @@ import {
     parseEadItems,
 } from './cbor-utils';
 
+// ── Error Types ─────────────────────────────────────────────────────────
+
+export class EdhocError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'EdhocError';
+    }
+}
+
+export class EdhocCipherSuiteError extends EdhocError {
+    public readonly peerCipherSuites: number[];
+
+    constructor(message: string, peerCipherSuites: number[]) {
+        super(message);
+        this.name = 'EdhocCipherSuiteError';
+        this.peerCipherSuites = peerCipherSuites;
+    }
+}
+
 // ── Public Types & Interfaces ──────────────────────────────────────────
 
 export enum EdhocCredentialsFormat {
@@ -259,11 +278,11 @@ export class EDHOC {
         this._role = 'responder';
 
         const items = decodeCborSequence(message);
-        if (items.length < 4) throw new Error('Invalid message_1');
+        if (items.length < 4) throw new EdhocError('Invalid message_1');
 
         // Parse METHOD
         const method = items[0] as number;
-        if (!this.methods.includes(method)) throw new Error(`Unsupported method: ${method}`);
+        if (!this.methods.includes(method)) throw new EdhocError(`Unsupported method: ${method}`);
         this._method = method as EdhocMethod;
 
         // Parse SUITES_I
@@ -272,9 +291,10 @@ export class EDHOC {
             ? rawSuites as EdhocSuite
             : (rawSuites as number[])[(rawSuites as number[]).length - 1] as EdhocSuite;
         if (!this.cipherSuites.includes(selected)) {
-            const err: any = new Error(`Unsupported cipher suite: ${selected}`);
-            err.peerCipherSuites = typeof rawSuites === 'number' ? [rawSuites] : rawSuites;
-            throw err;
+            throw new EdhocCipherSuiteError(
+                `Unsupported cipher suite: ${selected}`,
+                typeof rawSuites === 'number' ? [rawSuites] : rawSuites as number[]
+            );
         }
         this._suite = selected;
         this._suiteParams = getCipherSuiteParams(selected);
@@ -398,7 +418,7 @@ export class EDHOC {
 
         // Parse PLAINTEXT_2: C_R, ID_CRED_R, Signature_or_MAC_2, ?EAD_2
         const pt2Items = decodeCborSequence(pt2);
-        if (pt2Items.length < 3) throw new Error('Invalid PLAINTEXT_2');
+        if (pt2Items.length < 3) throw new EdhocError('Invalid PLAINTEXT_2');
         this._peerCid = connectionIdFromCbor(pt2Items[0]);
 
         const parsed = parsePlaintext(Buffer.concat(
@@ -601,7 +621,7 @@ export class EDHOC {
     // ── export API ─────────────────────────────────────────────────────
 
     public async exportOSCORE(): Promise<EdhocOscoreContext> {
-        if (!this._prkExporter) throw new Error('Handshake not completed');
+        if (!this._prkExporter) throw new EdhocError('Handshake not completed');
 
         const masterSecret = await this.kdf(this._prkExporter, 0, Buffer.alloc(0), 16);
         const masterSalt = await this.kdf(this._prkExporter, 1, Buffer.alloc(0), 8);
@@ -614,7 +634,7 @@ export class EDHOC {
     }
 
     public async exportKey(exporterLabel: number, length: number): Promise<Buffer> {
-        if (!this._prkExporter) throw new Error('Handshake not completed');
+        if (!this._prkExporter) throw new EdhocError('Handshake not completed');
         return this.kdf(this._prkExporter, exporterLabel, Buffer.alloc(0), length);
     }
 
@@ -623,7 +643,7 @@ export class EDHOC {
     }
 
     public async keyUpdate(context: Buffer): Promise<void> {
-        if (!this._prkOut) throw new Error('Handshake not completed');
+        if (!this._prkOut) throw new EdhocError('Handshake not completed');
         this._prkOut = await this.kdf(this._prkOut, 11, context, this._suiteParams.hashLength);
         this._prkExporter = await this.kdf(this._prkOut, 10, Buffer.alloc(0), this._suiteParams.hashLength);
     }
@@ -763,7 +783,7 @@ export class EDHOC {
             : (this._method === EdhocMethod.Method0 || this._method === EdhocMethod.Method1);
 
         if (!usesSig) {
-            if (!mac.equals(received)) throw new Error('MAC verification failed');
+            if (!mac.equals(received)) throw new EdhocError('MAC verification failed');
             return;
         }
 
@@ -821,7 +841,7 @@ export class EDHOC {
 
     private assertState(expected: State, method: string): void {
         if (this._state !== expected) {
-            throw new Error(`Invalid state for ${method}`);
+            throw new EdhocError(`Invalid state for ${method}`);
         }
     }
 }
