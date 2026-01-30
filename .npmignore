@@ -2,15 +2,13 @@
 .eslintrc.js
 .releaserc
 .github
-.clang-format
+.claude
 *.md
 eslint.config.*
 build
 docs
-external/**/*
-!external/**/*.c
-!external/**/*.h
 npm-debug.log
 tsconfig.json
 lib
+test
 example

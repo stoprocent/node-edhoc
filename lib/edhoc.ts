@@ -1,241 +1,101 @@
-/**
- * Enumerates the types of credential formats that can be used with EDHOC.
- */
+import cbor from 'cbor';
+import { getCipherSuiteParams, CipherSuiteParams } from './cipher-suites';
+import {
+    encodeCborSequence,
+    decodeCborSequence,
+    encodeSuites,
+    connectionIdToBytes,
+    connectionIdFromCbor,
+    encodeIdCred,
+    decodeIdCred,
+    getCredBytes,
+    encodePlaintext,
+    parsePlaintext,
+    encodeEadItems,
+    parseEadItems,
+} from './cbor-utils';
+
+// ── Public Types & Interfaces ──────────────────────────────────────────
+
 export enum EdhocCredentialsFormat {
-    kid = 4,         // Represents a key identifier.
-    x5chain = 33,    // Represents an X.509 certificate chain.
-    x5t = 34         // Represents a hashed X.509 certificate.
+    kid = 4,
+    x5chain = 33,
+    x5t = 34,
 }
 
-/**
- * Base interface for EDHOC credentials.
- */
 export interface EdhocCredentials {
-    format: EdhocCredentialsFormat,  // Format of the credentials using EdhocCredentialsFormat.
-    privateKeyID?: Buffer,           // Optional buffer containing the private key identifier.
-    publicKey?: Buffer,              // Optional buffer containing the public key.
+    format: EdhocCredentialsFormat;
+    privateKeyID?: Buffer;
+    publicKey?: Buffer;
 }
 
-/**
- * Extends EdhocCredentials for credentials using a key identifier (KID).
- */
 export interface EdhocCredentialsKID extends EdhocCredentials {
-    format: EdhocCredentialsFormat.kid,  // Fixed format set to 'kid' for Key Identifier.
+    format: EdhocCredentialsFormat.kid;
     kid: {
-        kid: number | Buffer,           // The numeric key identifier or buffer containing the key identifier.
-        credentials?: Buffer,           // Optional buffer containing credential data (e.g. CCS, CWT).
-        isCBOR?: boolean                // Optional flag indicating if the credentials are in CBOR format.
-    }
+        kid: number | Buffer;
+        credentials?: Buffer;
+        isCBOR?: boolean;
+    };
 }
 
-/**
- * Extends EdhocCredentials for credentials using an X.509 certificate chain.
- */
 export interface EdhocCredentialsCertificateChain extends EdhocCredentials {
-    format: EdhocCredentialsFormat.x5chain,  // Fixed format set to 'x5chain' for X.509 certificate chain.
-    x5chain: {
-        certificates: Buffer[]  // Array of Buffers containing the X.509 certificates chain.
-    }
+    format: EdhocCredentialsFormat.x5chain;
+    x5chain: { certificates: Buffer[] };
 }
 
-/**
- * Extends EdhocCredentials for credentials using a hashed X.509 certificate.
- */
 export interface EdhocCredentialsCertificateHash extends EdhocCredentials {
-    format: EdhocCredentialsFormat.x5t,  // Fixed format set to 'x5t' for X.509 certificate thumbprint.
+    format: EdhocCredentialsFormat.x5t;
     x5t: {
-        certificate?: Buffer,                              // Optional buffer containing the X.509 certificate.
-        hash: Buffer,                                      // Buffer containing the hash of the certificate.
-        hashAlgorithm: EdhocCredentialsCertificateHashAlgorithm  // Hash algorithm used.
-    }
+        certificate?: Buffer;
+        hash: Buffer;
+        hashAlgorithm: EdhocCredentialsCertificateHashAlgorithm;
+    };
 }
 
-/**
- * Enumerates the types of hash algorithms that can be used with hashed X.509 certificates.
- */
 export enum EdhocCredentialsCertificateHashAlgorithm {
-    Sha256 = -16,     // SHA-256 hash algorithm.
-    Sha256_64 = -15   // SHA-256 truncated to 64 bits.
+    Sha256 = -16,
+    Sha256_64 = -15,
 }
 
-/**
- * Provides methods for managing EDHOC credentials.
- */
 export interface EdhocCredentialManager {
-    /**
-     * Fetches EDHOC credentials based on the provided EDHOC context.
-     * @param edhoc The EDHOC context for which to fetch credentials.
-     * @return A promise that resolves to the fetched EdhocCredentials or throws an error if not successful.
-     */
     fetch(edhoc: EDHOC): Promise<EdhocCredentials> | EdhocCredentials | never;
-
-    /**
-     * Verifies EDHOC credentials based on the provided EDHOC context and credentials.
-     * @param edhoc The EDHOC context against which to verify credentials.
-     * @param credentials The credentials to verify.
-     * @return A promise that resolves to the verified EdhocCredentials or throws an error if not successful.
-     */
-    verify(edhoc: EDHOC, credentials: EdhocCredentials, callback: (error: Error | null, credentials: EdhocCredentials) => void): void;
+    verify(edhoc: EDHOC, credentials: EdhocCredentials): Promise<EdhocCredentials> | EdhocCredentials | never;
 }
 
-/**
- * Enumerates the types of cryptographic operations that can be performed with EDHOC.
- */
 export enum EdhocKeyType {
-    MakeKeyPair,  // Used to generate a key pair.
-    KeyAgreement, // Used for key agreement operations.
-    Signature,    // Used for creating digital signatures.
-    Verify,       // Used for verifying digital signatures.
-    Extract,      // Used for extracting key material.
-    Expand,       // Used for expanding key material.
-    Encrypt,      // Used for encrypting data.
-    Decrypt,      // Used for decrypting data.
+    MakeKeyPair,
+    KeyAgreement,
+    Signature,
+    Verify,
+    Extract,
+    Expand,
+    Encrypt,
+    Decrypt,
 }
 
-/**
- * Type representing a public key in buffer format.
- */
 export type EdhocPublicKey = Buffer;
-
-/**
- * Type representing a private key in buffer format.
- */
 export type EdhocPrivateKey = Buffer;
 
-/**
- * Represents a tuple of public and private keys.
- */
 export interface PublicPrivateTuple {
-    publicKey: EdhocPublicKey,   // The public key part of the key pair.
-    privateKey: EdhocPrivateKey  // The private key part of the key pair.
+    publicKey: EdhocPublicKey;
+    privateKey: EdhocPrivateKey;
 }
 
-/**
- * Manages cryptographic functions necessary for the operation of EDHOC protocols.
- */
 export interface EdhocCryptoManager {
-
-    /**
-     * Imports a cryptographic key of the specified type.
-     * @param edhoc The EDHOC session context.
-     * @param keyType The type of key to import, as defined in EdhocKeyType.
-     * @param key Optional buffer containing seed or related data if necessary.
-     * @return A promise resolving to a Buffer containing the imported key.
-     */
     importKey(edhoc: EDHOC, keyType: EdhocKeyType, key: Buffer): Promise<Buffer> | Buffer | never;
-
-    /**
-     * Destroys a cryptographic key identified by the keyID.
-     * @param edhoc The EDHOC session context.
-     * @param keyID Buffer identifying the key to destroy.
-     * @return A promise resolving to true if the key was successfully destroyed.
-     */
     destroyKey(edhoc: EDHOC, keyID: Buffer): Promise<boolean> | boolean | never;
-
-    /**
-     * Generates a public-private key pair.
-     * @param edhoc The EDHOC session context.
-     * @param keyID Buffer to identify the key pair for future operations.
-     * @param privateKeySize Size in bytes for the private key.
-     * @param publicKeySize Size in bytes for the public key.
-     * @return A promise resolving to a PublicPrivateTuple containing both keys.
-    //  */
     makeKeyPair(edhoc: EDHOC, keyID: Buffer, privateKeySize: number, publicKeySize: number): Promise<PublicPrivateTuple> | PublicPrivateTuple | never;
-
-    /**
-     * Performs a key agreement operation using a public and a private key.
-     * @param edhoc The EDHOC session context.
-     * @param keyID Buffer identifying the key agreement process.
-     * @param publicKey The public key of the other party.
-     * @param privateKeySize Size of the private key used in the key agreement.
-     * @return A promise resolving to the resultant private key.
-     */
     keyAgreement(edhoc: EDHOC, keyID: Buffer, publicKey: EdhocPublicKey, privateKeySize: number): Promise<Buffer> | Buffer | never;
-
-    /**
-     * Signs data using a specified key.
-     * @param edhoc The EDHOC session context.
-     * @param keyID Buffer identifying the key to use for signing.
-     * @param input Buffer containing the data to sign.
-     * @param signatureSize The desired size of the signature.
-     * @return A promise resolving to the signature.
-     */
     sign(edhoc: EDHOC, keyID: Buffer, input: Buffer, signatureSize: number): Promise<Buffer> | Buffer | never;
-
-    /**
-     * Verifies a signature against the provided data.
-     * @param edhoc The EDHOC session context.
-     * @param keyID Buffer identifying the key to use for verification.
-     * @param input Buffer containing the original data that was signed.
-     * @param signature Buffer containing the signature to verify.
-     * @return A promise resolving to true if the signature is valid.
-     */
     verify(edhoc: EDHOC, keyID: Buffer, input: Buffer, signature: Buffer): Promise<boolean> | boolean | never;
-
-    /**
-     * Extracts a key using a salt.
-     * @param edhoc The EDHOC session context.
-     * @param keyID Buffer identifying the extraction process.
-     * @param salt Buffer containing the salt used in the extraction.
-     * @param keySize The desired size of the key to extract.
-     * @return A promise resolving to the extracted key.
-     */
     extract(edhoc: EDHOC, keyID: Buffer, salt: Buffer, keySize: number): Promise<Buffer> | Buffer | never;
-
-    /**
-     * Expands a key using provided information.
-     * @param edhoc The EDHOC session context.
-     * @param keyID Buffer identifying the expansion process.
-     * @param info Buffer containing information used for key expansion.
-     * @param keySize The desired size of the key after expansion.
-     * @return A promise resolving to the expanded key.
-     */
     expand(edhoc: EDHOC, keyID: Buffer, info: Buffer, keySize: number): Promise<Buffer> | Buffer | never;
-
-    /**
-     * Encrypts plaintext using a specified key and nonce.
-     * @param edhoc The EDHOC session context.
-     * @param keyID Buffer identifying the key to use for encryption.
-     * @param nonce Buffer containing the nonce to use in the encryption process.
-     * @param aad Buffer containing additional authenticated data.
-     * @param plaintext Buffer containing the data to encrypt.
-     * @param size The size of the output buffer.
-     * @return A promise resolving to the ciphertext.
-     */
     encrypt(edhoc: EDHOC, keyID: Buffer, nonce: Buffer, aad: Buffer, plaintext: Buffer, size: number): Promise<Buffer> | Buffer | never;
-
-    /**
-     * Decrypts ciphertext using a specified key and nonce.
-     * @param edhoc The EDHOC session context.
-     * @param keyID Buffer identifying the key to use for decryption.
-     * @param nonce Buffer containing the nonce to use in the decryption process.
-     * @param aad Buffer containing additional authenticated data.
-     * @param ciphertext Buffer containing the data to decrypt.
-     * @param size The size of the output buffer.
-     * @return A promise resolving to the plaintext.
-     */
     decrypt(edhoc: EDHOC, keyID: Buffer, nonce: Buffer, aad: Buffer, ciphertext: Buffer, size: number): Promise<Buffer> | Buffer | never;
-
-    /**
-     * Computes a hash of the given data.
-     * @param edhoc The EDHOC session context.
-     * @param data Buffer containing the data to hash.
-     * @param hashSize The size of the hash to compute.
-     * @return A promise resolving to the hash.
-     */
     hash(edhoc: EDHOC, data: Buffer, hashSize: number): Promise<Buffer> | Buffer | never;
 }
 
-/**
- * Represents an EDHOC connection identifier which can be either a number or a Buffer.
- */
-
 export type EdhocConnectionID = number | Buffer;
-
-/**
- * Enumerates the methods available for EDHOC protocol exchanges. 
- * Each method corresponds to different authentication mechanisms.
- */
 
 export enum EdhocMethod {
     Method0 = 0,
@@ -243,11 +103,6 @@ export enum EdhocMethod {
     Method2,
     Method3,
 }
-
-/**
- * Enumerates the cipher suites available for EDHOC protocol operations. 
- * Each suite represents a set of cryptographic algorithms.
- */
 
 export enum EdhocSuite {
     Suite0 = 0,
@@ -261,171 +116,712 @@ export enum EdhocSuite {
     Suite25,
 }
 
-/**
- * Represents an External Authorization Data (EAD) object used in EDHOC protocol exchanges.
- * EAD objects carry additional authorization information relevant to the session.
- */
 export interface EdhocEAD {
-    label: number,  // The label uniquely identifies the type of EAD.
-    value: Buffer   // The value associated with the label, containing the authorization data.
+    label: number;
+    value: Buffer;
 }
 
-/**
- * Describes the context for OSCORE (Object Security for Constrained RESTful Environments) derived from EDHOC.
- * OSCORE contexts are used to securely communicate over constrained networks.
- */
 export interface EdhocOscoreContext {
-    masterSecret: Buffer,
-    masterSalt: Buffer,
-    senderId: Buffer,
-    recipientId: Buffer
+    masterSecret: Buffer;
+    masterSalt: Buffer;
+    senderId: Buffer;
+    recipientId: Buffer;
 }
 
-/**
- * The EDHOC class encapsulates the EDHOC protocol logic, managing the lifecycle of an EDHOC session.
- */
-export declare class EDHOC {
-    /**
-     * The connection ID used by the local entity for this EDHOC session.
-     */
+// ── Internal state enum (not exported) ─────────────────────────────────
+
+const enum State {
+    START,
+    WAIT_M2,
+    VERIFIED_M1,
+    WAIT_M3,
+    VERIFIED_M2,
+    WAIT_M4_OR_DONE,
+    DONE,
+}
+
+// ── EDHOC Class ────────────────────────────────────────────────────────
+
+export class EDHOC {
+
+    // ── public properties (matching original API) ──────────────────────
+
     public connectionID: EdhocConnectionID;
-
-    /**
-     * The connection ID used by the peer entity, which is read-only and set during the EDHOC message exchange.
-     */
-    public readonly peerConnectionID: EdhocConnectionID;
-
-    /**
-     * The methods of authentication to be used in this EDHOC session, as defined in EdhocMethod.
-     */
+    public get peerConnectionID(): EdhocConnectionID { return this._peerCid!; }
     public methods: EdhocMethod[];
-
-    /**
-     * The selected method of authentication to be used in this EDHOC session, as defined in EdhocMethod.
-     */
-    public selectedMethod: EdhocMethod;
-
-    /**
-     * A list of cipher suites supported by this session, providing flexibility in cryptographic negotiations.
-     */
+    public get selectedMethod(): EdhocMethod { return this._method; }
+    public set selectedMethod(v: EdhocMethod) { this._method = v; }
     public cipherSuites: EdhocSuite[];
+    public get selectedSuite(): EdhocSuite { return this._suite; }
+    public set selectedSuite(v: EdhocSuite) { this._suite = v; }
+    public logger!: (name: string, data: Buffer) => void;
 
-    /**
-     * Represents the selected EDHOC cipher suite.
-     */
-    public selectedSuite: EdhocSuite;
+    // ── private dependencies ───────────────────────────────────────────
 
-    /**
-     * A logging function to log operational data during the EDHOC protocol execution.
-     * @param name The name or description of the log entry.
-     * @param data The data to be logged, typically related to protocol messages or internal state.
-     */
-    public logger: (name: string, data: Buffer) => void;
+    private readonly credMgr: EdhocCredentialManager;
+    private readonly crypto: EdhocCryptoManager;
 
-    /**
-     * Constructs an EDHOC protocol handler.
-     * @param connectionID The identifier for this connection.
-     * @param method The EDHOC method to be used for the session.
-     * @param suite An array of supported cipher suites.
-     * @param credentials A manager for handling credentials related to EDHOC.
-     * @param crypto A crypto manager to handle cryptographic functions.
-     */
-    constructor(connectionID: EdhocConnectionID, methods: EdhocMethod[], suites: EdhocSuite[], credentials: EdhocCredentialManager, crypto: EdhocCryptoManager);
-    
-    /**
-     * Resets the EDHOC context.
-     */
-    public reset(): void;
+    // ── private protocol state ─────────────────────────────────────────
 
-    /**
-     * Composes the first EDHOC message.
-     * @param ead Optional array of EAD objects to include in the message.
-     * @return A promise that resolves to the composed message buffer.
-     */
-    public composeMessage1(ead?: EdhocEAD[]): Promise<Buffer> | never;
+    private _state = State.START;
+    private _role: 'initiator' | 'responder' | null = null;
+    private _method: EdhocMethod;
+    private _suite: EdhocSuite;
+    private _suiteParams: CipherSuiteParams;
 
-    /**
-     * Processes the received first EDHOC message.
-     * @param message The received message buffer.
-     * @return A promise that resolves to an array of EAD objects extracted from the message.
-     * @throws Error if processing fails, optionally including peerCipherSuites.
-     */
-    public processMessage1(message: Buffer): Promise<EdhocEAD[]> | never;
+    private _peerCid: EdhocConnectionID | null = null;
+    private _ephKeyId: Buffer | null = null;
+    private _ephPub: Buffer | null = null;
+    private _peerEphPub: Buffer | null = null;
 
-    /**
-     * Composes the second EDHOC message.
-     * @param ead Optional array of EAD objects to include in the message.
-     * @return A promise that resolves to the composed message buffer.
-     */
-    public composeMessage2(ead?: EdhocEAD[]): Promise<Buffer> | never;
+    private _th: Buffer | null = null;
+    private _prk2e: Buffer | null = null;
+    private _prk3e2m: Buffer | null = null;
+    private _prk4e3m: Buffer | null = null;
+    private _prkOut: Buffer | null = null;
+    private _prkExporter: Buffer | null = null;
+    private _peerCredentials: EdhocCredentials | null = null;
 
-    /**
-     * Processes the received second EDHOC message.
-     * @param message The received message buffer.
-     * @return A promise that resolves to an array of EAD objects extracted from the message.
-     * @throws Error if processing fails, optionally including peerCipherSuites.
-     */
-    public processMessage2(message: Buffer): Promise<EdhocEAD[]> | never;
+    // ── constructor / reset ────────────────────────────────────────────
 
-    /**
-     * Composes the third EDHOC message.
-     * @param ead Optional array of EAD objects to include in the message.
-     * @return A promise that resolves to the composed message buffer.
-     */
-    public composeMessage3(ead?: EdhocEAD[]): Promise<Buffer> | never;
+    constructor(
+        connectionID: EdhocConnectionID,
+        methods: EdhocMethod[],
+        suites: EdhocSuite[],
+        credentials: EdhocCredentialManager,
+        crypto: EdhocCryptoManager,
+    ) {
+        this.connectionID = connectionID;
+        this.methods = methods;
+        this.cipherSuites = suites;
+        this.credMgr = credentials;
+        this.crypto = crypto;
+        this._method = methods[0];
+        this._suite = suites[suites.length - 1];
+        this._suiteParams = getCipherSuiteParams(this._suite);
+    }
 
-    /**
-     * Processes the received third EDHOC message.
-     * @param message The received message buffer.
-     * @return A promise that resolves to an array of EAD objects extracted from the message.
-     * @throws Error if processing fails, optionally including peerCipherSuites.
-     */
-    public processMessage3(message: Buffer): Promise<EdhocEAD[]> | never;
+    public reset(): void {
+        this._state = State.START;
+        this._role = null;
+        this._method = this.methods[0];
+        this._suite = this.cipherSuites[this.cipherSuites.length - 1];
+        this._suiteParams = getCipherSuiteParams(this._suite);
+        this._peerCid = null;
+        this._ephKeyId = null;
+        this._ephPub = null;
+        this._peerEphPub = null;
+        this._th = null;
+        this._prk2e = null;
+        this._prk3e2m = null;
+        this._prk4e3m = null;
+        this._prkOut = null;
+        this._prkExporter = null;
+        this._peerCredentials = null;
+    }
 
-    /**
-     * Composes the fourth and final EDHOC message.
-     * @param ead Optional array of EAD objects to include in the message.
-     * @return A promise that resolves to the composed message buffer.
-     */
-    public composeMessage4(ead?: EdhocEAD[]): Promise<Buffer> | never;
+    // ── public message API ─────────────────────────────────────────────
 
-    /**
-     * Processes the received fourth EDHOC message.
-     * @param message The received message buffer.
-     * @return A promise that resolves to an array of EAD objects extracted from the message.
-     * @throws Error if processing fails, optionally including peerCipherSuites.
-     */
-    public processMessage4(message: Buffer): Promise<EdhocEAD[]> | never;
+    public async composeMessage1(ead?: EdhocEAD[]): Promise<Buffer> {
+        this.assertState(State.START, 'composeMessage1');
+        this._role = 'initiator';
+        this._method = this.methods[0];
+        this._suite = this.cipherSuites[this.cipherSuites.length - 1];
+        this._suiteParams = getCipherSuiteParams(this._suite);
 
-    /**
-     * Exports the OSCORE context derived from the EDHOC session.
-     * @return A promise that resolves to the OSCORE context used for secured communication in constrained environments.
-     */
-    public exportOSCORE(): Promise<EdhocOscoreContext> | never;
+        // Generate ephemeral DH keypair
+        await this.generateEphemeralKey();
 
-    /**
-     * Exports the key derived from the EDHOC session using the EDHOC_Exporter interface.
-     * @param exporterLabel The label of the key to export, as a registered uint from the "EDHOC Exporter Labels" registry.
-     * @param length The desired length of the key to export.
-     * @return A promise that resolves to the exported key.
-     */
-    public exportKey(exporterLabel: number, length: number): Promise<Buffer> | never;
+        // Build message_1 CBOR sequence: METHOD, SUITES_I, G_X, C_I, ?EAD_1
+        const parts: unknown[] = [
+            this._method,
+            encodeSuites(this.cipherSuites, this._suite),
+            this._ephPub!,
+            this.connectionID,
+        ];
+        if (ead?.length) for (const t of ead) {
+            parts.push(t.label);
+            if (t.value?.length) parts.push(t.value);
+        }
+        const msg1 = encodeCborSequence(...parts);
+        this.log('message_1', msg1);
 
-    /**
-     * Exports the peer credentials used during the EDHOC exchange.
-     * This returns the (post-verify) credentials object returned by your credential manager's `verify(...)`.
-     *
-     * Returns `null` if the peer credentials haven't been verified yet, or after `reset()`.
-     */
-    public exportUsedPeerCredentials(): EdhocCredentials | null;
+        // TH_1 = H(message_1) — hash of the raw CBOR-sequence bytes
+        this._th = await this.hash(msg1);
+        this.log('TH_1', this._th);
 
-    /**
-     * Key update for the new OSCORE security session
-     * Read Appendix H of RFC 9528 - https://www.rfc-editor.org/rfc/rfc9528.html#appendix-H
-     * @param context Buffer containing the entropy for key update.
-     * @return A promise that resolves to void.
-     */
-    public keyUpdate(context: Buffer): Promise<void> | never;
+        this._state = State.WAIT_M2;
+        return msg1;
+    }
+
+    public async processMessage1(message: Buffer): Promise<EdhocEAD[]> {
+        this.assertState(State.START, 'processMessage1');
+        this._role = 'responder';
+
+        const items = decodeCborSequence(message);
+        if (items.length < 4) throw new Error('Invalid message_1');
+
+        // Parse METHOD
+        const method = items[0] as number;
+        if (!this.methods.includes(method)) throw new Error(`Unsupported method: ${method}`);
+        this._method = method as EdhocMethod;
+
+        // Parse SUITES_I
+        const rawSuites = items[1];
+        const selected = typeof rawSuites === 'number'
+            ? rawSuites as EdhocSuite
+            : (rawSuites as number[])[(rawSuites as number[]).length - 1] as EdhocSuite;
+        if (!this.cipherSuites.includes(selected)) {
+            const err: any = new Error(`Unsupported cipher suite: ${selected}`);
+            err.peerCipherSuites = typeof rawSuites === 'number' ? [rawSuites] : rawSuites;
+            throw err;
+        }
+        this._suite = selected;
+        this._suiteParams = getCipherSuiteParams(selected);
+
+        // Parse G_X, C_I
+        const gx = items[2];
+        this._peerEphPub = Buffer.isBuffer(gx) ? gx : Buffer.from(gx as Uint8Array);
+        this._peerCid = connectionIdFromCbor(items[3]);
+
+        // Parse ?EAD_1
+        const eadTokens = items.length > 4 ? parseEadItems(items.slice(4)) : [];
+
+        this.log('message_1', message);
+
+        // TH_1 = H(message_1)
+        this._th = await this.hash(message);
+        this.log('TH_1', this._th);
+
+        this._state = State.VERIFIED_M1;
+        return eadTokens;
+    }
+
+    public async composeMessage2(ead?: EdhocEAD[]): Promise<Buffer> {
+        this.assertState(State.VERIFIED_M1, 'composeMessage2');
+
+        // Generate ephemeral DH keypair (G_Y)
+        await this.generateEphemeralKey();
+        const gY = this._ephPub!;
+        this.log('G_Y', gY);
+
+        // ECDH → G_XY
+        const gXY = Buffer.from(await this.crypto.keyAgreement(
+            this, this._ephKeyId!, this._peerEphPub!, this._suiteParams.eccKeyLength));
+        this.log('G_XY', gXY);
+
+        // TH_2 = H( G_Y, H(message_1) )  — RFC 9528 §5.3.2
+        this._th = await this.hash(encodeCborSequence(gY, this._th!));
+        this.log('TH_2', this._th);
+
+        // PRK_2e = HKDF-Extract(TH_2, G_XY)
+        this._prk2e = await this.hkdfExtract(gXY, this._th);
+        this.log('PRK_2e', this._prk2e);
+
+        // Fetch own credentials
+        const cred = await this.credMgr.fetch(this);
+        const credR = getCredBytes(cred);
+        const idCredR = encodeIdCred(cred);
+
+        // Static DH for methods 1, 3 (responder authenticates with static DH)
+        let gRX: Buffer | undefined;
+        if (this._method === EdhocMethod.Method1 || this._method === EdhocMethod.Method3) {
+            gRX = Buffer.from(await this.crypto.keyAgreement(
+                this, cred.privateKeyID!, this._peerEphPub!, this._suiteParams.eccKeyLength));
+        }
+
+        // PRK_3e2m
+        this._prk3e2m = await this.derivePrk3e2m(gRX);
+        this.log('PRK_3e2m', this._prk3e2m);
+
+        // MAC_2 with context_2 = << C_R, ID_CRED_R, TH_2, CRED_R, ?EAD_2 >>
+        const context2 = this.buildContext(cbor.encode(this.connectionID), idCredR, this._th, credR, ead);
+        const mac2Len = this.macLength('responder');
+        const mac2 = await this.kdf(this._prk3e2m, 2, context2, mac2Len);
+        this.log('MAC_2', mac2);
+
+        // Signature_or_MAC_2
+        const sigOrMac2 = await this.signOrMac('responder', cred, idCredR, this._th, credR, ead, mac2);
+        this.log('Signature_or_MAC_2', sigOrMac2);
+
+        // PLAINTEXT_2 = ( C_R, ID_CRED_R, Signature_or_MAC_2, ?EAD_2 )
+        const pt2 = Buffer.concat([
+            cbor.encode(this.connectionID),
+            encodePlaintext(idCredR, sigOrMac2, ead),
+        ]);
+        this.log('PLAINTEXT_2', pt2);
+
+        // KEYSTREAM_2 = EDHOC-KDF(PRK_2e, 0, TH_2, |PLAINTEXT_2|)
+        const ks2 = await this.kdf(this._prk2e, 0, this._th, pt2.length);
+        const ct2 = this.xor(pt2, ks2);
+        this.log('CIPHERTEXT_2', ct2);
+
+        // TH_3 = H( TH_2, PLAINTEXT_2, CRED_R )
+        this._th = await this.hash(Buffer.concat([cbor.encode(this._th), pt2, cbor.encode(credR)]));
+        this.log('TH_3', this._th);
+
+        // message_2 = bstr( G_Y || CIPHERTEXT_2 )  — RFC 9528 §5.3.1
+        const msg2 = cbor.encode(Buffer.concat([gY, ct2]));
+        this.log('message_2', msg2);
+
+        this._state = State.WAIT_M3;
+        return msg2;
+    }
+
+    public async processMessage2(message: Buffer): Promise<EdhocEAD[]> {
+        this.assertState(State.WAIT_M2, 'processMessage2');
+
+        // Decode outer bstr → G_Y || CIPHERTEXT_2
+        const inner = Buffer.from(cbor.decodeFirstSync(message) as Uint8Array);
+        const gY = inner.subarray(0, this._suiteParams.eccKeyLength);
+        const ct2 = inner.subarray(this._suiteParams.eccKeyLength);
+        this._peerEphPub = Buffer.from(gY);
+        this.log('G_Y', gY);
+
+        // ECDH → G_XY
+        const gXY = Buffer.from(await this.crypto.keyAgreement(
+            this, this._ephKeyId!, gY, this._suiteParams.eccKeyLength));
+        this.log('G_XY', gXY);
+
+        // TH_2 = H( G_Y, H(message_1) )
+        this._th = await this.hash(encodeCborSequence(gY, this._th!));
+        this.log('TH_2', this._th);
+
+        // PRK_2e
+        this._prk2e = await this.hkdfExtract(gXY, this._th);
+        this.log('PRK_2e', this._prk2e);
+
+        // Decrypt PLAINTEXT_2
+        const ks2 = await this.kdf(this._prk2e, 0, this._th, ct2.length);
+        const pt2 = this.xor(ct2, ks2);
+        this.log('PLAINTEXT_2', pt2);
+
+        // Parse PLAINTEXT_2: C_R, ID_CRED_R, Signature_or_MAC_2, ?EAD_2
+        const pt2Items = decodeCborSequence(pt2);
+        if (pt2Items.length < 3) throw new Error('Invalid PLAINTEXT_2');
+        this._peerCid = connectionIdFromCbor(pt2Items[0]);
+
+        const parsed = parsePlaintext(Buffer.concat(
+            pt2Items.slice(1).map((item: unknown) => cbor.encode(item))
+        ));
+
+        // Verify peer credentials
+        const peerCredPartial = decodeIdCred(parsed.idCredRaw);
+        const peerCred = await this.credMgr.verify(this, peerCredPartial);
+        this._peerCredentials = peerCred;
+        const credR = getCredBytes(peerCred);
+        const idCredR = encodeIdCred(peerCred);
+
+        // Static DH for methods 1, 3
+        let gRX: Buffer | undefined;
+        if (this._method === EdhocMethod.Method1 || this._method === EdhocMethod.Method3) {
+            gRX = Buffer.from(await this.crypto.keyAgreement(
+                this, this._ephKeyId!, peerCred.publicKey!, this._suiteParams.eccKeyLength));
+        }
+
+        // PRK_3e2m
+        this._prk3e2m = await this.derivePrk3e2m(gRX);
+        this.log('PRK_3e2m', this._prk3e2m);
+
+        // Verify MAC_2 / Signature_or_MAC_2
+        const context2 = this.buildContext(cbor.encode(this._peerCid), idCredR, this._th, credR,
+            parsed.ead.length > 0 ? parsed.ead : undefined);
+        const mac2Len = this.macLength('responder');
+        const mac2 = await this.kdf(this._prk3e2m, 2, context2, mac2Len);
+        this.log('MAC_2', mac2);
+
+        await this.verifySignatureOrMac('responder', peerCred, idCredR, this._th, credR,
+            parsed.ead.length > 0 ? parsed.ead : undefined, mac2, parsed.signatureOrMac);
+
+        // TH_3 = H( TH_2, PLAINTEXT_2, CRED_R )
+        this._th = await this.hash(Buffer.concat([cbor.encode(this._th), pt2, cbor.encode(credR)]));
+        this.log('TH_3', this._th);
+
+        this._state = State.VERIFIED_M2;
+        return parsed.ead;
+    }
+
+    public async composeMessage3(ead?: EdhocEAD[]): Promise<Buffer> {
+        this.assertState(State.VERIFIED_M2, 'composeMessage3');
+        const th3 = this._th!;
+
+        // Fetch own credentials
+        const cred = await this.credMgr.fetch(this);
+        const credI = getCredBytes(cred);
+        const idCredI = encodeIdCred(cred);
+
+        // Static DH for methods 2, 3 (initiator authenticates with static DH)
+        let gIX: Buffer | undefined;
+        if (this._method === EdhocMethod.Method2 || this._method === EdhocMethod.Method3) {
+            gIX = Buffer.from(await this.crypto.keyAgreement(
+                this, cred.privateKeyID!, this._peerEphPub!, this._suiteParams.eccKeyLength));
+        }
+
+        // PRK_4e3m
+        this._prk4e3m = await this.derivePrk4e3m(th3, gIX);
+        this.log('PRK_4e3m', this._prk4e3m);
+
+        // MAC_3 with context_3 = << ID_CRED_I, TH_3, CRED_I, ?EAD_3 >>
+        const context3 = this.buildContext(null, idCredI, th3, credI, ead);
+        const mac3Len = this.macLength('initiator');
+        const mac3 = await this.kdf(this._prk4e3m, 6, context3, mac3Len);
+        this.log('MAC_3', mac3);
+
+        // Signature_or_MAC_3
+        const sigOrMac3 = await this.signOrMac('initiator', cred, idCredI, th3, credI, ead, mac3);
+        this.log('Signature_or_MAC_3', sigOrMac3);
+
+        // PLAINTEXT_3 = ( ID_CRED_I, Signature_or_MAC_3, ?EAD_3 )
+        const pt3 = encodePlaintext(idCredI, sigOrMac3, ead);
+        this.log('PLAINTEXT_3', pt3);
+
+        // AEAD encrypt: K_3, IV_3
+        const k3 = await this.kdf(this._prk3e2m!, 3, th3, this._suiteParams.aeadKeyLength);
+        const iv3 = await this.kdf(this._prk3e2m!, 4, th3, this._suiteParams.aeadIvLength);
+        // external_aad_3 = << TH_3, CRED_I, ?EAD_3 >>
+        const aad3 = this.buildEncAad(th3, credI, ead);
+        const ct3 = await this.aeadEncrypt(k3, iv3, aad3, pt3);
+        this.log('CIPHERTEXT_3', ct3);
+
+        // TH_4 = H( TH_3, PLAINTEXT_3, CRED_I )
+        this._th = await this.hash(Buffer.concat([cbor.encode(th3), pt3, cbor.encode(credI)]));
+        this.log('TH_4', this._th);
+
+        // PRK_out, PRK_exporter
+        this._prkOut = await this.kdf(this._prk4e3m, 7, this._th, this._suiteParams.hashLength);
+        this._prkExporter = await this.kdf(this._prkOut, 10, Buffer.alloc(0), this._suiteParams.hashLength);
+
+        // Destroy ephemeral key
+        await this.destroyEphemeralKey();
+
+        // message_3 = CBOR bstr of CIPHERTEXT_3
+        const msg3 = cbor.encode(ct3);
+        this.log('message_3', msg3);
+
+        this._state = State.WAIT_M4_OR_DONE;
+        return msg3;
+    }
+
+    public async processMessage3(message: Buffer): Promise<EdhocEAD[]> {
+        this.assertState(State.WAIT_M3, 'processMessage3');
+        const th3 = this._th!;
+
+        const ct3 = Buffer.from(cbor.decodeFirstSync(message) as Uint8Array);
+
+        // AEAD decrypt
+        const k3 = await this.kdf(this._prk3e2m!, 3, th3, this._suiteParams.aeadKeyLength);
+        const iv3 = await this.kdf(this._prk3e2m!, 4, th3, this._suiteParams.aeadIvLength);
+
+        // Fetch own credentials first to build AAD (we need CRED_I for verifying, but AAD needs CRED_I too)
+        // Actually, for the responder processing message 3, the AAD uses the initiator's credentials.
+        // But we don't know CRED_I yet. The AAD for decrypt uses TH_3 only? No.
+        // RFC 9528: external_aad_3 = << TH_3, CRED_I, ?EAD_3 >>
+        // But CRED_I isn't known until after decryption...
+        // Actually, for AEAD decryption, we need the AAD. Since CRED_I is inside the encrypted
+        // PLAINTEXT_3, the responder can't know it before decryption.
+        // Looking at RFC 9528 more carefully: the Enc_structure external_aad is just TH_3
+        // The << TH_3, CRED_I, ?EAD_3 >> is for the Sig_structure, not the Enc_structure.
+        // The AEAD AAD = Enc_structure = ["Encrypt0", h'', TH_3]
+        const aad3 = cbor.encode(['Encrypt0', Buffer.alloc(0), th3]);
+        const pt3 = await this.aeadDecrypt(k3, iv3, aad3, ct3);
+        this.log('PLAINTEXT_3', pt3);
+
+        // Parse PLAINTEXT_3: ID_CRED_I, Signature_or_MAC_3, ?EAD_3
+        const parsed = parsePlaintext(pt3);
+
+        // Verify peer credentials
+        const peerCredPartial = decodeIdCred(parsed.idCredRaw);
+        const peerCred = await this.credMgr.verify(this, peerCredPartial);
+        this._peerCredentials = peerCred;
+        const credI = getCredBytes(peerCred);
+        const idCredI = encodeIdCred(peerCred);
+
+        // Static DH for methods 2, 3
+        let gIX: Buffer | undefined;
+        if (this._method === EdhocMethod.Method2 || this._method === EdhocMethod.Method3) {
+            if (this._ephKeyId) {
+                gIX = Buffer.from(await this.crypto.keyAgreement(
+                    this, this._ephKeyId, peerCred.publicKey!, this._suiteParams.eccKeyLength));
+            }
+        }
+
+        // PRK_4e3m
+        this._prk4e3m = await this.derivePrk4e3m(th3, gIX);
+
+        // Verify MAC_3
+        const context3 = this.buildContext(null, idCredI, th3, credI,
+            parsed.ead.length > 0 ? parsed.ead : undefined);
+        const mac3Len = this.macLength('initiator');
+        const mac3 = await this.kdf(this._prk4e3m, 6, context3, mac3Len);
+
+        await this.verifySignatureOrMac('initiator', peerCred, idCredI, th3, credI,
+            parsed.ead.length > 0 ? parsed.ead : undefined, mac3, parsed.signatureOrMac);
+
+        // TH_4
+        this._th = await this.hash(Buffer.concat([cbor.encode(th3), pt3, cbor.encode(credI)]));
+
+        // PRK_out, PRK_exporter
+        this._prkOut = await this.kdf(this._prk4e3m, 7, this._th, this._suiteParams.hashLength);
+        this._prkExporter = await this.kdf(this._prkOut, 10, Buffer.alloc(0), this._suiteParams.hashLength);
+
+        await this.destroyEphemeralKey();
+
+        this._state = State.DONE;
+        return parsed.ead;
+    }
+
+    public async composeMessage4(ead?: EdhocEAD[]): Promise<Buffer> {
+        this.assertState(State.WAIT_M4_OR_DONE, 'composeMessage4');
+        const th4 = this._th!;
+
+        const k4 = await this.kdf(this._prk4e3m!, 8, th4, this._suiteParams.aeadKeyLength);
+        const iv4 = await this.kdf(this._prk4e3m!, 9, th4, this._suiteParams.aeadIvLength);
+        const pt4 = ead?.length ? encodeEadItems(ead) : Buffer.alloc(0);
+        const aad4 = cbor.encode(['Encrypt0', Buffer.alloc(0), th4]);
+        const ct4 = await this.aeadEncrypt(k4, iv4, aad4, pt4);
+
+        const msg4 = cbor.encode(ct4);
+        this._state = State.DONE;
+        return msg4;
+    }
+
+    public async processMessage4(message: Buffer): Promise<EdhocEAD[]> {
+        this.assertState(State.DONE, 'processMessage4');
+        const th4 = this._th!;
+
+        const ct4 = Buffer.from(cbor.decodeFirstSync(message) as Uint8Array);
+        const k4 = await this.kdf(this._prk4e3m!, 8, th4, this._suiteParams.aeadKeyLength);
+        const iv4 = await this.kdf(this._prk4e3m!, 9, th4, this._suiteParams.aeadIvLength);
+        const aad4 = cbor.encode(['Encrypt0', Buffer.alloc(0), th4]);
+        const pt4 = await this.aeadDecrypt(k4, iv4, aad4, ct4);
+
+        return pt4.length > 0 ? parseEadItems(decodeCborSequence(pt4)) : [];
+    }
+
+    // ── export API ─────────────────────────────────────────────────────
+
+    public async exportOSCORE(): Promise<EdhocOscoreContext> {
+        if (!this._prkExporter) throw new Error('Handshake not completed');
+
+        const masterSecret = await this.kdf(this._prkExporter, 0, Buffer.alloc(0), 16);
+        const masterSalt = await this.kdf(this._prkExporter, 1, Buffer.alloc(0), 8);
+
+        // RFC 9528 §7.2.1: Initiator Sender ID = C_R, Responder Sender ID = C_I
+        const senderId = connectionIdToBytes(this._peerCid!);
+        const recipientId = connectionIdToBytes(this.connectionID);
+
+        return { masterSecret, masterSalt, senderId, recipientId };
+    }
+
+    public async exportKey(exporterLabel: number, length: number): Promise<Buffer> {
+        if (!this._prkExporter) throw new Error('Handshake not completed');
+        return this.kdf(this._prkExporter, exporterLabel, Buffer.alloc(0), length);
+    }
+
+    public exportUsedPeerCredentials(): EdhocCredentials | null {
+        return this._peerCredentials;
+    }
+
+    public async keyUpdate(context: Buffer): Promise<void> {
+        if (!this._prkOut) throw new Error('Handshake not completed');
+        this._prkOut = await this.kdf(this._prkOut, 11, context, this._suiteParams.hashLength);
+        this._prkExporter = await this.kdf(this._prkOut, 10, Buffer.alloc(0), this._suiteParams.hashLength);
+    }
+
+    // ── private helpers: key schedule ──────────────────────────────────
+
+    /** EDHOC-KDF(PRK, label, context, length) = HKDF-Expand(PRK, info, length)
+     *  info is a CBOR sequence: label, context, length (NOT array-wrapped) */
+    private async kdf(prk: Buffer, label: number, context: Buffer, length: number): Promise<Buffer> {
+        const info = encodeCborSequence(label, context, length);
+        const keyId = await this.crypto.importKey(this, EdhocKeyType.Expand, prk);
+        try {
+            return Buffer.from(await this.crypto.expand(this, keyId, info, length));
+        } finally {
+            await this.crypto.destroyKey(this, keyId);
+        }
+    }
+
+    /** HKDF-Extract(IKM, salt) */
+    private async hkdfExtract(ikm: Buffer, salt: Buffer): Promise<Buffer> {
+        const keyId = await this.crypto.importKey(this, EdhocKeyType.Extract, ikm);
+        try {
+            return Buffer.from(await this.crypto.extract(this, keyId, salt, this._suiteParams.hashLength));
+        } finally {
+            await this.crypto.destroyKey(this, keyId);
+        }
+    }
+
+    /** Hash */
+    private async hash(data: Buffer): Promise<Buffer> {
+        return Buffer.from(await this.crypto.hash(this, data, this._suiteParams.hashLength));
+    }
+
+    // ── private helpers: PRK derivation ────────────────────────────────
+
+    /** PRK_3e2m: Methods 0,2 → PRK_2e; Methods 1,3 → Extract(SALT_3e2m, G_RX) */
+    private async derivePrk3e2m(gRX?: Buffer): Promise<Buffer> {
+        if ((this._method === EdhocMethod.Method1 || this._method === EdhocMethod.Method3) && gRX) {
+            const salt = await this.kdf(this._prk2e!, 1, this._th!, this._suiteParams.hashLength);
+            return this.hkdfExtract(gRX, salt);
+        }
+        return this._prk2e!;
+    }
+
+    /** PRK_4e3m: Methods 0,1 → PRK_3e2m; Methods 2,3 → Extract(SALT_4e3m, G_IX) */
+    private async derivePrk4e3m(th3: Buffer, gIX?: Buffer): Promise<Buffer> {
+        if ((this._method === EdhocMethod.Method2 || this._method === EdhocMethod.Method3) && gIX) {
+            const salt = await this.kdf(this._prk3e2m!, 7, th3, this._suiteParams.hashLength);
+            return this.hkdfExtract(gIX, salt);
+        }
+        return this._prk3e2m!;
+    }
+
+    // ── private helpers: ephemeral keys ────────────────────────────────
+
+    private async generateEphemeralKey(): Promise<void> {
+        this._ephKeyId = await this.crypto.importKey(this, EdhocKeyType.MakeKeyPair, Buffer.alloc(0));
+        const kp = await this.crypto.makeKeyPair(
+            this, this._ephKeyId, this._suiteParams.eccKeyLength, this._suiteParams.eccKeyLength);
+        this._ephPub = Buffer.from(kp.publicKey);
+    }
+
+    private async destroyEphemeralKey(): Promise<void> {
+        if (this._ephKeyId) {
+            await this.crypto.destroyKey(this, this._ephKeyId);
+            this._ephKeyId = null;
+        }
+    }
+
+    // ── private helpers: MAC / Signature ───────────────────────────────
+
+    /** Determine MAC length based on role and method.
+     *  Responder signature methods (0, 2): tag length; otherwise hash length.
+     *  Initiator signature methods (0, 1): tag length; otherwise hash length. */
+    private macLength(role: 'initiator' | 'responder'): number {
+        // RFC 9528: when authenticating with signature → mac_length = hash_length
+        //           when authenticating with static DH → mac_length = EDHOC MAC length
+        const usesSig = role === 'responder'
+            ? (this._method === EdhocMethod.Method0 || this._method === EdhocMethod.Method2)
+            : (this._method === EdhocMethod.Method0 || this._method === EdhocMethod.Method1);
+        return usesSig ? this._suiteParams.hashLength : this._suiteParams.macLength;
+    }
+
+    /** Build context bytes: << [C_R,] ID_CRED_x, TH, CRED_x, ?EAD >> */
+    private buildContext(
+        cRCbor: Buffer | null, idCredCbor: Buffer, th: Buffer, credX: Buffer, ead?: EdhocEAD[],
+    ): Buffer {
+        const parts: Buffer[] = [];
+        if (cRCbor) parts.push(cRCbor);
+        parts.push(idCredCbor, cbor.encode(th), cbor.encode(credX));
+        if (ead?.length) parts.push(encodeEadItems(ead));
+        return Buffer.concat(parts);
+    }
+
+    /** Build Enc_structure external_aad for CIPHERTEXT_3/4: ["Encrypt0", h'', TH] */
+    private buildEncAad(th: Buffer, _credX?: Buffer, _ead?: EdhocEAD[]): Buffer {
+        // RFC 9528: AAD for AEAD = Enc_structure = ["Encrypt0", h'', TH_x]
+        return cbor.encode(['Encrypt0', Buffer.alloc(0), th]);
+    }
+
+    /** Compute Signature_or_MAC for the local party */
+    private async signOrMac(
+        role: 'initiator' | 'responder',
+        cred: EdhocCredentials,
+        idCredCbor: Buffer,
+        th: Buffer,
+        credX: Buffer,
+        ead: EdhocEAD[] | undefined,
+        mac: Buffer,
+    ): Promise<Buffer> {
+        const usesSig = role === 'responder'
+            ? (this._method === EdhocMethod.Method0 || this._method === EdhocMethod.Method2)
+            : (this._method === EdhocMethod.Method0 || this._method === EdhocMethod.Method1);
+
+        if (!usesSig) return mac;
+
+        // Sig_structure = ["Signature1", << ID_CRED_x >>, << TH, CRED_x, ?EAD >>, MAC]
+        const externalAad = this.buildSigExternalAad(th, credX, ead);
+        const sigStructure = cbor.encode(['Signature1', idCredCbor, externalAad, mac]);
+        return Buffer.from(await this.crypto.sign(
+            this, cred.privateKeyID!, sigStructure, this._suiteParams.eccSignLength));
+    }
+
+    /** Verify Signature_or_MAC from the peer */
+    private async verifySignatureOrMac(
+        peerRole: 'initiator' | 'responder',
+        peerCred: EdhocCredentials,
+        idCredCbor: Buffer,
+        th: Buffer,
+        credX: Buffer,
+        ead: EdhocEAD[] | undefined,
+        mac: Buffer,
+        received: Buffer,
+    ): Promise<void> {
+        const usesSig = peerRole === 'responder'
+            ? (this._method === EdhocMethod.Method0 || this._method === EdhocMethod.Method2)
+            : (this._method === EdhocMethod.Method0 || this._method === EdhocMethod.Method1);
+
+        if (!usesSig) {
+            if (!mac.equals(received)) throw new Error('MAC verification failed');
+            return;
+        }
+
+        const externalAad = this.buildSigExternalAad(th, credX, ead);
+        const sigStructure = cbor.encode(['Signature1', idCredCbor, externalAad, mac]);
+
+        const verifyKeyId = await this.crypto.importKey(this, EdhocKeyType.Verify, peerCred.publicKey!);
+        try {
+            await this.crypto.verify(this, verifyKeyId, sigStructure, received);
+        } finally {
+            await this.crypto.destroyKey(this, verifyKeyId);
+        }
+    }
+
+    /** Build the external_aad bstr for Sig_structure: concatenation of CBOR items */
+    private buildSigExternalAad(th: Buffer, credX: Buffer, ead?: EdhocEAD[]): Buffer {
+        const parts = [cbor.encode(th), cbor.encode(credX)];
+        if (ead?.length) parts.push(encodeEadItems(ead));
+        return Buffer.concat(parts);
+    }
+
+    // ── private helpers: AEAD ──────────────────────────────────────────
+
+    private async aeadEncrypt(key: Buffer, iv: Buffer, aad: Buffer, pt: Buffer): Promise<Buffer> {
+        const keyId = await this.crypto.importKey(this, EdhocKeyType.Encrypt, key);
+        try {
+            return Buffer.from(await this.crypto.encrypt(
+                this, keyId, iv, aad, pt, pt.length + this._suiteParams.aeadTagLength));
+        } finally {
+            await this.crypto.destroyKey(this, keyId);
+        }
+    }
+
+    private async aeadDecrypt(key: Buffer, iv: Buffer, aad: Buffer, ct: Buffer): Promise<Buffer> {
+        const keyId = await this.crypto.importKey(this, EdhocKeyType.Decrypt, key);
+        try {
+            return Buffer.from(await this.crypto.decrypt(
+                this, keyId, iv, aad, ct, ct.length - this._suiteParams.aeadTagLength));
+        } finally {
+            await this.crypto.destroyKey(this, keyId);
+        }
+    }
+
+    // ── private helpers: misc ──────────────────────────────────────────
+
+    private xor(a: Buffer, b: Buffer): Buffer {
+        const out = Buffer.alloc(a.length);
+        for (let i = 0; i < a.length; i++) out[i] = a[i] ^ b[i];
+        return out;
+    }
+
+    private log(name: string, data: Buffer): void {
+        if (this.logger) this.logger(name, data);
+    }
+
+    private assertState(expected: State, method: string): void {
+        if (this._state !== expected) {
+            throw new Error(`Invalid state for ${method}`);
+        }
+    }
 }
-
-export * from './bindings';

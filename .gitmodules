@@ -1,3 +1,0 @@
-[submodule "external/libedhoc"]
-	path = external/libedhoc
-	url = https://github.com/stoprocent/libedhoc.git
