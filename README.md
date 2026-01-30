@@ -1,6 +1,6 @@
 # EDHOC for Node.js
 
-A TypeScript Node.js library implemented as a native addon, built on top of the C library [`libedhoc`](https://github.com/kamil-kielbasa/libedhoc/). It provides an efficient and lightweight way to use the Ephemeral Diffie-Hellman Over COSE (EDHOC) protocol, as specified in [RFC 9528](https://datatracker.ietf.org/doc/rfc9528/).
+A pure TypeScript implementation of the Ephemeral Diffie-Hellman Over COSE (EDHOC) protocol, as specified in [RFC 9528](https://datatracker.ietf.org/doc/rfc9528/). It provides an efficient and lightweight way to establish secure communication with minimal overhead.
 
 ## Overview
 
@@ -9,8 +9,9 @@ EDHOC is designed for lightweight communication and is particularly suitable for
 ## Features
 
 - Full implementation of the EDHOC protocol (RFC 9528)
-- TypeScript support for type safety and better developer experience
-- Based on [`libedhoc`](https://github.com/kamil-kielbasa/libedhoc), a proven C implementation
+- Pure TypeScript implementation with no native dependencies
+- Type safety and excellent developer experience
+- Software-based cryptography using [`@noble/curves`](https://www.npmjs.com/package/@noble/curves)
 
 ## Installation
 
@@ -143,7 +144,6 @@ For more detailed examples and API documentation, please refer to our [API Docum
 For detailed documentation, refer to:
 
 - [EDHOC Specification (RFC 9528)](https://datatracker.ietf.org/doc/rfc9528/)
-- [API Documentation](#) *(TODO: Link to generated API docs if available)*
 
 ## Contributing
 
@@ -162,7 +162,8 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## Related Projects
 
-- [libedhoc](https://github.com/kamil-kielbasa/libedhoc/) - A C implementation of the Ephemeral Diffie-Hellman Over COSE
+- [@noble/curves](https://github.com/paulmillr/noble-curves) - Audited & minimal JS implementation of elliptic curve cryptography
+- [OSCORE](https://datatracker.ietf.org/doc/rfc8613/) - Object Security for Constrained RESTful Environments
 
 ## Acknowledgments
 
