@@ -99,6 +99,121 @@ const initiator = new EDHOC(
 );
 ```
 
+### X.509 Certificate Credentials
+
+```typescript
+import {
+  EDHOC,
+  EdhocMethod,
+  EdhocSuite,
+  X509CertificateCredentialManager,
+  DefaultEdhocCryptoManager,
+} from 'node-edhoc';
+
+// Set up credentials with the private key
+const credMgr = new X509CertificateCredentialManager([myCert], myPrivateKey);
+credMgr.addTrustedCA(caCert);
+
+// Set up crypto
+const crypto = new DefaultEdhocCryptoManager();
+
+const session = new EDHOC(
+  10,
+  [EdhocMethod.Method0],
+  [EdhocSuite.Suite2],
+  credMgr,
+  crypto,
+);
+```
+
+### CCS/kid Credentials
+
+CCS (CWT Claims Set) credentials are lightweight CBOR-encoded identity documents
+commonly used in constrained IoT environments. Each CCS is a CBOR map containing
+a subject name and a COSE_Key with the party's public key, identified by a `kid`
+(key ID) value.
+
+```typescript
+import cbor from 'cbor';
+import {
+  EDHOC,
+  EdhocMethod,
+  EdhocSuite,
+  CCSCredentialManager,
+  DefaultEdhocCryptoManager,
+} from 'node-edhoc';
+
+// --- Step 1: Build CCS credentials as CBOR ---
+//
+// A CCS follows the structure from RFC 8747 (cnf claim) with a COSE_Key (RFC 9052):
+//
+//   {
+//     2: "subject-name",      / sub: subject identifier /
+//     8: {                    / cnf: confirmation claim  /
+//       1: {                  / COSE_Key                 /
+//         1: kty,             /   key type (2 = EC2)     /
+//         2: kid_bstr,        /   kid as bstr            /
+//        -1: crv,             /   curve (1 = P-256)      /
+//        -2: x_coord,         /   x-coordinate (32 B)    /
+//        -3: y_coord          /   y-coordinate (32 B)    /
+//       }
+//     }
+//   }
+
+function buildCCS(
+  subject: string,
+  kid: number,
+  curve: number,
+  publicKeyX: Buffer,
+  publicKeyY: Buffer,
+): Buffer {
+  // kid on the wire is a 1-byte bstr containing the CBOR encoding of the kid value
+  const kidCborByte = kid >= 0 ? kid : (0x20 | (-(kid + 1)));
+
+  const coseKey = new Map<number, any>();
+  coseKey.set(1, 2);                          // kty: EC2
+  coseKey.set(2, Buffer.from([kidCborByte])); // kid
+  coseKey.set(-1, curve);                     // crv: P-256 = 1
+  coseKey.set(-2, publicKeyX);                // x (32 bytes)
+  coseKey.set(-3, publicKeyY);                // y (32 bytes)
+
+  const ccs = new Map<number, any>();
+  ccs.set(2, subject);                        // sub
+  ccs.set(8, new Map([[1, coseKey]]));         // cnf → COSE_Key
+
+  return cbor.encode(ccs);
+}
+
+// Example using RFC 9529 Chapter 3 test vector values (P-256):
+const myPublicKeyX  = Buffer.from('ac75e9ece3e50bfc8ed60399889522405c47bf16df96660a41298cb4307f7eb6', 'hex');
+const myPublicKeyY  = Buffer.from('6e5de611388a4b8a8211334ac7d37ecb52a387d257e6db3c2a93df21ff3affc8', 'hex');
+const myCCS = buildCCS('42-50-31-FF-EF-37-32-39', -12, 1, myPublicKeyX, myPublicKeyY);
+
+const peerPublicKeyX = Buffer.from('bbc34960526ea4d32e940cad2a234148ddc21791a12afbcbac93622046dd44f0', 'hex');
+const peerPublicKeyY = Buffer.from('4519e257236b2a0ce2023f0931f1f386ca7afda64fcde0108c224c51eabf6072', 'hex');
+const peerCCS = buildCCS('example.edu', -19, 1, peerPublicKeyX, peerPublicKeyY);
+
+// --- Step 2: Register credentials ---
+
+const credMgr = new CCSCredentialManager();
+credMgr.addOwnCredential(-12, myCCS, myPublicKeyX, myPrivateKey);      // kid, CCS bytes, public key (x-only), private key
+credMgr.addPeerCredential(-19, peerCCS, peerPublicKeyX);               // kid, CCS bytes, public key (x-only)
+
+// --- Step 3: Set up crypto ---
+
+const crypto = new DefaultEdhocCryptoManager();
+
+// --- Step 4: Create session (Method 3 = StaticDH both sides) ---
+
+const session = new EDHOC(
+  10,
+  [EdhocMethod.Method3],
+  [EdhocSuite.Suite2],
+  credMgr,
+  crypto,
+);
+```
+
 ### Exporting OSCORE Context
 
 After a successful handshake, you can export the OSCORE security context:

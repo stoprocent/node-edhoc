@@ -1,17 +1,24 @@
-import { EDHOC, X509CertificateCredentialManager, DefaultEdhocCryptoManager, EdhocMethod, EdhocSuite, EdhocCredentialsFormat, EdhocKeyType } from '../dist/index'
+import { EDHOC, X509CertificateCredentialManager, DefaultEdhocCryptoManager, EdhocMethod, EdhocSuite, EdhocCredentialsFormat, PublicPrivateTuple } from '../dist/index'
+import { x25519 } from '@noble/curves/ed25519';
 
 class VectorsEdhocCryptoManager extends DefaultEdhocCryptoManager {
 
-    async importKey(edhoc: EDHOC, keyType: EdhocKeyType, key: Buffer) {
+    generateKeyPair(edhoc: EDHOC): PublicPrivateTuple {
+        let privateKey: Buffer;
         // Method 0, Suite 0, Connection ID -14 - Initiator
-        if (keyType === EdhocKeyType.MakeKeyPair && key && edhoc.connectionID === -14) {
-            key = Buffer.from('892EC28E5CB6669108470539500B705E60D008D347C5817EE9F3327C8A87BB03', 'hex');
+        if (edhoc.connectionID === -14) {
+            privateKey = Buffer.from('892EC28E5CB6669108470539500B705E60D008D347C5817EE9F3327C8A87BB03', 'hex');
         }
         // Method 0, Suite 0, Connection ID 0x18 - Responder
-        if (keyType === EdhocKeyType.MakeKeyPair && key && Buffer.isBuffer(edhoc.connectionID) && Buffer.compare(edhoc.connectionID, Buffer.from([0x18])) === 0) {
-            key = Buffer.from('E69C23FBF81BC435942446837FE827BF206C8FA10A39DB47449E5A813421E1E8', 'hex');
+        else if (Buffer.isBuffer(edhoc.connectionID) && Buffer.compare(edhoc.connectionID, Buffer.from([0x18])) === 0) {
+            privateKey = Buffer.from('E69C23FBF81BC435942446837FE827BF206C8FA10A39DB47449E5A813421E1E8', 'hex');
         }
-        return super.importKey(edhoc, keyType, key);
+        else {
+            return super.generateKeyPair(edhoc);
+        }
+        // Suite 0 uses X25519
+        const publicKey = Buffer.from(x25519.getPublicKey(privateKey));
+        return { publicKey, privateKey };
     }
 }
 
@@ -29,40 +36,38 @@ describe('EDHOC RFC9529 Test Vectors', () => {
     // Initiator Identity
     const initiatorCert = Buffer.from('3081EE3081A1A003020102020462319EA0300506032B6570301D311B301906035504030C124544484F4320526F6F742045643235353139301E170D3232303331363038323430305A170D3239313233313233303030305A30223120301E06035504030C174544484F4320496E69746961746F722045643235353139302A300506032B6570032100ED06A8AE61A829BA5FA54525C9D07F48DD44A302F43E0F23D8CC20B73085141E300506032B6570034100521241D8B3A770996BCFC9B9EAD4E7E0A1C0DB353A3BDF2910B39275AE48B756015981850D27DB6734E37F67212267DD05EEFF27B9E7A813FA574B72A00B430B', 'hex');
     const initiatorKey = Buffer.from('4C5B25878F507C6B9DAE68FBD4FD3FF997533DB0AF00B25D324EA28E6C213BC8', 'hex');
-    const initiatorKeyID = Buffer.from('00000001', 'hex');
-    
+
     // Responder Identity
     const responderCert = Buffer.from('3081EE3081A1A003020102020462319EC4300506032B6570301D311B301906035504030C124544484F4320526F6F742045643235353139301E170D3232303331363038323433365A170D3239313233313233303030305A30223120301E06035504030C174544484F4320526573706F6E6465722045643235353139302A300506032B6570032100A1DB47B95184854AD12A0C1A354E418AACE33AA0F2C662C00B3AC55DE92F9359300506032B6570034100B723BC01EAB0928E8B2B6C98DE19CC3823D46E7D6987B032478FECFAF14537A1AF14CC8BE829C6B73044101837EB4ABC949565D86DCE51CFAE52AB82C152CB02', 'hex');
     const responderKey = Buffer.from('EF140FF900B0AB03F0C08D879CBBD4B31EA71E6E7EE7FFCB7E7955777A332799', 'hex');
-    const responderKeyID = Buffer.from('00000002', 'hex');
-    
+
     let initiator: EDHOC;
     let responder: EDHOC;
 
     beforeEach(() => {
         // Initiator Setup
-        const initiatorCredentialManager = new X509CertificateCredentialManager([initiatorCert], initiatorKeyID);
+        const initiatorCredentialManager = new X509CertificateCredentialManager([initiatorCert], initiatorKey);
         initiatorCredentialManager.addTrustedCA(trustedCA);
         initiatorCredentialManager.addPeerCertificate(responderCert);
         initiatorCredentialManager.fetchFormat = EdhocCredentialsFormat.x5t;
 
         // Initiator Crypto Manager
         const initiatorCryptoManager = new VectorsEdhocCryptoManager();
-        initiatorCryptoManager.addKey(initiatorKeyID, initiatorKey);
 
         // Responder Setup
-        const responderCredentialManager = new X509CertificateCredentialManager([responderCert], responderKeyID);
+        const responderCredentialManager = new X509CertificateCredentialManager([responderCert], responderKey);
         responderCredentialManager.addTrustedCA(trustedCA);
         responderCredentialManager.addPeerCertificate(initiatorCert);
         responderCredentialManager.fetchFormat = EdhocCredentialsFormat.x5t;
 
         // Responder Crypto Manager
         const responderCryptoManager = new VectorsEdhocCryptoManager();
-        responderCryptoManager.addKey(responderKeyID, responderKey);
 
         // Initialize EDHOC instances
         initiator = new EDHOC(-14, [EdhocMethod.Method0], [EdhocSuite.Suite0], initiatorCredentialManager, initiatorCryptoManager);
         responder = new EDHOC(Buffer.from([0x18]), [EdhocMethod.Method0], [EdhocSuite.Suite0], responderCredentialManager, responderCryptoManager);
+        // initiator.logger = (name, data) => console.log(`I ${name}: ${data.toString('hex')}`);
+        // responder.logger = (name, data) => console.log(`R ${name}: ${data.toString('hex')}`);
     });
 
     test('should complete successful EDHOC handshake', async () => {
