@@ -118,6 +118,10 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
 
     private formatPublicKey(curve: KeyUtils, key: Buffer): Buffer {
         if (curve === p256) {
+            if (key.byteLength === 65 && key[0] === 0x04) {
+                // Already X9.63 uncompressed (0x04 || x || y)
+                return key;
+            }
             const prefix = key.byteLength === 64 ? 0x04 : (key[key.length - 1] & 1) ? 0x03 : 0x02;
             return Buffer.concat([Buffer.from([prefix]), key]);
         }
