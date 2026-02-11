@@ -35,11 +35,16 @@ export function encodeSuites(suites: EdhocSuite[], selected: EdhocSuite): number
     return rest;
 }
 
-/** Convert a connection ID to its raw byte representation (for OSCORE IDs) */
+/** Convert a connection ID to its raw byte representation (for OSCORE IDs).
+ *  RFC 9528 §3.3.2: the OSCORE identifier is a 1-byte bstr whose byte value
+ *  is the CBOR encoding of the integer n ∈ [-24, 23]. */
 export function connectionIdToBytes(cid: EdhocConnectionID): Buffer {
     if (Buffer.isBuffer(cid)) return cid;
-    // RFC 9528 §3.3.2: integer n maps to one-byte bstr with value n + 24
-    return Buffer.from([cid + 24]);
+    // CBOR encoding of integer n:
+    //   n >= 0  → major type 0, additional info = n  → byte = n
+    //   n <  0  → major type 1, additional info = -(n+1) → byte = 0x20 | (-(n+1))
+    if (cid >= 0) return Buffer.from([cid]);
+    return Buffer.from([0x20 | (-(cid + 1))]);
 }
 
 /** Decode a CBOR-decoded value back to an EdhocConnectionID */
@@ -72,6 +77,33 @@ export function encodeIdCred(credentials: EdhocCredentials): Buffer {
         default:
             throw new Error(`Unsupported credential format`);
     }
+}
+
+/** Encode ID_CRED_x as a CBOR map (full form for MAC context / Sig_structure).
+ *  For kid: {4: bstr(cbor(kid))}; for x5chain/x5t: same as encodeIdCred. */
+export function encodeIdCredMap(credentials: EdhocCredentials): Buffer {
+    switch (credentials.format) {
+        case EdhocCredentialsFormat.kid: {
+            const kid = (credentials as EdhocCredentialsKID).kid.kid;
+            const kidCborBytes = cbor.encode(kid);
+            const map = new Map<number, unknown>();
+            map.set(EdhocCredentialsFormat.kid, kidCborBytes);
+            return cbor.encode(map);
+        }
+        default:
+            return encodeIdCred(credentials);
+    }
+}
+
+/** Encode CRED_x as a CBOR item for use in context / TH input.
+ *  For CCS (kid + isCBOR): credBytes is already CBOR, return as-is.
+ *  For DER certs: wrap as CBOR bstr. */
+export function encodeCredItem(credentials: EdhocCredentials, credBytes: Buffer): Buffer {
+    if (credentials.format === EdhocCredentialsFormat.kid &&
+        (credentials as EdhocCredentialsKID).kid.isCBOR) {
+        return credBytes;
+    }
+    return cbor.encode(credBytes);
 }
 
 /** Decode an ID_CRED_x value (already CBOR-decoded) into partial credentials */

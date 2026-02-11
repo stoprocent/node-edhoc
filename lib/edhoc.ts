@@ -7,6 +7,8 @@ import {
     connectionIdToBytes,
     connectionIdFromCbor,
     encodeIdCred,
+    encodeIdCredMap,
+    encodeCredItem,
     decodeIdCred,
     getCredBytes,
     encodePlaintext,
@@ -44,7 +46,7 @@ export enum EdhocCredentialsFormat {
 
 export interface EdhocCredentials {
     format: EdhocCredentialsFormat;
-    privateKeyID?: Buffer;
+    privateKey?: Buffer;
     publicKey?: Buffer;
 }
 
@@ -81,17 +83,6 @@ export interface EdhocCredentialManager {
     verify(edhoc: EDHOC, credentials: EdhocCredentials): Promise<EdhocCredentials> | EdhocCredentials | never;
 }
 
-export enum EdhocKeyType {
-    MakeKeyPair,
-    KeyAgreement,
-    Signature,
-    Verify,
-    Extract,
-    Expand,
-    Encrypt,
-    Decrypt,
-}
-
 export type EdhocPublicKey = Buffer;
 export type EdhocPrivateKey = Buffer;
 
@@ -101,17 +92,15 @@ export interface PublicPrivateTuple {
 }
 
 export interface EdhocCryptoManager {
-    importKey(edhoc: EDHOC, keyType: EdhocKeyType, key: Buffer): Promise<Buffer> | Buffer | never;
-    destroyKey(edhoc: EDHOC, keyID: Buffer): Promise<boolean> | boolean | never;
-    makeKeyPair(edhoc: EDHOC, keyID: Buffer, privateKeySize: number, publicKeySize: number): Promise<PublicPrivateTuple> | PublicPrivateTuple | never;
-    keyAgreement(edhoc: EDHOC, keyID: Buffer, publicKey: EdhocPublicKey, privateKeySize: number): Promise<Buffer> | Buffer | never;
-    sign(edhoc: EDHOC, keyID: Buffer, input: Buffer, signatureSize: number): Promise<Buffer> | Buffer | never;
-    verify(edhoc: EDHOC, keyID: Buffer, input: Buffer, signature: Buffer): Promise<boolean> | boolean | never;
-    extract(edhoc: EDHOC, keyID: Buffer, salt: Buffer, keySize: number): Promise<Buffer> | Buffer | never;
-    expand(edhoc: EDHOC, keyID: Buffer, info: Buffer, keySize: number): Promise<Buffer> | Buffer | never;
-    encrypt(edhoc: EDHOC, keyID: Buffer, nonce: Buffer, aad: Buffer, plaintext: Buffer, size: number): Promise<Buffer> | Buffer | never;
-    decrypt(edhoc: EDHOC, keyID: Buffer, nonce: Buffer, aad: Buffer, ciphertext: Buffer, size: number): Promise<Buffer> | Buffer | never;
-    hash(edhoc: EDHOC, data: Buffer, hashSize: number): Promise<Buffer> | Buffer | never;
+    generateKeyPair(edhoc: EDHOC): Promise<PublicPrivateTuple> | PublicPrivateTuple | never;
+    keyAgreement(edhoc: EDHOC, privateKey: Buffer, peerPublicKey: Buffer): Promise<Buffer> | Buffer | never;
+    sign(edhoc: EDHOC, privateKey: Buffer, input: Buffer): Promise<Buffer> | Buffer | never;
+    verify(edhoc: EDHOC, publicKey: Buffer, input: Buffer, signature: Buffer): Promise<boolean> | boolean | never;
+    hkdfExtract(edhoc: EDHOC, ikm: Buffer, salt: Buffer): Promise<Buffer> | Buffer | never;
+    hkdfExpand(edhoc: EDHOC, prk: Buffer, info: Buffer, length: number): Promise<Buffer> | Buffer | never;
+    encrypt(edhoc: EDHOC, key: Buffer, nonce: Buffer, aad: Buffer, plaintext: Buffer): Promise<Buffer> | Buffer | never;
+    decrypt(edhoc: EDHOC, key: Buffer, nonce: Buffer, aad: Buffer, ciphertext: Buffer): Promise<Buffer> | Buffer | never;
+    hash(edhoc: EDHOC, input: Buffer): Promise<Buffer> | Buffer | never;
 }
 
 export type EdhocConnectionID = number | Buffer;
@@ -189,7 +178,7 @@ export class EDHOC {
     private _suiteParams: CipherSuiteParams;
 
     private _peerCid: EdhocConnectionID | null = null;
-    private _ephKeyId: Buffer | null = null;
+    private _ephPrivateKey: Buffer | null = null;
     private _ephPub: Buffer | null = null;
     private _peerEphPub: Buffer | null = null;
 
@@ -227,7 +216,7 @@ export class EDHOC {
         this._suite = this.cipherSuites[this.cipherSuites.length - 1];
         this._suiteParams = getCipherSuiteParams(this._suite);
         this._peerCid = null;
-        this._ephKeyId = null;
+        this._ephPrivateKey = null;
         this._ephPub = null;
         this._peerEphPub = null;
         this._th = null;
@@ -327,7 +316,7 @@ export class EDHOC {
 
         // ECDH → G_XY
         const gXY = Buffer.from(await this.crypto.keyAgreement(
-            this, this._ephKeyId!, this._peerEphPub!, this._suiteParams.eccKeyLength));
+            this, this._ephPrivateKey!, this._peerEphPub!));
         this.log('G_XY', gXY);
 
         // TH_2 = H( G_Y, H(message_1) )  — RFC 9528 §5.3.2
@@ -342,12 +331,14 @@ export class EDHOC {
         const cred = await this.credMgr.fetch(this);
         const credR = getCredBytes(cred);
         const idCredR = encodeIdCred(cred);
+        const idCredRMap = encodeIdCredMap(cred);
+        const credRCbor = encodeCredItem(cred, credR);
 
         // Static DH for methods 1, 3 (responder authenticates with static DH)
         let gRX: Buffer | undefined;
         if (this._method === EdhocMethod.Method1 || this._method === EdhocMethod.Method3) {
             gRX = Buffer.from(await this.crypto.keyAgreement(
-                this, cred.privateKeyID!, this._peerEphPub!, this._suiteParams.eccKeyLength));
+                this, cred.privateKey!, this._peerEphPub!));
         }
 
         // PRK_3e2m
@@ -355,16 +346,17 @@ export class EDHOC {
         this.log('PRK_3e2m', this._prk3e2m);
 
         // MAC_2 with context_2 = << C_R, ID_CRED_R, TH_2, CRED_R, ?EAD_2 >>
-        const context2 = this.buildContext(cbor.encode(this.connectionID), idCredR, this._th, credR, ead);
+        const context2 = this.buildContext(cbor.encode(this.connectionID), idCredRMap, this._th, credRCbor, ead);
         const mac2Len = this.macLength('responder');
         const mac2 = await this.kdf(this._prk3e2m, 2, context2, mac2Len);
         this.log('MAC_2', mac2);
 
         // Signature_or_MAC_2
-        const sigOrMac2 = await this.signOrMac('responder', cred, idCredR, this._th, credR, ead, mac2);
+        const sigOrMac2 = await this.signOrMac('responder', cred, idCredRMap, this._th, credRCbor, ead, mac2);
         this.log('Signature_or_MAC_2', sigOrMac2);
 
         // PLAINTEXT_2 = ( C_R, ID_CRED_R, Signature_or_MAC_2, ?EAD_2 )
+        // Uses compact idCredR (bare kid) for the wire format
         const pt2 = Buffer.concat([
             cbor.encode(this.connectionID),
             encodePlaintext(idCredR, sigOrMac2, ead),
@@ -377,7 +369,7 @@ export class EDHOC {
         this.log('CIPHERTEXT_2', ct2);
 
         // TH_3 = H( TH_2, PLAINTEXT_2, CRED_R )
-        this._th = await this.hash(Buffer.concat([cbor.encode(this._th), pt2, cbor.encode(credR)]));
+        this._th = await this.hash(Buffer.concat([cbor.encode(this._th), pt2, credRCbor]));
         this.log('TH_3', this._th);
 
         // message_2 = bstr( G_Y || CIPHERTEXT_2 )  — RFC 9528 §5.3.1
@@ -400,7 +392,7 @@ export class EDHOC {
 
         // ECDH → G_XY
         const gXY = Buffer.from(await this.crypto.keyAgreement(
-            this, this._ephKeyId!, gY, this._suiteParams.eccKeyLength));
+            this, this._ephPrivateKey!, gY));
         this.log('G_XY', gXY);
 
         // TH_2 = H( G_Y, H(message_1) )
@@ -430,13 +422,14 @@ export class EDHOC {
         const peerCred = await this.credMgr.verify(this, peerCredPartial);
         this._peerCredentials = peerCred;
         const credR = getCredBytes(peerCred);
-        const idCredR = encodeIdCred(peerCred);
+        const idCredRMap = encodeIdCredMap(peerCred);
+        const credRCbor = encodeCredItem(peerCred, credR);
 
         // Static DH for methods 1, 3
         let gRX: Buffer | undefined;
         if (this._method === EdhocMethod.Method1 || this._method === EdhocMethod.Method3) {
             gRX = Buffer.from(await this.crypto.keyAgreement(
-                this, this._ephKeyId!, peerCred.publicKey!, this._suiteParams.eccKeyLength));
+                this, this._ephPrivateKey!, peerCred.publicKey!));
         }
 
         // PRK_3e2m
@@ -444,17 +437,17 @@ export class EDHOC {
         this.log('PRK_3e2m', this._prk3e2m);
 
         // Verify MAC_2 / Signature_or_MAC_2
-        const context2 = this.buildContext(cbor.encode(this._peerCid), idCredR, this._th, credR,
+        const context2 = this.buildContext(cbor.encode(this._peerCid), idCredRMap, this._th, credRCbor,
             parsed.ead.length > 0 ? parsed.ead : undefined);
         const mac2Len = this.macLength('responder');
         const mac2 = await this.kdf(this._prk3e2m, 2, context2, mac2Len);
         this.log('MAC_2', mac2);
 
-        await this.verifySignatureOrMac('responder', peerCred, idCredR, this._th, credR,
+        await this.verifySignatureOrMac('responder', peerCred, idCredRMap, this._th, credRCbor,
             parsed.ead.length > 0 ? parsed.ead : undefined, mac2, parsed.signatureOrMac);
 
         // TH_3 = H( TH_2, PLAINTEXT_2, CRED_R )
-        this._th = await this.hash(Buffer.concat([cbor.encode(this._th), pt2, cbor.encode(credR)]));
+        this._th = await this.hash(Buffer.concat([cbor.encode(this._th), pt2, credRCbor]));
         this.log('TH_3', this._th);
 
         this._state = State.VERIFIED_M2;
@@ -469,12 +462,14 @@ export class EDHOC {
         const cred = await this.credMgr.fetch(this);
         const credI = getCredBytes(cred);
         const idCredI = encodeIdCred(cred);
+        const idCredIMap = encodeIdCredMap(cred);
+        const credICbor = encodeCredItem(cred, credI);
 
         // Static DH for methods 2, 3 (initiator authenticates with static DH)
         let gIX: Buffer | undefined;
         if (this._method === EdhocMethod.Method2 || this._method === EdhocMethod.Method3) {
             gIX = Buffer.from(await this.crypto.keyAgreement(
-                this, cred.privateKeyID!, this._peerEphPub!, this._suiteParams.eccKeyLength));
+                this, cred.privateKey!, this._peerEphPub!));
         }
 
         // PRK_4e3m
@@ -482,16 +477,17 @@ export class EDHOC {
         this.log('PRK_4e3m', this._prk4e3m);
 
         // MAC_3 with context_3 = << ID_CRED_I, TH_3, CRED_I, ?EAD_3 >>
-        const context3 = this.buildContext(null, idCredI, th3, credI, ead);
+        const context3 = this.buildContext(null, idCredIMap, th3, credICbor, ead);
         const mac3Len = this.macLength('initiator');
         const mac3 = await this.kdf(this._prk4e3m, 6, context3, mac3Len);
         this.log('MAC_3', mac3);
 
         // Signature_or_MAC_3
-        const sigOrMac3 = await this.signOrMac('initiator', cred, idCredI, th3, credI, ead, mac3);
+        const sigOrMac3 = await this.signOrMac('initiator', cred, idCredIMap, th3, credICbor, ead, mac3);
         this.log('Signature_or_MAC_3', sigOrMac3);
 
         // PLAINTEXT_3 = ( ID_CRED_I, Signature_or_MAC_3, ?EAD_3 )
+        // Uses compact idCredI (bare kid) for the wire format
         const pt3 = encodePlaintext(idCredI, sigOrMac3, ead);
         this.log('PLAINTEXT_3', pt3);
 
@@ -504,7 +500,7 @@ export class EDHOC {
         this.log('CIPHERTEXT_3', ct3);
 
         // TH_4 = H( TH_3, PLAINTEXT_3, CRED_I )
-        this._th = await this.hash(Buffer.concat([cbor.encode(th3), pt3, cbor.encode(credI)]));
+        this._th = await this.hash(Buffer.concat([cbor.encode(th3), pt3, credICbor]));
         this.log('TH_4', this._th);
 
         // PRK_out, PRK_exporter
@@ -554,14 +550,15 @@ export class EDHOC {
         const peerCred = await this.credMgr.verify(this, peerCredPartial);
         this._peerCredentials = peerCred;
         const credI = getCredBytes(peerCred);
-        const idCredI = encodeIdCred(peerCred);
+        const idCredIMap = encodeIdCredMap(peerCred);
+        const credICbor = encodeCredItem(peerCred, credI);
 
         // Static DH for methods 2, 3
         let gIX: Buffer | undefined;
         if (this._method === EdhocMethod.Method2 || this._method === EdhocMethod.Method3) {
-            if (this._ephKeyId) {
+            if (this._ephPrivateKey) {
                 gIX = Buffer.from(await this.crypto.keyAgreement(
-                    this, this._ephKeyId, peerCred.publicKey!, this._suiteParams.eccKeyLength));
+                    this, this._ephPrivateKey, peerCred.publicKey!));
             }
         }
 
@@ -569,16 +566,16 @@ export class EDHOC {
         this._prk4e3m = await this.derivePrk4e3m(th3, gIX);
 
         // Verify MAC_3
-        const context3 = this.buildContext(null, idCredI, th3, credI,
+        const context3 = this.buildContext(null, idCredIMap, th3, credICbor,
             parsed.ead.length > 0 ? parsed.ead : undefined);
         const mac3Len = this.macLength('initiator');
         const mac3 = await this.kdf(this._prk4e3m, 6, context3, mac3Len);
 
-        await this.verifySignatureOrMac('initiator', peerCred, idCredI, th3, credI,
+        await this.verifySignatureOrMac('initiator', peerCred, idCredIMap, th3, credICbor,
             parsed.ead.length > 0 ? parsed.ead : undefined, mac3, parsed.signatureOrMac);
 
         // TH_4
-        this._th = await this.hash(Buffer.concat([cbor.encode(th3), pt3, cbor.encode(credI)]));
+        this._th = await this.hash(Buffer.concat([cbor.encode(th3), pt3, credICbor]));
 
         // PRK_out, PRK_exporter
         this._prkOut = await this.kdf(this._prk4e3m, 7, this._th, this._suiteParams.hashLength);
@@ -654,27 +651,17 @@ export class EDHOC {
      *  info is a CBOR sequence: label, context, length (NOT array-wrapped) */
     private async kdf(prk: Buffer, label: number, context: Buffer, length: number): Promise<Buffer> {
         const info = encodeCborSequence(label, context, length);
-        const keyId = await this.crypto.importKey(this, EdhocKeyType.Expand, prk);
-        try {
-            return Buffer.from(await this.crypto.expand(this, keyId, info, length));
-        } finally {
-            await this.crypto.destroyKey(this, keyId);
-        }
+        return Buffer.from(await this.crypto.hkdfExpand(this, prk, info, length));
     }
 
     /** HKDF-Extract(IKM, salt) */
     private async hkdfExtract(ikm: Buffer, salt: Buffer): Promise<Buffer> {
-        const keyId = await this.crypto.importKey(this, EdhocKeyType.Extract, ikm);
-        try {
-            return Buffer.from(await this.crypto.extract(this, keyId, salt, this._suiteParams.hashLength));
-        } finally {
-            await this.crypto.destroyKey(this, keyId);
-        }
+        return Buffer.from(await this.crypto.hkdfExtract(this, ikm, salt));
     }
 
     /** Hash */
     private async hash(data: Buffer): Promise<Buffer> {
-        return Buffer.from(await this.crypto.hash(this, data, this._suiteParams.hashLength));
+        return Buffer.from(await this.crypto.hash(this, data));
     }
 
     // ── private helpers: PRK derivation ────────────────────────────────
@@ -691,7 +678,7 @@ export class EDHOC {
     /** PRK_4e3m: Methods 0,1 → PRK_3e2m; Methods 2,3 → Extract(SALT_4e3m, G_IX) */
     private async derivePrk4e3m(th3: Buffer, gIX?: Buffer): Promise<Buffer> {
         if ((this._method === EdhocMethod.Method2 || this._method === EdhocMethod.Method3) && gIX) {
-            const salt = await this.kdf(this._prk3e2m!, 7, th3, this._suiteParams.hashLength);
+            const salt = await this.kdf(this._prk3e2m!, 5, th3, this._suiteParams.hashLength);
             return this.hkdfExtract(gIX, salt);
         }
         return this._prk3e2m!;
@@ -700,17 +687,13 @@ export class EDHOC {
     // ── private helpers: ephemeral keys ────────────────────────────────
 
     private async generateEphemeralKey(): Promise<void> {
-        this._ephKeyId = await this.crypto.importKey(this, EdhocKeyType.MakeKeyPair, Buffer.alloc(0));
-        const kp = await this.crypto.makeKeyPair(
-            this, this._ephKeyId, this._suiteParams.eccKeyLength, this._suiteParams.eccKeyLength);
+        const kp = await this.crypto.generateKeyPair(this);
+        this._ephPrivateKey = Buffer.from(kp.privateKey);
         this._ephPub = Buffer.from(kp.publicKey);
     }
 
     private async destroyEphemeralKey(): Promise<void> {
-        if (this._ephKeyId) {
-            await this.crypto.destroyKey(this, this._ephKeyId);
-            this._ephKeyId = null;
-        }
+        this._ephPrivateKey = null;
     }
 
     // ── private helpers: MAC / Signature ───────────────────────────────
@@ -729,11 +712,11 @@ export class EDHOC {
 
     /** Build context bytes: << [C_R,] ID_CRED_x, TH, CRED_x, ?EAD >> */
     private buildContext(
-        cRCbor: Buffer | null, idCredCbor: Buffer, th: Buffer, credX: Buffer, ead?: EdhocEAD[],
+        cRCbor: Buffer | null, idCredCbor: Buffer, th: Buffer, credXCbor: Buffer, ead?: EdhocEAD[],
     ): Buffer {
         const parts: Buffer[] = [];
         if (cRCbor) parts.push(cRCbor);
-        parts.push(idCredCbor, cbor.encode(th), cbor.encode(credX));
+        parts.push(idCredCbor, cbor.encode(th), credXCbor);
         if (ead?.length) parts.push(encodeEadItems(ead));
         return Buffer.concat(parts);
     }
@@ -750,7 +733,7 @@ export class EDHOC {
         cred: EdhocCredentials,
         idCredCbor: Buffer,
         th: Buffer,
-        credX: Buffer,
+        credXCbor: Buffer,
         ead: EdhocEAD[] | undefined,
         mac: Buffer,
     ): Promise<Buffer> {
@@ -761,10 +744,10 @@ export class EDHOC {
         if (!usesSig) return mac;
 
         // Sig_structure = ["Signature1", << ID_CRED_x >>, << TH, CRED_x, ?EAD >>, MAC]
-        const externalAad = this.buildSigExternalAad(th, credX, ead);
+        const externalAad = this.buildSigExternalAad(th, credXCbor, ead);
         const sigStructure = cbor.encode(['Signature1', idCredCbor, externalAad, mac]);
         return Buffer.from(await this.crypto.sign(
-            this, cred.privateKeyID!, sigStructure, this._suiteParams.eccSignLength));
+            this, cred.privateKey!, sigStructure));
     }
 
     /** Verify Signature_or_MAC from the peer */
@@ -773,7 +756,7 @@ export class EDHOC {
         peerCred: EdhocCredentials,
         idCredCbor: Buffer,
         th: Buffer,
-        credX: Buffer,
+        credXCbor: Buffer,
         ead: EdhocEAD[] | undefined,
         mac: Buffer,
         received: Buffer,
@@ -787,20 +770,15 @@ export class EDHOC {
             return;
         }
 
-        const externalAad = this.buildSigExternalAad(th, credX, ead);
+        const externalAad = this.buildSigExternalAad(th, credXCbor, ead);
         const sigStructure = cbor.encode(['Signature1', idCredCbor, externalAad, mac]);
 
-        const verifyKeyId = await this.crypto.importKey(this, EdhocKeyType.Verify, peerCred.publicKey!);
-        try {
-            await this.crypto.verify(this, verifyKeyId, sigStructure, received);
-        } finally {
-            await this.crypto.destroyKey(this, verifyKeyId);
-        }
+        await this.crypto.verify(this, peerCred.publicKey!, sigStructure, received);
     }
 
     /** Build the external_aad bstr for Sig_structure: concatenation of CBOR items */
-    private buildSigExternalAad(th: Buffer, credX: Buffer, ead?: EdhocEAD[]): Buffer {
-        const parts = [cbor.encode(th), cbor.encode(credX)];
+    private buildSigExternalAad(th: Buffer, credXCbor: Buffer, ead?: EdhocEAD[]): Buffer {
+        const parts = [cbor.encode(th), credXCbor];
         if (ead?.length) parts.push(encodeEadItems(ead));
         return Buffer.concat(parts);
     }
@@ -808,23 +786,11 @@ export class EDHOC {
     // ── private helpers: AEAD ──────────────────────────────────────────
 
     private async aeadEncrypt(key: Buffer, iv: Buffer, aad: Buffer, pt: Buffer): Promise<Buffer> {
-        const keyId = await this.crypto.importKey(this, EdhocKeyType.Encrypt, key);
-        try {
-            return Buffer.from(await this.crypto.encrypt(
-                this, keyId, iv, aad, pt, pt.length + this._suiteParams.aeadTagLength));
-        } finally {
-            await this.crypto.destroyKey(this, keyId);
-        }
+        return Buffer.from(await this.crypto.encrypt(this, key, iv, aad, pt));
     }
 
     private async aeadDecrypt(key: Buffer, iv: Buffer, aad: Buffer, ct: Buffer): Promise<Buffer> {
-        const keyId = await this.crypto.importKey(this, EdhocKeyType.Decrypt, key);
-        try {
-            return Buffer.from(await this.crypto.decrypt(
-                this, keyId, iv, aad, ct, ct.length - this._suiteParams.aeadTagLength));
-        } finally {
-            await this.crypto.destroyKey(this, keyId);
-        }
+        return Buffer.from(await this.crypto.decrypt(this, key, iv, aad, ct));
     }
 
     // ── private helpers: misc ──────────────────────────────────────────

@@ -6,12 +6,12 @@ export class X509CertificateCredentialManager implements EdhocCredentialManager 
     private certificates: X509Certificate[] = [];
     private peerCertificates: X509Certificate[] = [];
     private trustedCAs: X509Certificate[] = [];
-    private cryptoKeyID: Buffer;
+    private privateKey: Buffer;
 
     fetchFormat: EdhocCredentialsFormat = EdhocCredentialsFormat.x5chain;
 
-    constructor(credentials: X509Certificate[] | Buffer[], cryptoKeyID: Buffer) {
-        this.cryptoKeyID = cryptoKeyID;
+    constructor(credentials: X509Certificate[] | Buffer[], privateKey: Buffer) {
+        this.privateKey = privateKey;
         this.certificates = this.convertAndValidateCredentials(credentials);
     }
 
@@ -45,7 +45,7 @@ export class X509CertificateCredentialManager implements EdhocCredentialManager 
             case EdhocCredentialsFormat.x5chain: {
                 const chain: EdhocCredentialsCertificateChain = {
                     format: EdhocCredentialsFormat.x5chain,
-                    privateKeyID: this.cryptoKeyID,
+                    privateKey: this.privateKey,
                     x5chain: { 
                         certificates: this.certificates.map(cert => cert.raw)
                     }
@@ -58,7 +58,7 @@ export class X509CertificateCredentialManager implements EdhocCredentialManager 
                 }
                 const hash: EdhocCredentialsCertificateHash = {
                     format: EdhocCredentialsFormat.x5t,
-                    privateKeyID: this.cryptoKeyID,
+                    privateKey: this.privateKey,
                     x5t: {
                         certificate: this.certificates[0].raw,
                         hash: Buffer.from(this.certificates[0].fingerprint256.replace(/:/g, ''), 'hex').subarray(0, 8),
