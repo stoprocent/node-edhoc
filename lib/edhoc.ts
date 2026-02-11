@@ -422,7 +422,6 @@ export class EDHOC {
         const peerCred = await this.credMgr.verify(this, peerCredPartial);
         this._peerCredentials = peerCred;
         const credR = getCredBytes(peerCred);
-        const idCredR = encodeIdCred(peerCred);
         const idCredRMap = encodeIdCredMap(peerCred);
         const credRCbor = encodeCredItem(peerCred, credR);
 
@@ -551,7 +550,6 @@ export class EDHOC {
         const peerCred = await this.credMgr.verify(this, peerCredPartial);
         this._peerCredentials = peerCred;
         const credI = getCredBytes(peerCred);
-        const idCredI = encodeIdCred(peerCred);
         const idCredIMap = encodeIdCredMap(peerCred);
         const credICbor = encodeCredItem(peerCred, credI);
 
