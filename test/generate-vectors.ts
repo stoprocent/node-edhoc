@@ -9,8 +9,18 @@
  * Signature_or_MAC_2 are deterministic in both.
  */
 
-import { EDHOC, X509CertificateCredentialManager, DefaultEdhocCryptoManager, EdhocMethod, EdhocSuite, PublicPrivateTuple } from '../dist/index';
+import cbor from 'cbor';
+import {
+    EDHOC,
+    X509CertificateCredentialManager,
+    CCSCredentialManager,
+    DefaultEdhocCryptoManager,
+    EdhocMethod,
+    EdhocSuite,
+    PublicPrivateTuple,
+} from '../dist/index';
 import { p256 } from '@noble/curves/p256';
+import { p384 } from '@noble/curves/p384';
 
 // Shared test data (same certificates/keys as BasicHandshakeTests)
 const trustedCA = Buffer.from('308201323081DAA003020102021478408C6EC18A1D452DAE70C726CB0192A6116DBB300A06082A8648CE3D040302301A3118301606035504030C0F5468697320697320434120526F6F74301E170D3234313031393138333635335A170D3235313031393138333635335A301A3118301606035504030C0F5468697320697320434120526F6F743059301306072A8648CE3D020106082A8648CE3D03010703420004B9348A8A267EF52CFDC30109A29008A2D99F6B8F78BA9EAF5D51578C06134E78CB90A073EDC2488A14174B4E2997C840C5DE7F8E35EB54A0DB6977E894D1B2CB300A06082A8648CE3D040302034700304402203B92BFEC770B0FA4E17F8F02A13CD945D914ED8123AC85C37C8C7BAA2BE3E0F102202CB2DC2EC295B5F4B7BB631ED751179C145D6B6E081559AEA38CE215369E9C31', 'hex');
@@ -35,8 +45,9 @@ class VectorsCryptoManager extends DefaultEdhocCryptoManager {
 
     generateKeyPair(edhoc: EDHOC): PublicPrivateTuple {
         const privateKey = this.ephemeralKey;
-        // Suite 2 uses P-256
-        const publicKey = Buffer.from(p256.getPublicKey(privateKey)).subarray(1);
+        const publicKey = edhoc.selectedSuite === EdhocSuite.Suite24
+            ? Buffer.from(p384.getPublicKey(privateKey)).subarray(1)
+            : Buffer.from(p256.getPublicKey(privateKey)).subarray(1);
         return { publicKey, privateKey };
     }
 }
@@ -109,7 +120,83 @@ async function generateVectors(method: EdhocMethod, methodName: string) {
     console.log(`  masterSalt:   ${iOSCOREUpdated.masterSalt.toString('hex')}`);
 }
 
+const suite24InitiatorStaticPrivate = Buffer.from('fc91fd858a716e23dd986c099dad2ca3e38b88b4f8ff5f55a5c832f4f0c5f53d11ac1306d529a0ae7572ee08f825f9a0', 'hex');
+const suite24InitiatorStaticPublic = Buffer.from('b07bfe1fedbfaaee13bfce023b20a6ca8aede6aed276a712a227b3485685f4c8cecb645392a388a006eeb26b6dd36ebd', 'hex');
+const suite24ResponderStaticPrivate = Buffer.from('c999da242b76987acf88528682e5f357c0dfab64858a93628b3d5c25a5edc137c4191f27a121410311f1d921cf553d45', 'hex');
+const suite24ResponderStaticPublic = Buffer.from('50ea21a9df73bd6eec3822cdea696bca27dea1eb451c4a14f58cb52c0c8ad2047d6efaa5d33a6340b7f420a0fbeae713', 'hex');
+const suite24InitiatorEphemeral = Buffer.from('ff7bcadbf9909f1ca51ace28a9963bc203b0ccb65fc220814c31640476bc424858e6d8977417f07777208b09e37bde1d', 'hex');
+const suite24ResponderEphemeral = Buffer.from('ac398da13bd18641523961b516e9ef98f7fcaa73e7ad35dcb539901254385d600df8be8a7d31ec8628ece9b78346ae5e', 'hex');
+const suite24InitiatorKid = -12;
+const suite24ResponderKid = -19;
+const suite24InitiatorCCS = cbor.encode(new Map<number, unknown>([[1, 'suite24-i'], [2, suite24InitiatorKid]]));
+const suite24ResponderCCS = cbor.encode(new Map<number, unknown>([[1, 'suite24-r'], [2, suite24ResponderKid]]));
+
+function makeSuite24Session(role: 'initiator' | 'responder', log: [string, string][]) {
+    const isInitiator = role === 'initiator';
+    const credMgr = new CCSCredentialManager();
+    if (isInitiator) {
+        credMgr.addOwnCredential(
+            suite24InitiatorKid,
+            suite24InitiatorCCS,
+            suite24InitiatorStaticPublic,
+            suite24InitiatorStaticPrivate,
+        );
+        credMgr.addPeerCredential(
+            suite24ResponderKid,
+            suite24ResponderCCS,
+            suite24ResponderStaticPublic,
+        );
+    } else {
+        credMgr.addOwnCredential(
+            suite24ResponderKid,
+            suite24ResponderCCS,
+            suite24ResponderStaticPublic,
+            suite24ResponderStaticPrivate,
+        );
+        credMgr.addPeerCredential(
+            suite24InitiatorKid,
+            suite24InitiatorCCS,
+            suite24InitiatorStaticPublic,
+        );
+    }
+    const crypto = new VectorsCryptoManager(isInitiator ? suite24InitiatorEphemeral : suite24ResponderEphemeral);
+    const s = new EDHOC(isInitiator ? 10 : 20, [EdhocMethod.Method3], [EdhocSuite.Suite24], credMgr, crypto);
+    s.logger = (name: string, data: Buffer) => log.push([name, data.toString('hex')]);
+    return s;
+}
+
+async function generateSuite24Method3Vectors() {
+    const iLog: [string, string][] = [];
+    const rLog: [string, string][] = [];
+    const initiator = makeSuite24Session('initiator', iLog);
+    const responder = makeSuite24Session('responder', rLog);
+
+    const msg1 = await initiator.composeMessage1();
+    await responder.processMessage1(msg1);
+    const msg2 = await responder.composeMessage2();
+    await initiator.processMessage2(msg2);
+    const msg3 = await initiator.composeMessage3();
+    await responder.processMessage3(msg3);
+
+    const iOSCORE = await initiator.exportOSCORE();
+    const keyUpdateContext = Buffer.from('a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6', 'hex');
+    await initiator.keyUpdate(keyUpdateContext);
+    await responder.keyUpdate(keyUpdateContext);
+    const iUpdated = await initiator.exportOSCORE();
+
+    const val = (key: string) => iLog.find(l => l[0] === key)?.[1] ?? rLog.find(l => l[0] === key)?.[1];
+    console.log(`\n=== Method 3 (StaticDH/StaticDH) / Suite 24 (P-384, CCS/kid) ===\n`);
+    for (const key of ['TH_1', 'TH_2', 'PRK_2e', 'PRK_3e2m', 'MAC_2', 'TH_3', 'PRK_4e3m', 'MAC_3', 'TH_4']) {
+        console.log(`${key}: ${val(key)}`);
+    }
+    console.log(`masterSecret: ${iOSCORE.masterSecret.toString('hex')}`);
+    console.log(`masterSalt: ${iOSCORE.masterSalt.toString('hex')}`);
+    console.log(`masterSecretAfterUpdate: ${iUpdated.masterSecret.toString('hex')}`);
+    console.log(`masterSaltAfterUpdate: ${iUpdated.masterSalt.toString('hex')}`);
+}
+
 (async () => {
     await generateVectors(EdhocMethod.Method3, 'Method 3 (StaticDH/StaticDH)');
     await generateVectors(EdhocMethod.Method2, 'Method 2 (StaticDH/Sig)');
+    await generateSuite24Method3Vectors();
 })();

@@ -10,6 +10,9 @@ import {
     EdhocSuite,
 } from './edhoc';
 
+const CID_MIN = -24;
+const CID_MAX = 23;
+
 /** Encode a CBOR sequence (concatenated CBOR items) */
 export function encodeCborSequence(...items: unknown[]): Buffer {
     return Buffer.concat(items.map(item => cbor.encode(item)));
@@ -37,22 +40,41 @@ export function encodeSuites(suites: EdhocSuite[], selected: EdhocSuite): number
 
 /** Convert a connection ID to its raw byte representation (for OSCORE IDs).
  *  RFC 9528 §3.3.2: the OSCORE identifier is a 1-byte bstr whose byte value
- *  is the CBOR encoding of the integer n ∈ [-24, 23]. */
+ *  is the CBOR encoding of the integer n ∈ [-24, 23].
+ *  For integers outside that interval, use full CBOR integer encoding bytes. */
 export function connectionIdToBytes(cid: EdhocConnectionID): Buffer {
     if (Buffer.isBuffer(cid)) return cid;
+    if (!Number.isInteger(cid)) throw new Error('Connection ID integer must be finite');
     // CBOR encoding of integer n:
     //   n >= 0  → major type 0, additional info = n  → byte = n
     //   n <  0  → major type 1, additional info = -(n+1) → byte = 0x20 | (-(n+1))
-    if (cid >= 0) return Buffer.from([cid]);
-    return Buffer.from([0x20 | (-(cid + 1))]);
+    if (cid >= CID_MIN && cid <= CID_MAX) {
+        if (cid >= 0) return Buffer.from([cid]);
+        return Buffer.from([0x20 | (-(cid + 1))]);
+    }
+    return Buffer.from(cbor.encode(cid));
 }
 
 /** Decode a CBOR-decoded value back to an EdhocConnectionID */
 export function connectionIdFromCbor(value: unknown): EdhocConnectionID {
-    if (typeof value === 'number') return value;
-    if (Buffer.isBuffer(value)) return value;
-    if (value instanceof Uint8Array) return Buffer.from(value);
+    if (typeof value === 'number') {
+        if (!Number.isInteger(value)) throw new Error('Connection ID integer must be finite');
+        return canonicalizeConnectionId(value);
+    }
+    if (Buffer.isBuffer(value)) return normalizeConnectionIdBytes(value);
+    if (value instanceof Uint8Array) return normalizeConnectionIdBytes(Buffer.from(value));
     throw new Error(`Invalid connection ID: ${typeof value}`);
+}
+
+/** Canonicalize C_X representation for EDHOC messages.
+ *  RFC 9528 requires one-byte CBOR integer form whenever possible. */
+export function canonicalizeConnectionId(cid: EdhocConnectionID): EdhocConnectionID {
+    if (typeof cid === 'number') {
+        if (!Number.isInteger(cid)) throw new Error('Connection ID integer must be finite');
+        if (cid >= CID_MIN && cid <= CID_MAX) return cid;
+        return Buffer.from(cbor.encode(cid));
+    }
+    return normalizeConnectionIdBytes(cid);
 }
 
 /** Encode ID_CRED_x for PLAINTEXT / context embedding (already CBOR) */
@@ -129,13 +151,31 @@ export function decodeIdCred(value: unknown): EdhocCredentials {
             } as EdhocCredentialsCertificateHash;
         }
         if (value.has(EdhocCredentialsFormat.kid)) {
+            const rawKid = value.get(EdhocCredentialsFormat.kid) as unknown;
+            const kid = Buffer.isBuffer(rawKid) || rawKid instanceof Uint8Array
+                ? cbor.decodeFirstSync(Buffer.from(rawKid as Uint8Array)) as number | Buffer
+                : rawKid as number | Buffer;
             return {
                 format: EdhocCredentialsFormat.kid,
-                kid: { kid: value.get(EdhocCredentialsFormat.kid) as number | Buffer },
+                kid: { kid },
             } as EdhocCredentialsKID;
         }
     }
     throw new Error(`Cannot decode ID_CRED_x`);
+}
+
+function normalizeConnectionIdBytes(value: Buffer): EdhocConnectionID {
+    if (value.length === 1) {
+        const decoded = decodeSingleByteCborInt(value[0]);
+        if (decoded !== null) return decoded;
+    }
+    return Buffer.from(value);
+}
+
+function decodeSingleByteCborInt(byte: number): number | null {
+    if (byte <= 0x17) return byte;
+    if (byte >= 0x20 && byte <= 0x37) return -1 - (byte & 0x1f);
+    return null;
 }
 
 /** Get the raw credential bytes (CRED_x) from credentials */

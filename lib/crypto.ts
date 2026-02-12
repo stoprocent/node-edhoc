@@ -1,10 +1,15 @@
 import { EDHOC, EdhocCryptoManager, EdhocSuite, PublicPrivateTuple } from './edhoc';
 import { ed25519, x25519 } from '@noble/curves/ed25519';
+import { ed448, x448 } from '@noble/curves/ed448';
 import { p256 } from '@noble/curves/p256';
+import { p384 } from '@noble/curves/p384';
 import { sha256 } from '@noble/hashes/sha256';
+import { sha384 } from '@noble/hashes/sha512';
+import { shake256 } from '@noble/hashes/sha3';
 import { extract, expand } from '@noble/hashes/hkdf';
 import { RecoveredSignatureType } from '@noble/curves/abstract/weierstrass';
 import { createCipheriv, createDecipheriv, CipherCCM, CipherGCM, DecipherCCM, DecipherGCM, CipherCCMOptions, CipherGCMOptions } from 'crypto';
+import { CHash } from '@noble/hashes/utils';
 
 type KeyUtils = {
     utils: { randomPrivateKey: () => Uint8Array };
@@ -19,7 +24,9 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
     generateKeyPair(edhoc: EDHOC): PublicPrivateTuple {
         const curveKE: KeyUtils = this.getCurveForKeyAgreement(edhoc.selectedSuite);
         const privateKey = Buffer.from(curveKE.utils.randomPrivateKey());
-        const publicKey = Buffer.from(curveKE.getPublicKey(privateKey)).subarray(curveKE === p256 ? 1 : 0);
+        const publicKey = Buffer.from(curveKE.getPublicKey(privateKey)).subarray(
+            (curveKE === p256 || curveKE === p384) ? 1 : 0,
+        );
         return { publicKey, privateKey };
     }
 
@@ -27,7 +34,7 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
         const curveKE: KeyUtils = this.getCurveForKeyAgreement(edhoc.selectedSuite);
         const publicKeyBuffer = this.formatPublicKey(curveKE, peerPublicKey);
         const sharedSecret = Buffer.from(curveKE!.getSharedSecret!(privateKey, new Uint8Array(publicKeyBuffer)));
-        return sharedSecret.subarray(curveKE === p256 ? 1 : 0);
+        return sharedSecret.subarray((curveKE === p256 || curveKE === p384) ? 1 : 0);
     }
 
     sign(edhoc: EDHOC, privateKey: Buffer, input: Buffer) {
@@ -59,11 +66,13 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
     }
 
     hkdfExtract(_edhoc: EDHOC, ikm: Buffer, salt: Buffer) {
-        return Buffer.from(extract(sha256, new Uint8Array(ikm), new Uint8Array(salt)));
+        const hash = this.getHashFunction(_edhoc.selectedSuite);
+        return Buffer.from(extract(hash, new Uint8Array(ikm), new Uint8Array(salt)));
     }
 
     hkdfExpand(_edhoc: EDHOC, prk: Buffer, info: Buffer, length: number) {
-        return Buffer.from(expand(sha256, new Uint8Array(prk), new Uint8Array(info), length));
+        const hash = this.getHashFunction(_edhoc.selectedSuite);
+        return Buffer.from(expand(hash, new Uint8Array(prk), new Uint8Array(info), length));
     }
 
     async encrypt(edhoc: EDHOC, key: Buffer, nonce: Buffer, aad: Buffer, plaintext: Buffer): Promise<Buffer> {
@@ -101,14 +110,20 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
     }
 
     async hash(_edhoc: EDHOC, input: Buffer) {
-        return Buffer.from(sha256(input));
+        return Buffer.from(this.getHashFunction(_edhoc.selectedSuite)(input));
     }
 
     private formatToBeSigned(curve: KeyUtils, payload: Buffer): Buffer {
         if (curve === p256) {
             return Buffer.from(sha256(payload));
         }
+        else if (curve === p384) {
+            return Buffer.from(sha384(payload));
+        }
         else if (curve === ed25519) {
+            return payload;
+        }
+        else if (curve === ed448) {
             return payload;
         }
         else {
@@ -117,11 +132,12 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
     }
 
     private formatPublicKey(curve: KeyUtils, key: Buffer): Buffer {
-        if (curve === p256) {
-            const prefix = key.byteLength === 64 ? 0x04 : (key[key.length - 1] & 1) ? 0x03 : 0x02;
+        if (curve === p256 || curve === p384) {
+            const fullLength = curve === p256 ? 64 : 96;
+            const prefix = key.byteLength === fullLength ? 0x04 : (key[key.length - 1] & 1) ? 0x03 : 0x02;
             return Buffer.concat([Buffer.from([prefix]), key]);
         }
-        else if (curve === ed25519 || curve === x25519) {
+        else if (curve === ed25519 || curve === x25519 || curve === ed448 || curve === x448) {
             return key;
         }
         else {
@@ -132,6 +148,12 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
     protected getCurveForSignature(suite: EdhocSuite): KeyUtils {
         if ([EdhocSuite.Suite2, EdhocSuite.Suite3, EdhocSuite.Suite5, EdhocSuite.Suite6].includes(suite)) {
             return p256;
+        }
+        else if ([EdhocSuite.Suite24].includes(suite)) {
+            return p384;
+        }
+        else if ([EdhocSuite.Suite25].includes(suite)) {
+            return ed448;
         }
         else if ([EdhocSuite.Suite0, EdhocSuite.Suite1, EdhocSuite.Suite4].includes(suite)) {
             return ed25519;
@@ -144,6 +166,12 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
     protected getCurveForKeyAgreement(suite: EdhocSuite): KeyUtils {
         if ([EdhocSuite.Suite2, EdhocSuite.Suite3, EdhocSuite.Suite5].includes(suite)) {
             return p256;
+        }
+        else if ([EdhocSuite.Suite24].includes(suite)) {
+            return p384;
+        }
+        else if ([EdhocSuite.Suite25].includes(suite)) {
+            return x448;
         }
         else if ([EdhocSuite.Suite0, EdhocSuite.Suite1, EdhocSuite.Suite4, EdhocSuite.Suite6].includes(suite)) {
             return x25519;
@@ -174,4 +202,32 @@ export class DefaultEdhocCryptoManager implements EdhocCryptoManager {
             throw new Error(`Unsupported EDHOC suite ${suite} for encryption.`);
         }
     }
+
+    private getHashFunction(suite: EdhocSuite): CHash {
+        switch (suite) {
+            case EdhocSuite.Suite24:
+                return sha384;
+            case EdhocSuite.Suite25:
+                return this.shake256_512;
+            case EdhocSuite.Suite0:
+            case EdhocSuite.Suite1:
+            case EdhocSuite.Suite2:
+            case EdhocSuite.Suite3:
+            case EdhocSuite.Suite4:
+            case EdhocSuite.Suite5:
+            case EdhocSuite.Suite6:
+                return sha256;
+            default:
+                throw new Error(`Unsupported EDHOC suite ${suite} for hashing.`);
+        }
+    }
+
+    private readonly shake256_512: CHash = Object.assign(
+        (msg: Uint8Array | string) => shake256(msg, { dkLen: 64 }),
+        {
+            outputLen: 64,
+            blockLen: shake256.blockLen,
+            create: () => shake256.create({ dkLen: 64 }),
+        },
+    ) as CHash;
 }

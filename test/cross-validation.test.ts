@@ -9,8 +9,18 @@
  * Values up to and including MAC_2 are deterministic; after that they diverge.
  */
 
-import { EDHOC, X509CertificateCredentialManager, DefaultEdhocCryptoManager, EdhocMethod, EdhocSuite, PublicPrivateTuple } from '../dist/index';
+import cbor from 'cbor';
+import {
+    EDHOC,
+    X509CertificateCredentialManager,
+    CCSCredentialManager,
+    DefaultEdhocCryptoManager,
+    EdhocMethod,
+    EdhocSuite,
+    PublicPrivateTuple,
+} from '../dist/index';
 import { p256 } from '@noble/curves/p256';
+import { p384 } from '@noble/curves/p384';
 
 // Shared test data (same certificates/keys as BasicHandshakeTests and SwiftEDHOC CrossValidationTests)
 const trustedCA = Buffer.from('308201323081DAA003020102021478408C6EC18A1D452DAE70C726CB0192A6116DBB300A06082A8648CE3D040302301A3118301606035504030C0F5468697320697320434120526F6F74301E170D3234313031393138333635335A170D3235313031393138333635335A301A3118301606035504030C0F5468697320697320434120526F6F743059301306072A8648CE3D020106082A8648CE3D03010703420004B9348A8A267EF52CFDC30109A29008A2D99F6B8F78BA9EAF5D51578C06134E78CB90A073EDC2488A14174B4E2997C840C5DE7F8E35EB54A0DB6977E894D1B2CB300A06082A8648CE3D040302034700304402203B92BFEC770B0FA4E17F8F02A13CD945D914ED8123AC85C37C8C7BAA2BE3E0F102202CB2DC2EC295B5F4B7BB631ED751179C145D6B6E081559AEA38CE215369E9C31', 'hex');
@@ -37,8 +47,9 @@ class VectorsCryptoManager extends DefaultEdhocCryptoManager {
 
     generateKeyPair(edhoc: EDHOC): PublicPrivateTuple {
         const privateKey = this.ephemeralKey;
-        // Suite 2 uses P-256
-        const publicKey = Buffer.from(p256.getPublicKey(privateKey)).subarray(1);
+        const publicKey = edhoc.selectedSuite === EdhocSuite.Suite24
+            ? Buffer.from(p384.getPublicKey(privateKey)).subarray(1)
+            : Buffer.from(p256.getPublicKey(privateKey)).subarray(1);
         return { publicKey, privateKey };
     }
 }
@@ -70,6 +81,34 @@ const swiftM2 = {
     MAC_2: '7b815c4fe241ac2492d95d548150e11fc874006398e2c901a91d62c6dd726ec8',
 };
 
+// Cross-validation vectors for Method 3 (StaticDH/StaticDH, Suite 24) — fully deterministic
+const swiftM3Suite24 = {
+    TH_1: 'acc5df1fe2a637623d8c6c5dfade86ee9f7b9bddf6e4d48ab8ed6bb27302d8ae990eb338e630d3d28b405b4351f82882',
+    TH_2: '2814b49151bffbcc8a0f04e7e5f01f5aced533dbf59ab55a36c74f2e781dbce4155de360873eafe08bac6b92e817d838',
+    PRK_2e: '4a17c50144980cac36fed02e6b2c07babf006c4915c8af96a6b0c02f88f7cb94e131ba96e6065c32551ac97b0a89a0e3',
+    PRK_3e2m: 'c38c282075a7c49cc2ffd6fe726f7e0fb0705ccb9879ce4f395696f2810bbd26dd7045e25f790838b16959ef65fab757',
+    MAC_2: '879c256594b4db11ca5f94188f802ab9',
+    TH_3: '72df9ae885935ac41c1f68d4e89934cd8d8fa037aee513aee0cc04faba95792f92d7be00dc9790c30a143641c67d9009',
+    PRK_4e3m: '12bf142a062859298f6cb005205aace4136986c1337292e81a330d07b4f0a8a4f8b3cda2fa5d8c633d2ae8faa5fdc986',
+    MAC_3: '5e919d51f046ea294ca3a048075d1b85',
+    TH_4: 'd3c8df19bdbedeee8bfa8210043a29e086e0c09aa372aa7995585be112aac77aa624d02903752a743b3b1c13b1e01822',
+    masterSecret: 'b599e3b23e8d47d0bee0b79e60640ba8',
+    masterSalt: '06328515e03fde29',
+    masterSecretAfterUpdate: 'd4d9afa1ae714b5d8a343164c4b75608',
+    masterSaltAfterUpdate: 'abfc87f0e5643117',
+};
+
+const suite24InitiatorStaticPrivate = Buffer.from('fc91fd858a716e23dd986c099dad2ca3e38b88b4f8ff5f55a5c832f4f0c5f53d11ac1306d529a0ae7572ee08f825f9a0', 'hex');
+const suite24InitiatorStaticPublic = Buffer.from('b07bfe1fedbfaaee13bfce023b20a6ca8aede6aed276a712a227b3485685f4c8cecb645392a388a006eeb26b6dd36ebd', 'hex');
+const suite24ResponderStaticPrivate = Buffer.from('c999da242b76987acf88528682e5f357c0dfab64858a93628b3d5c25a5edc137c4191f27a121410311f1d921cf553d45', 'hex');
+const suite24ResponderStaticPublic = Buffer.from('50ea21a9df73bd6eec3822cdea696bca27dea1eb451c4a14f58cb52c0c8ad2047d6efaa5d33a6340b7f420a0fbeae713', 'hex');
+const suite24InitiatorEphemeral = Buffer.from('ff7bcadbf9909f1ca51ace28a9963bc203b0ccb65fc220814c31640476bc424858e6d8977417f07777208b09e37bde1d', 'hex');
+const suite24ResponderEphemeral = Buffer.from('ac398da13bd18641523961b516e9ef98f7fcaa73e7ad35dcb539901254385d600df8be8a7d31ec8628ece9b78346ae5e', 'hex');
+const suite24InitiatorKid = -12;
+const suite24ResponderKid = -19;
+const suite24InitiatorCCS = cbor.encode(new Map<number, unknown>([[1, 'suite24-i'], [2, suite24InitiatorKid]]));
+const suite24ResponderCCS = cbor.encode(new Map<number, unknown>([[1, 'suite24-r'], [2, suite24ResponderKid]]));
+
 function makeSession(method: EdhocMethod, role: 'initiator' | 'responder', log: [string, string][]) {
     const isInitiator = role === 'initiator';
     const cert = isInitiator ? initiatorCert : responderCert;
@@ -89,6 +128,40 @@ function makeSession(method: EdhocMethod, role: 'initiator' | 'responder', log: 
 
 function getVal(log: [string, string][], key: string): string | undefined {
     return log.find(l => l[0] === key)?.[1];
+}
+
+function makeSuite24Session(role: 'initiator' | 'responder', log: [string, string][]) {
+    const isInitiator = role === 'initiator';
+    const credMgr = new CCSCredentialManager();
+    if (isInitiator) {
+        credMgr.addOwnCredential(
+            suite24InitiatorKid,
+            suite24InitiatorCCS,
+            suite24InitiatorStaticPublic,
+            suite24InitiatorStaticPrivate,
+        );
+        credMgr.addPeerCredential(
+            suite24ResponderKid,
+            suite24ResponderCCS,
+            suite24ResponderStaticPublic,
+        );
+    } else {
+        credMgr.addOwnCredential(
+            suite24ResponderKid,
+            suite24ResponderCCS,
+            suite24ResponderStaticPublic,
+            suite24ResponderStaticPrivate,
+        );
+        credMgr.addPeerCredential(
+            suite24InitiatorKid,
+            suite24InitiatorCCS,
+            suite24InitiatorStaticPublic,
+        );
+    }
+    const crypto = new VectorsCryptoManager(isInitiator ? suite24InitiatorEphemeral : suite24ResponderEphemeral);
+    const session = new EDHOC(isInitiator ? 10 : 20, [EdhocMethod.Method3], [EdhocSuite.Suite24], credMgr, crypto);
+    session.logger = (name: string, data: Buffer) => log.push([name, data.toString('hex')]);
+    return session;
 }
 
 describe('Cross-Validation: Swift <-> TypeScript', () => {
@@ -241,6 +314,86 @@ describe('Cross-Validation: Swift <-> TypeScript', () => {
             const iUpdated = await initiator.exportOSCORE();
             const rUpdated = await responder.exportOSCORE();
 
+            expect(iUpdated.masterSecret).toEqual(rUpdated.masterSecret);
+            expect(iUpdated.masterSalt).toEqual(rUpdated.masterSalt);
+        });
+    });
+
+    describe('Method 3 (StaticDH/StaticDH) / Suite 24 — fully deterministic', () => {
+        let iLog: [string, string][];
+        let rLog: [string, string][];
+        let initiator: EDHOC;
+        let responder: EDHOC;
+
+        beforeAll(async () => {
+            iLog = [];
+            rLog = [];
+            initiator = makeSuite24Session('initiator', iLog);
+            responder = makeSuite24Session('responder', rLog);
+
+            const msg1 = await initiator.composeMessage1();
+            await responder.processMessage1(msg1);
+            const msg2 = await responder.composeMessage2();
+            await initiator.processMessage2(msg2);
+            const msg3 = await initiator.composeMessage3();
+            await responder.processMessage3(msg3);
+        });
+
+        test('TH_1 matches Swift vector', () => {
+            expect(getVal(iLog, 'TH_1')).toBe(swiftM3Suite24.TH_1);
+        });
+
+        test('TH_2 matches Swift vector', () => {
+            expect(getVal(iLog, 'TH_2')).toBe(swiftM3Suite24.TH_2);
+        });
+
+        test('PRK_2e matches Swift vector', () => {
+            expect(getVal(iLog, 'PRK_2e')).toBe(swiftM3Suite24.PRK_2e);
+        });
+
+        test('PRK_3e2m matches Swift vector', () => {
+            expect(getVal(iLog, 'PRK_3e2m') || getVal(rLog, 'PRK_3e2m')).toBe(swiftM3Suite24.PRK_3e2m);
+        });
+
+        test('MAC_2 matches Swift vector', () => {
+            expect(getVal(rLog, 'MAC_2')).toBe(swiftM3Suite24.MAC_2);
+        });
+
+        test('TH_3 matches Swift vector', () => {
+            expect(getVal(iLog, 'TH_3') || getVal(rLog, 'TH_3')).toBe(swiftM3Suite24.TH_3);
+        });
+
+        test('PRK_4e3m matches Swift vector', () => {
+            expect(getVal(iLog, 'PRK_4e3m')).toBe(swiftM3Suite24.PRK_4e3m);
+        });
+
+        test('MAC_3 matches Swift vector', () => {
+            expect(getVal(iLog, 'MAC_3')).toBe(swiftM3Suite24.MAC_3);
+        });
+
+        test('TH_4 matches Swift vector', () => {
+            expect(getVal(iLog, 'TH_4')).toBe(swiftM3Suite24.TH_4);
+        });
+
+        test('OSCORE master secret matches Swift vector', async () => {
+            const iOSCORE = await initiator.exportOSCORE();
+            expect(iOSCORE.masterSecret.toString('hex')).toBe(swiftM3Suite24.masterSecret);
+        });
+
+        test('OSCORE master salt matches Swift vector', async () => {
+            const iOSCORE = await initiator.exportOSCORE();
+            expect(iOSCORE.masterSalt.toString('hex')).toBe(swiftM3Suite24.masterSalt);
+        });
+
+        test('OSCORE after keyUpdate matches Swift vector', async () => {
+            await initiator.keyUpdate(keyUpdateContext);
+            await responder.keyUpdate(keyUpdateContext);
+
+            const iUpdated = await initiator.exportOSCORE();
+            const rUpdated = await responder.exportOSCORE();
+
+            expect(iUpdated.masterSecret.toString('hex')).toBe(swiftM3Suite24.masterSecretAfterUpdate);
+            expect(iUpdated.masterSalt.toString('hex')).toBe(swiftM3Suite24.masterSaltAfterUpdate);
             expect(iUpdated.masterSecret).toEqual(rUpdated.masterSecret);
             expect(iUpdated.masterSalt).toEqual(rUpdated.masterSalt);
         });

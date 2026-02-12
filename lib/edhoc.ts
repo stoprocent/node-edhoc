@@ -6,6 +6,7 @@ import {
     encodeSuites,
     connectionIdToBytes,
     connectionIdFromCbor,
+    canonicalizeConnectionId,
     encodeIdCred,
     encodeIdCredMap,
     encodeCredItem,
@@ -200,6 +201,7 @@ export class EDHOC {
         crypto: EdhocCryptoManager,
     ) {
         this.connectionID = connectionID;
+        this.connectionID = canonicalizeConnectionId(this.connectionID);
         this.methods = methods;
         this.cipherSuites = suites;
         this.credMgr = credentials;
@@ -245,7 +247,7 @@ export class EDHOC {
             this._method,
             encodeSuites(this.cipherSuites, this._suite),
             this._ephPub!,
-            this.connectionID,
+            canonicalizeConnectionId(this.connectionID),
         ];
         if (ead?.length) for (const t of ead) {
             parts.push(t.label);
@@ -346,7 +348,8 @@ export class EDHOC {
         this.log('PRK_3e2m', this._prk3e2m);
 
         // MAC_2 with context_2 = << C_R, ID_CRED_R, TH_2, CRED_R, ?EAD_2 >>
-        const context2 = this.buildContext(cbor.encode(this.connectionID), idCredRMap, this._th, credRCbor, ead);
+        const cR = canonicalizeConnectionId(this.connectionID);
+        const context2 = this.buildContext(cbor.encode(cR), idCredRMap, this._th, credRCbor, ead);
         const mac2Len = this.macLength('responder');
         const mac2 = await this.kdf(this._prk3e2m, 2, context2, mac2Len);
         this.log('MAC_2', mac2);
@@ -358,7 +361,7 @@ export class EDHOC {
         // PLAINTEXT_2 = ( C_R, ID_CRED_R, Signature_or_MAC_2, ?EAD_2 )
         // Uses compact idCredR (bare kid) for the wire format
         const pt2 = Buffer.concat([
-            cbor.encode(this.connectionID),
+            cbor.encode(cR),
             encodePlaintext(idCredR, sigOrMac2, ead),
         ]);
         this.log('PLAINTEXT_2', pt2);
